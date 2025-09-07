@@ -72,6 +72,12 @@ check_dependencies() {
         exit 1
     fi
     
+    # Check for SDL2_image
+    if ! pkg-config --exists SDL2_image; then
+        print_error "SDL2_image not found. Install with: sudo apt-get install libsdl2-image-dev"
+        exit 1
+    fi
+    
     # Check for SDL2_mixer (optional, for audio)
     if ! pkg-config --exists SDL2_mixer; then
         print_warning "SDL2_mixer not found. Audio will be disabled. Install with: sudo apt-get install libsdl2-mixer-dev"
@@ -113,8 +119,8 @@ build_project() {
     fi
     
     # SDL2 flags
-    SDL_CFLAGS=$(pkg-config --cflags sdl2 SDL2_ttf)
-    SDL_LIBS=$(pkg-config --libs sdl2 SDL2_ttf)
+    SDL_CFLAGS=$(pkg-config --cflags sdl2 SDL2_ttf SDL2_image)
+    SDL_LIBS=$(pkg-config --libs sdl2 SDL2_ttf SDL2_image)
     
     # Add SDL2_mixer if available
     if pkg-config --exists SDL2_mixer; then
@@ -135,6 +141,7 @@ build_project() {
         "src/core/sdl_init.c"
         "src/core/timer.c"
         "src/core/config.c"
+        "src/window/window_manager.c"  # Add this line
         "src/layer/layer.c"
         "src/layer/layer_manager.c"
         "src/layer/dirty_rect.c"
@@ -186,6 +193,22 @@ build_project() {
 run_game() {
     if [[ -f "$BUILD_DIR/$EXECUTABLE" ]]; then
         print_status "Starting Fanorona game..."
+        
+        # Copy the icon to the build directory if it exists
+        if [[ -f "icone.png" ]]; then
+            cp "icone.png" "$BUILD_DIR/"
+            print_status "Icon copied to build directory"
+        elif [[ -f "assets/icone.png" ]]; then
+            mkdir -p "$BUILD_DIR/assets"
+            cp "assets/icone.png" "$BUILD_DIR/assets/"
+            cp "assets/icone.png" "$BUILD_DIR/"
+            print_status "Icon copied from assets to build directory"
+        else
+            print_warning "Icon file not found. Creating a simple test icon..."
+            # Create a simple 32x32 PNG icon if none exists
+            convert -size 32x32 xc:blue "$BUILD_DIR/icone.png" 2>/dev/null || print_warning "Could not create test icon (imagemagick not installed)"
+        fi
+        
         cd "$BUILD_DIR"
         ./"$EXECUTABLE"
         cd ..
