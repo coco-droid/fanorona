@@ -314,6 +314,10 @@ GameWindow *wm_get_window(WindowManager *wm, WindowType type) {
 }
 
 void wm_render_window(GameWindow *win, void (*render_callback)(SDL_Renderer *)) {
+    // 1. Crée une texture temporaire
+    // 2. Rend le contenu sur cette texture
+    // 3. Applique le masque de coins arrondis
+    // 4. Affiche le résultat final
     if (!win || !win->renderer || !render_callback) return;
     
     // Maintenant toutes les fenêtres utilisent les coins arrondis
