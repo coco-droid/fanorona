@@ -18,7 +18,9 @@ SOURCES = main.c \
           $(SRC_DIR)/window/window.c \
           $(SRC_DIR)/scene/scene.c \
           $(SRC_DIR)/scene/home_scene.c \
-          $(SRC_DIR)/utils/asset_manager.c
+          $(SRC_DIR)/utils/asset_manager.c \
+          $(SRC_DIR)/ui/native/atomic.c \
+          $(SRC_DIR)/ui/button.c
 
 # Fichiers objets
 OBJECTS = $(SOURCES:%.c=$(OBJ_DIR)/%.o)
@@ -47,6 +49,8 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/window
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/scene
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/utils
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/native
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui
 
 # Nettoyage
 clean:
