@@ -2,11 +2,16 @@
 #include "scene.h"
 #include "../ui/ui_components.h"
 #include "../utils/asset_manager.h"
+#include "../utils/log_console.h"  // 🆕 AJOUT: Include pour log_console_write
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+// Forward declaration pour éviter l'include circulaire
+typedef struct GameCore GameCore;
+extern EventManager* game_core_get_event_manager(GameCore* core);
 
 // Données pour la scène home
 typedef struct HomeSceneData {
@@ -14,21 +19,74 @@ typedef struct HomeSceneData {
     UITree* ui_tree;
     SDL_Texture* background_texture;
     SDL_Texture* logo_texture;
+    GameCore* core; // 🆕 Référence vers le core pour accéder à l'Event Manager
+    UINode* play_button; // 🆕 Référence vers le bouton Play
+    UINode* quit_button; // 🆕 Référence vers le bouton Quit
 } HomeSceneData;
 
-// Callbacks pour les boutons
-static void play_button_clicked(UINode* node, void* user_data) {
-    (void)node; // Éviter le warning unused parameter
-    (void)user_data; // Éviter le warning unused parameter
-    printf("🎮 Bouton Play cliqué ! Démarrage du jeu...\n");
-    // TODO: Changer vers la scène de jeu
+// 🆕 Callbacks corrigés avec feedback visuel
+static void play_button_clicked(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🎯 FEEDBACK VISUEL (sans logs verbeux)
+    atomic_set_background_color(atomic_element, 100, 200, 100, 255);
+    atomic_set_text_color_rgba(atomic_element, 0, 0, 0, 255);
+    
+    int current_width = atomic_get_width(atomic_element);
+    int current_height = atomic_get_height(atomic_element);
+    atomic_set_size(atomic_element, current_width - 4, current_height - 2);
+    
+    // 🔧 LOG SIMPLE
+    printf("🎮 Play button clicked with visual feedback\n");
+    
+    (void)event;
 }
 
-static void quit_button_clicked(UINode* node, void* user_data) {
-    (void)node; // Éviter le warning unused parameter
-    (void)user_data; // Éviter le warning unused parameter
-    printf("🚪 Bouton Quit cliqué ! Fermeture du jeu...\n");
-    // TODO: Fermer l'application
+static void quit_button_clicked(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🎯 FEEDBACK VISUEL (sans logs verbeux)
+    atomic_set_background_color(atomic_element, 220, 100, 100, 255);
+    atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
+    
+    int current_width = atomic_get_width(atomic_element);
+    int current_height = atomic_get_height(atomic_element);
+    atomic_set_size(atomic_element, current_width - 4, current_height - 2);
+    
+    // 🔧 LOG SIMPLE
+    printf("🚪 Quit button clicked with visual feedback\n");
+    
+    (void)event;
+}
+
+// 🆕 Callback pour hover avec feedback visuel subtil
+static void button_hovered(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🎯 FEEDBACK SILENCIEUX
+    atomic_set_background_color(atomic_element, 255, 255, 255, 50);
+    
+    int current_width = atomic_get_width(atomic_element);
+    int current_height = atomic_get_height(atomic_element);
+    atomic_set_size(atomic_element, current_width + 2, current_height + 1);
+    
+    (void)event;
+}
+
+// 🆕 Nouveau callback pour quand la souris quitte le bouton
+static void button_unhovered(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🎯 RESTAURATION SILENCIEUSE
+    atomic_set_background_color(atomic_element, 0, 0, 0, 0);
+    
+    int current_width = atomic_get_width(atomic_element);
+    int current_height = atomic_get_height(atomic_element);
+    atomic_set_size(atomic_element, current_width - 2, current_height - 1);
+    
+    atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
+    
+    (void)event;
 }
 
 // Initialisation de la scène home
@@ -47,6 +105,9 @@ static void home_scene_init(Scene* scene) {
     data->initialized = true;
     data->background_texture = NULL;
     data->logo_texture = NULL;
+    data->core = NULL; // 🆕 Sera défini plus tard
+    data->play_button = NULL; // 🆕 Initialiser à NULL
+    data->quit_button = NULL; // 🆕 Initialiser à NULL
     
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -136,42 +197,48 @@ static void home_scene_init(Scene* scene) {
     ui_set_align_items(button_container, "center");
     ui_set_flex_gap(button_container, 15); // Gap plus petit entre les boutons
     
-    // Bouton Play - SANS couleur de fond, avec image PNG
-    UINode* play_button = ui_button(data->ui_tree, "play-button", "JOUER", play_button_clicked, NULL);
+    // Bouton Play - AVEC ÉVÉNEMENTS CONNECTÉS
+    UINode* play_button = ui_button(data->ui_tree, "play-button", "JOUER", NULL, NULL);
+    data->play_button = play_button; // 🆕 Sauvegarder la référence
     if (play_button) {
-        SET_SIZE(play_button, 200, 60); // Plus grand pour le PNG
+        SET_SIZE(play_button, 200, 60);
         
-        // Configurer l'image de fond avec les propriétés CSS
+        // Configuration visuelle
         ui_button_set_background_image(play_button, "home_bg_btn.png");
-        SET_BG_SIZE(play_button, "cover");    // Couvrir tout le bouton
-        SET_BG_REPEAT(play_button, "no-repeat"); // Pas de répétition
+        SET_BG_SIZE(play_button, "cover");
+        SET_BG_REPEAT(play_button, "no-repeat");
+        ui_set_text_color(play_button, "rgb(255, 255, 255)");
+        ui_button_fix_text_rendering(play_button);
         
-        ui_set_text_color(play_button, "rgb(255, 255, 255)"); // Texte blanc
-        ui_button_fix_text_rendering(play_button); // Corriger l'affichage du texte
+        // 🆕 CONNECTER LES ÉVÉNEMENTS AVEC FEEDBACK VISUEL
+        atomic_set_click_handler(play_button->element, play_button_clicked);
+        atomic_set_hover_handler(play_button->element, button_hovered);
+        atomic_set_unhover_handler(play_button->element, button_unhovered); // Nouveau
         
-        // Débugger le texte du bouton
-        DEBUG_TEXT(play_button);
-        
-        printf("✅ Bouton Play créé avec background PNG en mode cover\n");
+        ui_log_event("UIComponent", "ButtonSetup", play_button->id, "Click, hover and unhover handlers attached");
+        printf("✅ Bouton Play créé avec événements visuels connectés\n");
     }
     
-    // Bouton Quit - SANS couleur de fond, avec image PNG
-    UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", quit_button_clicked, NULL);
+    // Bouton Quit - AVEC ÉVÉNEMENTS CONNECTÉS
+    UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", NULL, NULL);
+    data->quit_button = quit_button; // 🆕 Sauvegarder la référence
     if (quit_button) {
-        SET_SIZE(quit_button, 200, 60); // Plus grand pour le PNG
+        SET_SIZE(quit_button, 200, 60);
         
-        // Configurer l'image de fond avec les propriétés CSS
+        // Configuration visuelle
         ui_button_set_background_image(quit_button, "home_bg_btn.png");
-        SET_BG_SIZE(quit_button, "cover");    // Couvrir tout le bouton
-        SET_BG_REPEAT(quit_button, "no-repeat"); // Pas de répétition
+        SET_BG_SIZE(quit_button, "cover");
+        SET_BG_REPEAT(quit_button, "no-repeat");
+        ui_set_text_color(quit_button, "rgb(255, 255, 255)");
+        ui_button_fix_text_rendering(quit_button);
         
-        ui_set_text_color(quit_button, "rgb(255, 255, 255)"); // Texte blanc
-        ui_button_fix_text_rendering(quit_button); // Corriger l'affichage du texte
+        // 🆕 CONNECTER LES ÉVÉNEMENTS AVEC FEEDBACK VISUEL
+        atomic_set_click_handler(quit_button->element, quit_button_clicked);
+        atomic_set_hover_handler(quit_button->element, button_hovered);
+        atomic_set_unhover_handler(quit_button->element, button_unhovered); // Nouveau
         
-        // Débugger le texte du bouton
-        DEBUG_TEXT(quit_button);
-        
-        printf("✅ Bouton Quit créé avec background PNG en mode cover\n");
+        ui_log_event("UIComponent", "ButtonSetup", quit_button->id, "Click, hover and unhover handlers attached");
+        printf("✅ Bouton Quit créé avec événements visuels connectés\n");
     }
     
     // Construire la hiérarchie de manière sécurisée
@@ -308,4 +375,43 @@ Scene* create_home_scene(void) {
     scene->data = NULL;
     
     return scene;
+}
+
+// 🆕 Nouvelle fonction pour connecter l'Event Manager après création du core
+// 🆕 Connexion des événements (SIMPLIFIÉE)
+void home_scene_connect_events(Scene* scene, GameCore* core) {
+    if (!scene || !core) {
+        printf("❌ Scene ou Core NULL dans home_scene_connect_events\n");
+        return;
+    }
+    
+    HomeSceneData* data = (HomeSceneData*)scene->data;
+    if (!data) {
+        printf("❌ Données de scène NULL\n");
+        return;
+    }
+    
+    EventManager* event_manager = game_core_get_event_manager(core);
+    if (!event_manager) {
+        printf("❌ Event manager NULL\n");
+        return;
+    }
+    
+    // 🔧 FIX PRINCIPAL: Connecter l'EventManager à l'UITree
+    if (data->ui_tree) {
+        data->ui_tree->event_manager = event_manager;
+        printf("🔗 EventManager connecté à l'UITree\n");
+        
+        // 🆕 Enregistrer automatiquement tous les éléments qui ont des handlers
+        ui_tree_register_all_events(data->ui_tree);
+        
+        printf("✅ Tous les événements connectés via l'UITree\n");
+    } else {
+        printf("❌ UITree est NULL\n");
+        return;
+    }
+    
+    // 🆕 LOG pour confirmation
+    log_console_write("HomeScene", "EventsConnected", "home_scene.c", 
+                     "[home_scene.c] All UI elements auto-registered with EventManager");
 }

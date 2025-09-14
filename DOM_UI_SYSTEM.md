@@ -98,6 +98,59 @@ ui_button_fix_text_rendering(button);
 // - Les problèmes de contraste
 ```
 
+## 🎨 Feedback visuel interactif
+
+### Boutons avec états visuels
+
+```c
+// Créer des boutons avec feedback automatique
+UINode* confirm_btn = ui_button(tree, "confirm", "CONFIRMER", on_confirm, NULL);
+ui_button_set_background_image(confirm_btn, "btn_confirm.png");
+
+// États visuels automatiques :
+// HOVER: Agrandissement (+2px) + overlay blanc translucide
+// CLICK: Réduction (-4px) + fond vert + texte noir
+// NORMAL: Taille normale + fond transparent + texte blanc
+
+// Connexion des événements avec feedback
+atomic_set_click_handler(confirm_btn->element, confirm_clicked);
+atomic_set_hover_handler(confirm_btn->element, button_hovered);
+atomic_set_unhover_handler(confirm_btn->element, button_unhovered);
+```
+
+### Styles prédéfinis pour feedback
+
+```c
+// Appliquer des styles contextuels instantanément
+BUTTON_SUCCESS(play_btn);    // Vert pour actions positives
+BUTTON_DANGER(delete_btn);   // Rouge pour actions dangereuses
+BUTTON_INFO(help_btn);       // Bleu pour informations
+BUTTON_WARNING(reset_btn);   // Orange pour avertissements
+
+// Contrôle manuel des états
+BUTTON_PRESSED(btn);         // Simuler un clic
+BUTTON_HOVER_ON(btn);        // Simuler un survol
+BUTTON_RESET(btn);           // Retour à l'état normal
+```
+
+### Logs de feedback en temps réel
+
+```c
+// Avec ui_set_event_logging(true), observez le feedback :
+
+// Survol d'un bouton :
+// [EVENT] [UIComponent] [VisualState] [confirm] : Button hover state applied
+// [EVENT] [UserCallback] [ButtonHoverVisual] [home_scene.c] : button_hovered - VISUAL FEEDBACK: white overlay, size increased
+
+// Clic sur un bouton :
+// [EVENT] [UIComponent] [VisualState] [confirm] : Button pressed state applied  
+// [EVENT] [UserCallback] [ConfirmButtonVisual] [home_scene.c] : confirm_button_clicked - VISUAL FEEDBACK APPLIED: green bg, black text, size reduced
+// [EVENT] [UIComponent] [VisualStyle] [confirm] : Success style applied (green)
+
+// Restauration automatique :
+// [EVENT] [UIComponent] [VisualState] [confirm] : Button normal state restored from hover
+```
+
 ## 💡 Exemple d'interface moderne
 
 ```c
@@ -283,5 +336,10 @@ void print_z_index(UINode* node, void* user_data) {
 - **Traçage des changements** d'état en temps réel
 - **Messages colorés** et structurés
 - **Navigation** dans la hiérarchie UI
+
+### 🎉 Feedback visuel interactif
+- **États visuels automatiques** pour les boutons (hover, click, normal)
+- **Styles prédéfinis** pour actions contextuelles (succès, danger, info, avertissement)
+- **Logs de feedback** en temps réel pour chaque interaction
 
 Cette version du système DOM-like offre maintenant tous les outils nécessaires pour créer et déboguer des interfaces modernes et robustes ! 🎉

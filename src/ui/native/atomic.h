@@ -157,6 +157,7 @@ typedef struct {
 typedef struct {
     void (*on_click)(void* element, SDL_Event* event);
     void (*on_hover)(void* element, SDL_Event* event);
+    void (*on_unhover)(void* element, SDL_Event* event);  // 🆕 AJOUT: Handler pour unhover
     void (*on_focus)(void* element, SDL_Event* event);
     void (*on_blur)(void* element, SDL_Event* event);
     void (*on_key_down)(void* element, SDL_Event* event);
@@ -252,6 +253,7 @@ void atomic_remove_child(AtomicElement* parent, AtomicElement* child);
 // Fonctions d'événements
 void atomic_set_click_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
 void atomic_set_hover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
+void atomic_set_unhover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));  // 🆕 AJOUT
 void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
 
 // Fonctions de rendu et mise à jour

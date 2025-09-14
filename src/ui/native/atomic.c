@@ -1,17 +1,108 @@
 #define _POSIX_C_SOURCE 200809L
 #include "atomic.h"
 #include "../../utils/asset_manager.h"
+#include "../../utils/log_console.h"  // 🆕 AJOUT: Include manquant pour log_console_write
 #include <SDL2/SDL_ttf.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 
+// === FONCTIONS STATIQUES (DÉCLARATIONS AVANT UTILISATION) ===
+
+// Calculer le rectangle de destination pour l'image de fond selon background-size
+static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Texture* texture) {
+    SDL_Rect element_rect = atomic_get_render_rect(element);
+    SDL_Rect dest_rect = element_rect;
+    
+    if (!texture) return dest_rect;
+    
+    int texture_w, texture_h;
+    SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h);
+    
+    switch (element->style.background_size) {
+        case BACKGROUND_SIZE_COVER: {
+            // Couvrir tout l'élément en gardant les proportions
+            float scale_x = (float)element_rect.w / texture_w;
+            float scale_y = (float)element_rect.h / texture_h;
+            float scale = fmaxf(scale_x, scale_y);
+            
+            dest_rect.w = (int)(texture_w * scale);
+            dest_rect.h = (int)(texture_h * scale);
+            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
+            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
+            break;
+        }
+        case BACKGROUND_SIZE_CONTAIN: {
+            // Contenir dans l'élément en gardant les proportions
+            float scale_x = (float)element_rect.w / texture_w;
+            float scale_y = (float)element_rect.h / texture_h;
+            float scale = fminf(scale_x, scale_y);
+            
+            dest_rect.w = (int)(texture_w * scale);
+            dest_rect.h = (int)(texture_h * scale);
+            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
+            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
+            break;
+        }
+        case BACKGROUND_SIZE_AUTO:
+            // Taille originale de l'image
+            dest_rect.w = texture_w;
+            dest_rect.h = texture_h;
+            dest_rect.x = element_rect.x;
+            dest_rect.y = element_rect.y;
+            break;
+        case BACKGROUND_SIZE_STRETCH:
+        default:
+            // Étirer pour remplir (comportement par défaut)
+            break;
+    }
+    
+    return dest_rect;
+}
+
 // Callback interne pour l'event manager
 static void atomic_event_callback(SDL_Event* event, void* user_data) {
     AtomicElement* element = (AtomicElement*)user_data;
+    
     if (element) {
+        // 🔧 LOG SEULEMENT LES ÉVÉNEMENTS IMPORTANTS
+        if (event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP || 
+            event->type == SDL_KEYDOWN) {
+            char message[512];
+            snprintf(message, sizeof(message), 
+                    "[atomic.c] 🔗 atomic_event_callback for '%s' - event type %d", 
+                    element->id ? element->id : "NoID", event->type);
+            log_console_write("AtomicCallback", "CallbackBridge", "atomic.c", message);
+        }
+        
         atomic_handle_event(element, event);
+    } else {
+        log_console_write("AtomicCallback", "CallbackError", "atomic.c", 
+                         "[atomic.c] atomic_event_callback called with NULL element!");
+    }
+}
+
+// === DEBUGGING DU TEXTE ===
+
+void atomic_debug_text_rendering(AtomicElement* element, const char* context) {
+    if (!element) {
+        // Silencieux - pas de logs pour les éléments NULL
+        return;
+    }
+    
+    // 🔧 LOGS RÉDUITS - Seulement les erreurs critiques
+    if (!element->content.text) {
+        // Pas de log pour les éléments sans texte - c'est normal
+        return;
+    }
+    
+    // Log seulement si il y a un vrai problème
+    if (element->style.text.font_size <= 0) {
+        printf("⚠️ [TEXT_DEBUG] [%s] Element '%s' has invalid font size: %d\n", 
+               context ? context : "Unknown",
+               element->id ? element->id : "NoID", 
+               element->style.text.font_size);
     }
 }
 
@@ -420,12 +511,224 @@ void atomic_set_hover_handler(AtomicElement* element, void (*handler)(void*, SDL
     element->events.on_hover = handler;
 }
 
+// 🆕 IMPLÉMENTATION MANQUANTE: atomic_set_unhover_handler
+void atomic_set_unhover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*)) {
+    if (!element) return;
+    element->events.on_unhover = handler;
+    
+    #ifdef ATOMIC_DEBUG_LOGS
+    if (handler) {
+        printf("🔗 [ATOMIC] Unhover handler set for element '%s'\n", 
+               element->id ? element->id : "NoID");
+    } else {
+        printf("🔗 [ATOMIC] Unhover handler removed for element '%s'\n", 
+               element->id ? element->id : "NoID");
+    }
+    #endif
+}
+
 void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*)) {
     if (!element) return;
     element->events.on_focus = handler;
 }
 
-// === FONCTIONS UTILITAIRES ===
+// === FONCTIONS DE MISE À JOUR ===
+
+void atomic_update(AtomicElement* element, float delta_time) {
+    if (!element) return;
+    
+    // Appliquer le layout flexbox si nécessaire
+    if (element->style.display == DISPLAY_FLEX) {
+        atomic_apply_flex_layout(element);
+    }
+    
+    // Appliquer le centrage automatique
+    if (element->style.alignment.auto_center_x || element->style.alignment.auto_center_y) {
+        if (element->parent) {
+            SDL_Rect parent_rect = atomic_get_content_rect(element->parent);
+            
+            if (element->style.alignment.auto_center_x) {
+                element->style.x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
+            }
+            
+            if (element->style.alignment.auto_center_y) {
+                element->style.y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
+            }
+        }
+    }
+    
+    // Mise à jour personnalisée
+    if (element->custom_update) {
+        element->custom_update(element, delta_time);
+    }
+    
+    // Mettre à jour les enfants
+    for (int i = 0; i < element->content.children_count; i++) {
+        atomic_update(element->content.children[i], delta_time);
+    }
+}
+
+// === NOUVELLES IMPLÉMENTATIONS CORRECTES ===
+
+void atomic_set_text_position(AtomicElement* element, int x, int y) {
+    if (!element) return;
+    element->style.text_x = x;
+    element->style.text_y = y;
+}
+
+void atomic_set_text_font(AtomicElement* element, TTF_Font* font) {
+    if (!element) return;
+    element->style.font = font;
+    element->style.text.ttf_font = font; // Maintenir la cohérence
+}
+
+void atomic_set_text_size(AtomicElement* element, int size) {
+    if (!element) return;
+    element->style.font_size = size;
+    element->style.text.font_size = size; // Maintenir la cohérence
+}
+
+void atomic_set_align(AtomicElement* element, const char* horizontal, const char* vertical) {
+    if (!element) return;
+    
+    // Stocker les valeurs d'alignement
+    if (horizontal && strcmp(horizontal, "center") == 0) {
+        // Centrer horizontalement
+        element->style.x = (800 - element->style.width) / 2; // Approximation
+    }
+    if (vertical && strcmp(vertical, "middle") == 0) {
+        // Centrer verticalement
+        element->style.y = (600 - element->style.height) / 2; // Approximation
+    }
+}
+
+void atomic_add_class(AtomicElement* element, const char* class_name) {
+    if (!element || !class_name) return;
+    
+    // Implementation simplifiée - utiliser un champ texte dans element->class_name
+    if (element->class_name) {
+        free(element->class_name);
+    }
+    element->class_name = strdup(class_name);
+    printf("🏷️ CSS Class '%s' ajoutée à l'élément\n", class_name);
+}
+
+bool atomic_has_class(AtomicElement* element, const char* class_name) {
+    if (!element || !class_name || !element->class_name) return false;
+    
+    return strcmp(element->class_name, class_name) == 0;
+}
+
+// === VERSIONS STRING POUR COMPATIBILITÉ ===
+
+void atomic_set_text_align_str(AtomicElement* element, const char* align) {
+    if (!element || !align) return;
+    
+    if (strcmp(align, "left") == 0) {
+        atomic_set_text_align(element, TEXT_ALIGN_LEFT);
+    } else if (strcmp(align, "center") == 0) {
+        atomic_set_text_align(element, TEXT_ALIGN_CENTER);
+    } else if (strcmp(align, "right") == 0) {
+        atomic_set_text_align(element, TEXT_ALIGN_RIGHT);
+    }
+}
+
+void atomic_set_text_color_rgba(AtomicElement* element, int r, int g, int b, int a) {
+    if (!element) return;
+    atomic_set_text_color(element, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a);
+}
+
+void atomic_set_display_str(AtomicElement* element, const char* display) {
+    if (!element || !display) return;
+    
+    if (strcmp(display, "block") == 0) {
+        atomic_set_display(element, DISPLAY_BLOCK);
+    } else if (strcmp(display, "none") == 0) {
+        atomic_set_display(element, DISPLAY_NONE);
+    } else if (strcmp(display, "flex") == 0) {
+        atomic_set_display(element, DISPLAY_FLEX);
+    }
+}
+
+void atomic_set_flex_direction_str(AtomicElement* element, const char* direction) {
+    if (!element || !direction) return;
+    
+    if (strcmp(direction, "row") == 0) {
+        atomic_set_flex_direction(element, FLEX_DIRECTION_ROW);
+    } else if (strcmp(direction, "column") == 0) {
+        atomic_set_flex_direction(element, FLEX_DIRECTION_COLUMN);
+    }
+}
+
+void atomic_set_justify_content_str(AtomicElement* element, const char* justify) {
+    if (!element || !justify) return;
+    
+    if (strcmp(justify, "start") == 0) {
+        atomic_set_justify_content(element, JUSTIFY_START);
+    } else if (strcmp(justify, "center") == 0) {
+        atomic_set_justify_content(element, JUSTIFY_CENTER);
+    } else if (strcmp(justify, "end") == 0) {
+        atomic_set_justify_content(element, JUSTIFY_END);
+    }
+}
+
+void atomic_set_align_items_str(AtomicElement* element, const char* align) {
+    if (!element || !align) return;
+    
+    if (strcmp(align, "start") == 0) {
+        atomic_set_align_items(element, ALIGN_TOP); // Utiliser ALIGN_TOP pour "start"
+    } else if (strcmp(align, "center") == 0) {
+        atomic_set_align_items(element, ALIGN_CENTER);
+    } else if (strcmp(align, "end") == 0) {
+        atomic_set_align_items(element, ALIGN_BOTTOM); // Utiliser ALIGN_BOTTOM pour "end"
+    } else if (strcmp(align, "stretch") == 0) {
+        atomic_set_align_items(element, ALIGN_STRETCH);
+    }
+}
+
+// === NOUVELLES FONCTIONS POUR BACKGROUND CSS ===
+
+void atomic_set_background_size(AtomicElement* element, BackgroundSize size) {
+    if (!element) return;
+    element->style.background_size = size;
+    printf("🖼️ Background size défini : %d\n", size);
+}
+
+void atomic_set_background_repeat(AtomicElement* element, BackgroundRepeat repeat) {
+    if (!element) return;
+    element->style.background_repeat = repeat;
+    printf("🔄 Background repeat défini : %d\n", repeat);
+}
+
+void atomic_set_background_size_str(AtomicElement* element, const char* size) {
+    if (!element || !size) return;
+    
+    if (strcmp(size, "cover") == 0) {
+        atomic_set_background_size(element, BACKGROUND_SIZE_COVER);
+    } else if (strcmp(size, "contain") == 0) {
+        atomic_set_background_size(element, BACKGROUND_SIZE_CONTAIN);
+    } else if (strcmp(size, "stretch") == 0) {
+        atomic_set_background_size(element, BACKGROUND_SIZE_STRETCH);
+    } else if (strcmp(size, "auto") == 0) {
+        atomic_set_background_size(element, BACKGROUND_SIZE_AUTO);
+    }
+}
+
+void atomic_set_background_repeat_str(AtomicElement* element, const char* repeat) {
+    if (!element || !repeat) return;
+    
+    if (strcmp(repeat, "no-repeat") == 0) {
+        atomic_set_background_repeat(element, BACKGROUND_REPEAT_NO_REPEAT);
+    } else if (strcmp(repeat, "repeat") == 0) {
+        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT);
+    } else if (strcmp(repeat, "repeat-x") == 0) {
+        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT_X);
+    } else if (strcmp(repeat, "repeat-y") == 0) {
+        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT_Y);
+    }
+}
+
+// === FONCTIONS UTILITAIRES MANQUANTES ===
 
 bool atomic_is_point_inside(AtomicElement* element, int x, int y) {
     if (!element || !element->style.visible) return false;
@@ -459,7 +762,7 @@ SDL_Rect atomic_get_content_rect(AtomicElement* element) {
     return rect;
 }
 
-// === FONCTIONS DE RENDU (VERSION UNIQUE ET COMPLÈTE) ===
+// === FONCTIONS DE RENDU COMPLÈTES ===
 
 void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     if (!element || !renderer || !element->style.visible || element->style.display == DISPLAY_NONE) {
@@ -525,10 +828,8 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
         SDL_RenderCopy(renderer, element->content.texture, NULL, &content_rect);
     }
     
-    // RENDU DU TEXTE AMÉLIORÉ AVEC DEBUGGING
+    // 🔧 RENDU DU TEXTE SIMPLIFIÉ
     if (element->content.text) {
-        atomic_debug_text_rendering(element, "RENDER");
-        
         SDL_SetRenderDrawColor(renderer, 
                              element->style.text.color.r,
                              element->style.text.color.g,
@@ -537,15 +838,13 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
         
         // Calculer la position du texte selon l'alignement
         int text_width = (int)strlen(element->content.text) * 8; // Approximation
-        int text_height = element->style.text.font_size;
+        int text_height = element->style.text.font_size > 0 ? element->style.text.font_size : 16;
         int text_x = content_rect.x;
         int text_y = content_rect.y + (content_rect.h - text_height) / 2;
         
         switch (element->style.text.align) {
             case TEXT_ALIGN_CENTER:
                 text_x = content_rect.x + (content_rect.w - text_width) / 2;
-                printf("🎯 [TEXT_DEBUG] Center alignment: text_x = %d (content_rect.x=%d, w=%d, text_width=%d)\n", 
-                       text_x, content_rect.x, content_rect.w, text_width);
                 break;
             case TEXT_ALIGN_RIGHT:
                 text_x = content_rect.x + content_rect.w - text_width;
@@ -555,10 +854,7 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
                 break;
         }
         
-        printf("📝 [TEXT_DEBUG] Final text position: (%d, %d), size: %dx%d\n", 
-               text_x, text_y, text_width, text_height);
-        
-        // Dessiner des rectangles pour représenter le texte (mode debug)
+        // Dessiner des rectangles pour représenter le texte
         for (int i = 0; i < (int)strlen(element->content.text); i++) {
             SDL_Rect letter_rect = {
                 text_x + i * 8,
@@ -567,12 +863,7 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
                 text_height
             };
             SDL_RenderFillRect(renderer, &letter_rect);
-            printf("🔤 [TEXT_DEBUG] Letter %d: rect (%d,%d,%d,%d)\n", 
-                   i, letter_rect.x, letter_rect.y, letter_rect.w, letter_rect.h);
         }
-        
-        printf("✅ [TEXT_DEBUG] Text '%s' rendered with %d letters\n", 
-               element->content.text, (int)strlen(element->content.text));
     }
     
     // Rendu personnalisé
@@ -589,41 +880,7 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
 }
 
-void atomic_update(AtomicElement* element, float delta_time) {
-    if (!element) return;
-    
-    // Appliquer le layout flexbox si nécessaire
-    if (element->style.display == DISPLAY_FLEX) {
-        atomic_apply_flex_layout(element);
-    }
-    
-    // Appliquer le centrage automatique
-    if (element->style.alignment.auto_center_x || element->style.alignment.auto_center_y) {
-        if (element->parent) {
-            SDL_Rect parent_rect = atomic_get_content_rect(element->parent);
-            
-            if (element->style.alignment.auto_center_x) {
-                element->style.x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
-            }
-            
-            if (element->style.alignment.auto_center_y) {
-                element->style.y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
-            }
-        }
-    }
-    
-    // Mise à jour personnalisée
-    if (element->custom_update) {
-        element->custom_update(element, delta_time);
-    }
-    
-    // Mettre à jour les enfants
-    for (int i = 0; i < element->content.children_count; i++) {
-        atomic_update(element->content.children[i], delta_time);
-    }
-}
-
-// === NOUVELLES IMPLÉMENTATIONS ===
+// === NOUVELLES IMPLÉMENTATIONS POUR Z-INDEX ===
 
 bool atomic_has_explicit_z_index(AtomicElement* element) {
     if (!element) return false;
@@ -646,305 +903,135 @@ int atomic_get_height(AtomicElement* element) {
     return element->style.height;
 }
 
-void atomic_set_text_position(AtomicElement* element, int x, int y) {
-    if (!element) return;
-    
-    element->style.text_x = x;
-    element->style.text_y = y;
-}
-
-void atomic_set_text_font(AtomicElement* element, TTF_Font* font) {
-    if (!element) return;
-    
-    element->style.font = font;
-    element->style.text.ttf_font = font; // Maintenir la cohérence
-}
-
-void atomic_set_text_size(AtomicElement* element, int size) {
-    if (!element) return;
-    
-    element->style.font_size = size;
-    element->style.text.font_size = size; // Maintenir la cohérence
-}
-
-void atomic_set_align(AtomicElement* element, const char* horizontal, const char* vertical) {
-    if (!element) return;
-    
-    // Stocker les valeurs d'alignement comme chaînes dans un membre étendu
-    // Pour l'instant, utiliser les valeurs existantes
-    if (horizontal && strcmp(horizontal, "center") == 0) {
-        // Centrer horizontalement
-        element->style.x = (800 - element->style.width) / 2; // Approximation
-    }
-    if (vertical && strcmp(vertical, "middle") == 0) {
-        // Centrer verticalement  
-        element->style.y = (600 - element->style.height) / 2; // Approximation
-    }
-}
-
-void atomic_add_class(AtomicElement* element, const char* class_name) {
-    if (!element || !class_name) return;
-    
-    // Implementation simplifiée - utiliser un champ texte dans element->text
-    // Pour une vraie implémentation, il faudrait étendre la structure
-    printf("🏷️ CSS Class '%s' ajoutée à l'élément\n", class_name);
-}
-
-bool atomic_has_class(AtomicElement* element, const char* class_name) {
-    if (!element || !class_name) return false;
-    
-    // Implementation simplifiée
-    return false;
-}
-
-// === VERSIONS STRING POUR COMPATIBILITÉ ===
-
-void atomic_set_text_align_str(AtomicElement* element, const char* align) {
-    if (!element || !align) return;
-    
-    if (strcmp(align, "left") == 0) {
-        atomic_set_text_align(element, TEXT_ALIGN_LEFT);
-    } else if (strcmp(align, "center") == 0) {
-        atomic_set_text_align(element, TEXT_ALIGN_CENTER);
-    } else if (strcmp(align, "right") == 0) {
-        atomic_set_text_align(element, TEXT_ALIGN_RIGHT);
-    }
-}
-
-void atomic_set_text_color_rgba(AtomicElement* element, int r, int g, int b, int a) {
-    if (!element) return;
-    
-    atomic_set_text_color(element, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a);
-}
-
-void atomic_set_display_str(AtomicElement* element, const char* display) {
-    if (!element || !display) return;
-    
-    if (strcmp(display, "block") == 0) {
-        atomic_set_display(element, DISPLAY_BLOCK);
-    } else if (strcmp(display, "none") == 0) {
-        atomic_set_display(element, DISPLAY_NONE);
-    } else if (strcmp(display, "flex") == 0) {
-        atomic_set_display(element, DISPLAY_FLEX);
-    }
-}
-
-void atomic_set_flex_direction_str(AtomicElement* element, const char* direction) {
-    if (!element || !direction) return;
-    
-    if (strcmp(direction, "row") == 0) {
-        atomic_set_flex_direction(element, FLEX_DIRECTION_ROW);
-    } else if (strcmp(direction, "column") == 0) {
-        atomic_set_flex_direction(element, FLEX_DIRECTION_COLUMN);
-    }
-}
-
-void atomic_set_justify_content_str(AtomicElement* element, const char* justify) {
-    if (!element || !justify) return;
-    
-    if (strcmp(justify, "start") == 0) {
-        atomic_set_justify_content(element, JUSTIFY_START);
-    } else if (strcmp(justify, "center") == 0) {
-        atomic_set_justify_content(element, JUSTIFY_CENTER);
-    } else if (strcmp(justify, "end") == 0) {
-        atomic_set_justify_content(element, JUSTIFY_END);
-    }
-}
-
-void atomic_set_align_items_str(AtomicElement* element, const char* align) {
-    if (!element || !align) return;
-    
-    if (strcmp(align, "start") == 0) {
-        atomic_set_align_items(element, ALIGN_TOP); // Utiliser ALIGN_TOP pour "start"
-    } else if (strcmp(align, "center") == 0) {
-        atomic_set_align_items(element, ALIGN_CENTER);
-    } else if (strcmp(align, "end") == 0) {
-        atomic_set_align_items(element, ALIGN_BOTTOM); // Utiliser ALIGN_BOTTOM pour "end"
-    } else if (strcmp(align, "stretch") == 0) {
-        atomic_set_align_items(element, ALIGN_STRETCH);
-    }
-}
-
-// === FONCTIONS D'ÉVÉNEMENTS ===
+// === FONCTIONS D'ÉVÉNEMENTS COMPLÈTES (CORRIGÉES) ===
 
 void atomic_handle_event(AtomicElement* element, SDL_Event* event) {
-    if (!element || !event) return;
+    if (!element) return;
     
     switch (event->type) {
         case SDL_MOUSEBUTTONDOWN:
-            if (event->button.button == SDL_BUTTON_LEFT) {
-                if (atomic_is_point_inside(element, event->button.x, event->button.y)) {
-                    element->is_pressed = true;
-                    if (element->events.on_click) {
-                        element->events.on_click(element, event);
-                    }
+            if (atomic_is_point_inside(element, event->button.x, event->button.y)) {
+                element->is_pressed = true;
+                
+                // 🔧 LOG DÉTAILLÉ: Callback sur le point d'être appelé
+                char message[512];
+                snprintf(message, sizeof(message), 
+                        "[atomic.c] 🎯 Mouse click detected in '%s' - calling click handler", 
+                        element->id ? element->id : "NoID");
+                log_console_write("AtomicElement", "ClickDetected", "atomic.c", message);
+                
+                if (element->events.on_click) {
+                    log_console_write("AtomicElement", "CallbackExecuting", "atomic.c", 
+                                     "[atomic.c] ✅ Executing click callback");
+                    element->events.on_click(element, event);
+                    log_console_write("AtomicElement", "CallbackDone", "atomic.c", 
+                                     "[atomic.c] ✅ Click callback executed successfully");
+                } else {
+                    log_console_write("AtomicElement", "NoCallback", "atomic.c", 
+                                     "[atomic.c] ❌ No click callback defined for this element");
                 }
-            }
-            break;
-            
-        case SDL_MOUSEBUTTONUP:
-            if (event->button.button == SDL_BUTTON_LEFT) {
-                element->is_pressed = false;
             }
             break;
             
         case SDL_MOUSEMOTION: {
             bool was_hovered = element->is_hovered;
-            element->is_hovered = atomic_is_point_inside(element, event->motion.x, event->motion.y);
+            bool is_inside = atomic_is_point_inside(element, event->motion.x, event->motion.y);
             
-            if (element->is_hovered && !was_hovered) {
+            if (is_inside && !was_hovered) {
+                // MOUSE ENTER - Trigger hover
+                element->is_hovered = true;
                 if (element->events.on_hover) {
                     element->events.on_hover(element, event);
                 }
-            } else if (!element->is_hovered && was_hovered) {
-                if (element->events.on_blur) {
-                    element->events.on_blur(element, event);
+            } else if (!is_inside && was_hovered) {
+                // MOUSE LEAVE - Trigger unhover
+                element->is_hovered = false;
+                if (element->events.on_unhover) {
+                    element->events.on_unhover(element, event);
                 }
             }
             break;
         }
         
-        case SDL_KEYDOWN:
-            if (element->is_focused && element->events.on_key_down) {
-                element->events.on_key_down(element, event);
+        case SDL_MOUSEBUTTONUP:
+            if (element->is_pressed) {
+                element->is_pressed = false;
             }
             break;
             
+        // 🔧 SUPPRESSION MASSIVE des logs pour événements non critiques
+        case SDL_WINDOWEVENT:
+        case SDL_KEYDOWN:
         case SDL_KEYUP:
-            if (element->is_focused && element->events.on_key_up) {
-                element->events.on_key_up(element, event);
+        case SDL_TEXTINPUT:
+        case SDL_MOUSEWHEEL:
+            // Ces événements sont normaux, ne pas logger
+            break;
+            
+        default:
+            // 🔧 LOG SEULEMENT les types vraiment inconnus
+            if (event->type != SDL_MOUSEMOTION && 
+                event->type != SDL_WINDOWEVENT && 
+                event->type != SDL_KEYDOWN && 
+                event->type != SDL_KEYUP &&
+                event->type != SDL_TEXTINPUT) {
+                char message[256];
+                snprintf(message, sizeof(message), 
+                        "[atomic.c] Unknown event type %d for element '%s'", 
+                        event->type, element->id ? element->id : "NoID");
+                log_console_write("AtomicElement", "UnknownEvent", "atomic.c", message);
             }
             break;
     }
 }
 
 void atomic_register_with_event_manager(AtomicElement* element, EventManager* manager) {
-    if (!element || !manager) return;
+    if (!element || !manager) {
+        printf("❌ [ATOMIC_REGISTER] Element ou Manager NULL\n");
+        return;
+    }
     
+    // 🔧 FIX PRINCIPAL: Utiliser les vraies coordonnées calculées
     SDL_Rect rect = atomic_get_render_rect(element);
+    
+    // 🆕 VÉRIFICATION: Afficher les coordonnées pour debugging
+    char debug_message[512];
+    snprintf(debug_message, sizeof(debug_message), 
+            "[atomic.c] 🔧 Element '%s' - Style position: (%d,%d) size: %dx%d", 
+            element->id ? element->id : "NoID",
+            element->style.x, element->style.y, 
+            element->style.width, element->style.height);
+    log_console_write("AtomicRegister", "StyleDebug", "atomic.c", debug_message);
+    
+    snprintf(debug_message, sizeof(debug_message), 
+            "[atomic.c] 🔧 Element '%s' - Calculated rect: (%d,%d) size: %dx%d z=%d", 
+            element->id ? element->id : "NoID",
+            rect.x, rect.y, rect.w, rect.h, element->style.z_index);
+    log_console_write("AtomicRegister", "RectDebug", "atomic.c", debug_message);
+    
+    // 🚨 ALERTE si les coordonnées sont à (0,0)
+    if (rect.x == 0 && rect.y == 0) {
+        char warning[256];
+        snprintf(warning, sizeof(warning), 
+                "[atomic.c] ⚠️ WARNING: Element '%s' registered at (0,0) - this may cause hit detection issues!", 
+                element->id ? element->id : "NoID");
+        log_console_write("AtomicRegister", "PositionWarning", "atomic.c", warning);
+    }
+    
     event_manager_subscribe(manager, rect.x, rect.y, rect.w, rect.h,
                            element->style.z_index, element->style.visible,
                            atomic_event_callback, element);
+    
+    // 🔧 LOG: Confirmation simple
+    char message[512];
+    snprintf(message, sizeof(message), 
+            "[atomic.c] ✅ Registration completed for '%s' at bounds(%d,%d,%dx%d)", 
+            element->id ? element->id : "NoID", rect.x, rect.y, rect.w, rect.h);
+    log_console_write("AtomicRegister", "RegistrationSuccess", "atomic.c", message);
 }
 
 void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* manager) {
     if (!element || !manager) return;
     
     event_manager_unsubscribe(manager, atomic_event_callback, element);
-}
-
-// === FONCTIONS STATIQUES (DÉCLARATIONS AVANT UTILISATION) ===
-
-// Calculer le rectangle de destination pour l'image de fond selon background-size
-static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Texture* texture) {
-    SDL_Rect element_rect = atomic_get_render_rect(element);
-    SDL_Rect dest_rect = element_rect;
-    
-    if (!texture) return dest_rect;
-    
-    int texture_w, texture_h;
-    SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h);
-    
-    switch (element->style.background_size) {
-        case BACKGROUND_SIZE_COVER: {
-            // Couvrir tout l'élément en gardant les proportions
-            float scale_x = (float)element_rect.w / texture_w;
-            float scale_y = (float)element_rect.h / texture_h;
-            float scale = fmaxf(scale_x, scale_y);
-            
-            dest_rect.w = (int)(texture_w * scale);
-            dest_rect.h = (int)(texture_h * scale);
-            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
-            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
-            break;
-        }
-        case BACKGROUND_SIZE_CONTAIN: {
-            // Contenir dans l'élément en gardant les proportions
-            float scale_x = (float)element_rect.w / texture_w;
-            float scale_y = (float)element_rect.h / texture_h;
-            float scale = fminf(scale_x, scale_y);
-            
-            dest_rect.w = (int)(texture_w * scale);
-            dest_rect.h = (int)(texture_h * scale);
-            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
-            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
-            break;
-        }
-        case BACKGROUND_SIZE_AUTO:
-            // Taille originale de l'image
-            dest_rect.w = texture_w;
-            dest_rect.h = texture_h;
-            dest_rect.x = element_rect.x;
-            dest_rect.y = element_rect.y;
-            break;
-        case BACKGROUND_SIZE_STRETCH:
-        default:
-            // Étirer pour remplir (comportement par défaut)
-            break;
-    }
-    
-    return dest_rect;
-}
-
-// === DEBUGGING DU TEXTE ===
-
-void atomic_debug_text_rendering(AtomicElement* element, const char* context) {
-    if (!element) {
-        printf("🔍 [TEXT_DEBUG] [%s] Element is NULL\n", context ? context : "Unknown");
-        return;
-    }
-    
-    printf("🔍 [TEXT_DEBUG] [%s] Element '%s' :\n", context ? context : "Unknown", element->id ? element->id : "NoID");
-    printf("   📝 Text content: '%s'\n", element->content.text ? element->content.text : "NULL");
-    printf("   📐 Element size: %dx%d\n", element->style.width, element->style.height);
-    printf("   📍 Text position: (%d, %d)\n", element->style.text_x, element->style.text_y);
-    printf("   🎨 Text color: rgba(%d,%d,%d,%d)\n", 
-           element->style.text.color.r, element->style.text.color.g, 
-           element->style.text.color.b, element->style.text.color.a);
-    printf("   📏 Font size: %d\n", element->style.text.font_size);
-    printf("   🔤 Text align: %d\n", element->style.text.align);
-    printf("   👁️ Visible: %s\n", element->style.visible ? "true" : "false");
-    printf("   📋 Display: %d\n", element->style.display);
-}
-
-// === NOUVELLES FONCTIONS POUR BACKGROUND CSS ===
-
-void atomic_set_background_size(AtomicElement* element, BackgroundSize size) {
-    if (!element) return;
-    element->style.background_size = size;
-    printf("🖼️ Background size défini : %d\n", size);
-}
-
-void atomic_set_background_repeat(AtomicElement* element, BackgroundRepeat repeat) {
-    if (!element) return;
-    element->style.background_repeat = repeat;
-    printf("🔄 Background repeat défini : %d\n", repeat);
-}
-
-void atomic_set_background_size_str(AtomicElement* element, const char* size) {
-    if (!element || !size) return;
-    
-    if (strcmp(size, "cover") == 0) {
-        atomic_set_background_size(element, BACKGROUND_SIZE_COVER);
-    } else if (strcmp(size, "contain") == 0) {
-        atomic_set_background_size(element, BACKGROUND_SIZE_CONTAIN);
-    } else if (strcmp(size, "stretch") == 0) {
-        atomic_set_background_size(element, BACKGROUND_SIZE_STRETCH);
-    } else if (strcmp(size, "auto") == 0) {
-        atomic_set_background_size(element, BACKGROUND_SIZE_AUTO);
-    }
-}
-
-void atomic_set_background_repeat_str(AtomicElement* element, const char* repeat) {
-    if (!element || !repeat) return;
-    
-    if (strcmp(repeat, "no-repeat") == 0) {
-        atomic_set_background_repeat(element, BACKGROUND_REPEAT_NO_REPEAT);
-    } else if (strcmp(repeat, "repeat") == 0) {
-        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT);
-    } else if (strcmp(repeat, "repeat-x") == 0) {
-        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT_X);
-    } else if (strcmp(repeat, "repeat-y") == 0) {
-        atomic_set_background_repeat(element, BACKGROUND_REPEAT_REPEAT_Y);
-    }
 }

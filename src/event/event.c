@@ -1,6 +1,17 @@
 #include "event.h"
+#include "../utils/log_console.h"
 #include <stdlib.h>
 #include <stdio.h>
+
+// === FONCTIONS STATIQUES (DÉCLARATIONS AVANT UTILISATION) ===
+
+// Vérifier si un point est dans les limites d'un élément
+static bool is_point_in_element(EventElement* element, int x, int y) {
+    return (x >= element->x && x < element->x + element->width &&
+            y >= element->y && y < element->y + element->height);
+}
+
+// === FONCTIONS PUBLIQUES ===
 
 // Créer un nouvel event manager
 EventManager* event_manager_create(void) {
@@ -94,42 +105,86 @@ void event_manager_clear_all(EventManager* manager) {
     manager->elements = NULL;
 }
 
-// Vérifier si un point est dans les limites d'un élément
-static bool is_point_in_element(EventElement* element, int x, int y) {
-    return (x >= element->x && x < element->x + element->width &&
-            y >= element->y && y < element->y + element->height);
-}
-
-// Gérer un événement
+// Gérer un événement (CORRIGÉ)
 void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     if (!manager || !event) return;
     
-    // Gérer l'événement de fermeture
-    if (event->type == SDL_QUIT) {
+    static int event_counter = 0;
+    event_counter++;
+    
+    // 🔧 FERMETURE DE FENÊTRE (garder)
+    if (event->type == SDL_WINDOWEVENT && event->window.event == SDL_WINDOWEVENT_CLOSE) {
+        log_console_write_event("EventManager", "WindowClose", "event.c", 
+                               "[event.c] Window close detected", event->type);
         manager->running = false;
         return;
     }
     
-    // Pour les événements de souris, vérifier les collisions
-    if (event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP || 
-        event->type == SDL_MOUSEMOTION) {
-        
+    // 🔧 QUIT (garder)
+    if (event->type == SDL_QUIT) {
+        log_console_write_event("EventManager", "Quit", "event.c", 
+                               "[event.c] SDL_QUIT received", event->type);
+        manager->running = false;
+        return;
+    }
+    
+    // 🔧 FIX PRINCIPAL: Traiter SEULEMENT SDL_MOUSEBUTTONDOWN comme des clics
+    if (event->type == SDL_MOUSEBUTTONDOWN) { // 1024 SEULEMENT
         int mouse_x, mouse_y;
         SDL_GetMouseState(&mouse_x, &mouse_y);
         
-        // Parcourir les éléments par ordre de z_index (plus élevé en premier)
+        log_console_write_event("EventManager", "Click", "event.c", 
+                               "[event.c] Mouse click DOWN detected", event->type);
+        
+        // 🆕 DEBUG: Compter les éléments avant hit testing
+        int element_count = 0;
+        EventElement* count_current = manager->elements;
+        while (count_current) {
+            element_count++;
+            count_current = count_current->next;
+        }
+        
+        char debug_message[256];
+        snprintf(debug_message, sizeof(debug_message), 
+                "[event.c] Hit testing against %d registered elements at (%d,%d)", 
+                element_count, mouse_x, mouse_y);
+        log_console_write("EventManager", "HitTesting", "event.c", debug_message);
+        
         EventElement* current = manager->elements;
+        int element_index = 0;
+        
         while (current) {
+            element_index++;
+            
+            // 🆕 DEBUG: Log chaque test avec coordonnées détaillées
+            char test_message[512];
+            snprintf(test_message, sizeof(test_message), 
+                    "[event.c] Testing element #%d: bounds(%d,%d,%dx%d) display=%s z=%d", 
+                    element_index, current->x, current->y, current->width, current->height,
+                    current->display ? "true" : "false", current->z_index);
+            log_console_write("EventManager", "ElementTest", "event.c", test_message);
+            
             if (current->display && is_point_in_element(current, mouse_x, mouse_y)) {
-                // Appeler le callback et arrêter la propagation
+                log_console_write("EventManager", "HitDetected", "event.c", 
+                                 "[event.c] 🎯 Element hit - calling callback");
+                
                 current->callback(event, current->user_data);
+                
+                log_console_write("EventManager", "CallbackDone", "event.c", 
+                                 "[event.c] ✅ Callback executed");
                 return;
             }
             current = current->next;
         }
+        
+        // LOG si aucun hit
+        log_console_write("EventManager", "NoHit", "event.c", 
+                         "[event.c] ❌ No elements hit");
+        return;
     }
     
-    // Pour les autres événements (clavier, etc.), appeler tous les callbacks
+    // 🔧 GESTION SILENCIEUSE DES AUTRES ÉVÉNEMENTS
+    // Transmettre TOUS les événements aux éléments (y compris mousemotion, mouseup, etc.)
     EventElement* current = manager->elements;
     while (current) {
         if (current->display) {

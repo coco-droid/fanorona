@@ -61,6 +61,10 @@ void ui_button_set_style(UINode* button, const char* bg_color, const char* text_
 void ui_button_set_hover_style(UINode* button, const char* hover_bg_color, const char* hover_text_color);
 void ui_button_set_pressed_style(UINode* button, const char* pressed_bg_color, const char* pressed_text_color);
 
+// 🆕 NOUVELLES FONCTIONS pour l'enregistrement des événements
+void ui_button_register_events(UINode* button, UITree* tree);
+void ui_tree_register_all_events(UITree* tree);
+
 // === NOUVELLES FONCTIONS DE DEBUGGING ===
 
 // Activer/désactiver les logs d'événements
@@ -126,6 +130,42 @@ void ui_apply_style(UINode* node, const UIStyle* style);
 
 // Déboguer le rendu du texte
 void ui_debug_text_rendering(UINode* node, const char* context);
+
+// === NOUVELLES FONCTIONS POUR FEEDBACK VISUEL ===
+
+// Gestion des états visuels des boutons
+void ui_button_set_pressed_state(UINode* button, bool pressed);
+void ui_button_set_hover_state(UINode* button, bool hovered);
+void ui_button_reset_visual_state(UINode* button);
+
+// Animation et transitions
+void ui_button_animate_click(UINode* button, int duration_ms);
+void ui_button_animate_hover(UINode* button, bool entering);
+
+// Couleurs d'état prédéfinies
+void ui_button_apply_success_style(UINode* button);   // Vert pour actions positives
+void ui_button_apply_danger_style(UINode* button);    // Rouge pour actions dangereuses
+void ui_button_apply_info_style(UINode* button);      // Bleu pour informations
+void ui_button_apply_warning_style(UINode* button);   // Orange pour avertissements
+
+// Effets visuels avancés
+void ui_button_add_glow_effect(UINode* button, const char* color);
+void ui_button_add_shadow_effect(UINode* button, int offset_x, int offset_y);
+void ui_button_remove_all_effects(UINode* button);
+
+// === MACROS POUR FEEDBACK VISUEL ===
+
+#define BUTTON_PRESSED(btn) ui_button_set_pressed_state(btn, true)
+#define BUTTON_RELEASED(btn) ui_button_set_pressed_state(btn, false)
+#define BUTTON_HOVER_ON(btn) ui_button_set_hover_state(btn, true)
+#define BUTTON_HOVER_OFF(btn) ui_button_set_hover_state(btn, false)
+#define BUTTON_RESET(btn) ui_button_reset_visual_state(btn)
+
+// Styles prédéfinis
+#define BUTTON_SUCCESS(btn) ui_button_apply_success_style(btn)
+#define BUTTON_DANGER(btn) ui_button_apply_danger_style(btn)
+#define BUTTON_INFO(btn) ui_button_apply_info_style(btn)
+#define BUTTON_WARNING(btn) ui_button_apply_warning_style(btn)
 
 // === MACROS POUR SYNTAXE SIMPLIFIÉE ===
 

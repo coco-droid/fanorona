@@ -29,11 +29,38 @@ void scene_manager_destroy(SceneManager* manager) {
 }
 
 // Changer de scène
-void scene_manager_set_scene(SceneManager* manager, Scene* scene) {
-    if (!manager) return;
+bool scene_manager_set_scene(SceneManager* manager, Scene* scene) {
+    if (!manager) {
+        printf("❌ SceneManager est NULL dans scene_manager_set_scene\n");
+        return false;
+    }
     
-    manager->next_scene = scene;
-    manager->scene_change_requested = true;
+    if (!scene) {
+        printf("❌ Scene est NULL dans scene_manager_set_scene\n");
+        return false;
+    }
+    
+    printf("🔧 Définition de la scène '%s' comme scène courante...\n", scene->name ? scene->name : "sans nom");
+    
+    // Nettoyer la scène précédente si elle existe
+    if (manager->current_scene && manager->current_scene != scene) {
+        printf("🧹 Nettoyage de la scène précédente...\n");
+        if (manager->current_scene->cleanup) {
+            manager->current_scene->cleanup(manager->current_scene);
+        }
+        free(manager->current_scene);
+    }
+    
+    manager->current_scene = scene;
+    
+    // Vérifier que la scène a été correctement assignée
+    if (manager->current_scene == scene) {
+        printf("✅ Scène '%s' correctement assignée\n", scene->name ? scene->name : "sans nom");
+        return true;
+    } else {
+        printf("❌ Erreur lors de l'assignation de la scène\n");
+        return false;
+    }
 }
 
 // Mettre à jour le gestionnaire de scènes
@@ -79,6 +106,23 @@ void scene_manager_render_mini(SceneManager* manager) {
     if (mini_window && manager->current_scene->render) {
         manager->current_scene->render(manager->current_scene, mini_window);
     }
+}
+
+// Obtenir la scène courante
+Scene* scene_manager_get_current_scene(SceneManager* manager) {
+    if (!manager) {
+        printf("❌ SceneManager est NULL dans scene_manager_get_current_scene\n");
+        return NULL;
+    }
+    
+    Scene* current = manager->current_scene;
+    if (current) {
+        printf("🔍 Scène courante récupérée: '%s'\n", current->name ? current->name : "sans nom");
+    } else {
+        printf("⚠️ Aucune scène courante dans le scene manager\n");
+    }
+    
+    return current;
 }
 
 // === EXEMPLES DE SCÈNES ===

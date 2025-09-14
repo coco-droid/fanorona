@@ -3,6 +3,7 @@
 #include "ui_tree.h"
 #include "native/atomic.h"
 #include "../utils/asset_manager.h"
+#include "../utils/log_console.h"
 #include "../window/window.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,11 +15,19 @@
 static bool event_logging_enabled = false;
 static TTF_Font* default_font = NULL;
 
-// === FONCTIONS DE DEBUGGING ===
+// === FONCTIONS DE DEBUGGING AMÉLIORÉES ===
 
 void ui_set_event_logging(bool enabled) {
     event_logging_enabled = enabled;
     printf("🔍 Logs d'événements UI : %s\n", enabled ? "ACTIVÉS" : "DÉSACTIVÉS");
+    
+    // Synchroniser avec la console de logs
+    if (enabled) {
+        log_console_init();
+        log_console_ui_event("UIComponent", "LoggingState", "system", "Event logging activated");
+    } else {
+        log_console_ui_event("UIComponent", "LoggingState", "system", "Event logging deactivated");
+    }
 }
 
 bool ui_is_event_logging_enabled(void) {
@@ -28,11 +37,15 @@ bool ui_is_event_logging_enabled(void) {
 void ui_log_event(const char* source, const char* event_type, const char* element_id, const char* message) {
     if (!event_logging_enabled) return;
     
-    printf("[EVENT] [%s] [%s] [%s] : %s\n", 
-           source ? source : "Unknown",
-           event_type ? event_type : "Unknown", 
-           element_id ? element_id : "NoID",
-           message ? message : "No message");
+    // 🔧 SUPPRESSION: Plus d'affichage dans la console standard
+    // printf("[EVENT] [%s] [%s] [%s] : %s\n", 
+    //        source ? source : "Unknown",
+    //        event_type ? event_type : "Unknown", 
+    //        element_id ? element_id : "NoID",
+    //        message ? message : "No message");
+    
+    // Envoi vers la console de logs séparée seulement
+    log_console_ui_event(source, event_type, element_id, message);
 }
 
 // === FONCTIONS DE POLICE ===
@@ -144,70 +157,42 @@ void ui_button_set_background_image(UINode* button, const char* image_path) {
 }
 
 void ui_button_fix_text_rendering(UINode* button) {
-    if (!button) {
-        ui_log_event("UIComponent", "ButtonError", "null", "Button is NULL for text rendering fix");
-        return;
-    }
+    if (!button) return;
     
-    ui_log_event("UIComponent", "ButtonFix", button->id, "Applying text rendering fixes");
+    // 🔧 SUPPRESSION: Plus de logs verbeux
+    // ui_log_event("UIComponent", "ButtonFix", button->id, "Applying text rendering fixes");
     
-    // Débugger l'état initial
-    atomic_debug_text_rendering(button->element, "BEFORE_FIX");
-    
-    // Corriger les problèmes d'affichage du texte
-    // 1. S'assurer que le texte est centré
+    // Correction silencieuse
     atomic_set_text_align_str(button->element, "center");
-    
-    // 2. Optimiser le contraste du texte (couleur blanche opaque)
-    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255); // Blanc pour contraste
-    
-    // 3. Désactiver le background de couleur pour éviter les conflits avec l'image PNG
-    atomic_set_background_color(button->element, 0, 0, 0, 0); // Transparent
-    
-    // 4. S'assurer que l'élément est visible
+    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);
+    atomic_set_background_color(button->element, 0, 0, 0, 0);
     atomic_set_visibility(button->element, true);
     atomic_set_display(button->element, DISPLAY_BLOCK);
-    
-    // 5. Optimiser la position du texte
     ui_button_calculate_text_position(button);
-    
-    // Débugger l'état final
-    atomic_debug_text_rendering(button->element, "AFTER_FIX");
-    
-    ui_log_event("UIComponent", "ButtonFix", button->id, "Text rendering fixes applied");
 }
 
 void ui_button_calculate_text_position(UINode* button) {
     if (!button) return;
     
-    // Calculer la position optimale du texte au centre du bouton
     int button_width = atomic_get_width(button->element);
     int button_height = atomic_get_height(button->element);
     
-    // Centrer le texte dans le bouton
     int text_x = button_width / 2;
     int text_y = button_height / 2;
     
     atomic_set_text_position(button->element, text_x, text_y);
     
-    ui_log_event("UIComponent", "ButtonFix", button->id, "Text position calculated and applied");
+    // 🔧 SUPPRESSION: Plus de logs
+    // ui_log_event("UIComponent", "ButtonFix", button->id, "Text position calculated");
 }
 
 // === FONCTIONS DE CRÉATION D'ÉLÉMENTS ===
 
 UINode* ui_div(UITree* tree, const char* id) {
-    if (!tree) {
-        ui_log_event("UIComponent", "CreateError", id, "Tree is NULL");
-        return NULL;
-    }
+    if (!tree) return NULL;
     
     UINode* node = ui_tree_create_node(tree, id, "div");
-    if (node) {
-        ui_log_event("UIComponent", "Create", id, "Div element created");
-    } else {
-        ui_log_event("UIComponent", "CreateError", id, "Failed to create div element");
-    }
-    
+    // 🔧 SUPPRESSION: Plus de logs de création
     return node;
 }
 
@@ -252,27 +237,113 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
     }
     
     UINode* node = ui_tree_create_node(tree, id, "button");
-    if (node) {
-        // Configurer le texte du bouton avec debugging
-        if (text) {
-            atomic_set_text(node->element, text);
-            printf("📝 [BUTTON_CREATE] Text '%s' set for button '%s'\n", text, id ? id : "NoID");
-            
-            // Débugger immédiatement après création
-            atomic_debug_text_rendering(node->element, "CREATION");
+    if (node && text) {
+        atomic_set_text(node->element, text);
+        
+        // 🔧 LOG RÉDUIT - Seulement l'essentiel
+        printf("📝 Button '%s' created with text: '%s'\n", id ? id : "NoID", text);
+        
+        // 🔧 FIX PRINCIPAL: Auto-enregistrement si onClick fourni
+        if (onClick && tree->event_manager) {
+            // Définir le callback ET enregistrer automatiquement
+            atomic_set_click_handler(node->element, (void(*)(void*, SDL_Event*))onClick);
+            atomic_register_with_event_manager(node->element, tree->event_manager);
+            printf("🔗 Button '%s' auto-registered with click handler\n", id ? id : "NoID");
         }
-        
-        // Note: Le callback sera géré différemment car les signatures ne correspondent pas
-        // Pour l'instant, juste stocker les informations et éviter les warnings
-        (void)onClick;   // Éviter le warning unused parameter
-        (void)user_data; // Éviter le warning unused parameter
-        
-        ui_log_event("UIComponent", "Create", id, "Button element created");
-    } else {
-        ui_log_event("UIComponent", "CreateError", id, "Failed to create button element");
     }
     
+    (void)user_data; // Éviter warnings
     return node;
+}
+
+// 🔧 FIX: Déplacer la fonction récursive AVANT son utilisation
+static void ui_tree_register_node_recursive(UINode* node, UITree* tree) {
+    if (!node || !tree) return;
+    
+    // Si le nœud a des handlers, l'enregistrer
+    if (node->element) {
+        bool has_handlers = (node->element->events.on_click != NULL ||
+                           node->element->events.on_hover != NULL ||
+                           node->element->events.on_unhover != NULL);
+        
+        if (has_handlers) {
+            atomic_register_with_event_manager(node->element, tree->event_manager);
+            printf("🔗 Node '%s' registered with EventManager\n", 
+                   node->id ? node->id : "NoID");
+        }
+    }
+    
+    // Parcourir récursivement les enfants
+    for (int i = 0; i < node->children_count; i++) {
+        ui_tree_register_node_recursive(node->children[i], tree);
+    }
+}
+
+// 🆕 NOUVELLE FONCTION: Forcer le recalcul des positions avant enregistrement
+void ui_tree_update_positions(UITree* tree) {
+    if (!tree || !tree->root) {
+        printf("❌ Invalid tree for position update\n");
+        return;
+    }
+    
+    printf("🔧 Forcing position recalculation...\n");
+    
+    // Forcer une mise à jour complète de l'arbre UI
+    ui_tree_update(tree, 0.0f);
+    
+    printf("✅ Position recalculation completed\n");
+}
+
+// 🆕 NOUVELLE FONCTION: Enregistrer tous les boutons d'un arbre (AVEC POSITIONS FORCÉES)
+void ui_tree_register_all_events(UITree* tree) {
+    if (!tree || !tree->event_manager) {
+        printf("❌ Invalid tree or no EventManager for registration\n");
+        return;
+    }
+    
+    printf("🔗 Registering all UI elements with EventManager...\n");
+    
+    // 🔧 FIX: Forcer le recalcul des positions AVANT l'enregistrement
+    ui_tree_update_positions(tree);
+    
+    // Parcourir récursivement tous les nœuds et enregistrer ceux qui ont des handlers
+    if (tree->root) {
+        ui_tree_register_node_recursive(tree->root, tree);
+    }
+    
+    printf("✅ All UI elements registered with EventManager\n");
+}
+
+// 🆕 NOUVELLE FONCTION: Enregistrement manuel pour les boutons existants
+void ui_button_register_events(UINode* button, UITree* tree) {
+    if (!button || !tree || !tree->event_manager) {
+        printf("❌ Invalid parameters for ui_button_register_events\n");
+        return;
+    }
+    
+    // Vérifier si le bouton a des handlers définis
+    bool has_click = (button->element && button->element->events.on_click != NULL);
+    bool has_hover = (button->element && button->element->events.on_hover != NULL);
+    bool has_unhover = (button->element && button->element->events.on_unhover != NULL);
+    
+    if (has_click || has_hover || has_unhover) {
+        atomic_register_with_event_manager(button->element, tree->event_manager);
+        
+        char message[256];
+        snprintf(message, sizeof(message), 
+                "[ui_components.c] Button '%s' registered - handlers: click=%s hover=%s unhover=%s",
+                button->id ? button->id : "NoID",
+                has_click ? "YES" : "NO",
+                has_hover ? "YES" : "NO", 
+                has_unhover ? "YES" : "NO");
+        log_console_write("UIComponent", "ButtonRegistration", "ui_components.c", message);
+        
+        printf("🔗 Button '%s' manually registered with EventManager\n", 
+               button->id ? button->id : "NoID");
+    } else {
+        printf("⚠️ Button '%s' has no event handlers to register\n", 
+               button->id ? button->id : "NoID");
+    }
 }
 
 // === FONCTIONS FLUIDES ===
@@ -485,6 +556,154 @@ void ui_button_set_pressed_style(UINode* button, const char* pressed_bg_color, c
     
     (void)pressed_bg_color; (void)pressed_text_color; // Éviter les warnings
     ui_log_event("UIComponent", "ButtonStyle", button->id, "Button pressed style applied");
+}
+
+// === NOUVELLES FONCTIONS POUR FEEDBACK VISUEL ===
+
+void ui_button_set_pressed_state(UINode* button, bool pressed) {
+    if (!button) return;
+    
+    if (pressed) {
+        // État pressé : réduire la taille et assombrir
+        int width = atomic_get_width(button->element);
+        int height = atomic_get_height(button->element);
+        atomic_set_size(button->element, width - 4, height - 2);
+        
+        // Ajouter un overlay sombre
+        atomic_set_background_color(button->element, 0, 0, 0, 100);
+        
+        ui_log_event("UIComponent", "VisualState", button->id, "Button pressed state applied");
+    } else {
+        // État normal : restaurer la taille et supprimer l'overlay
+        int width = atomic_get_width(button->element);
+        int height = atomic_get_height(button->element);
+        atomic_set_size(button->element, width + 4, height + 2);
+        
+        // Supprimer l'overlay
+        atomic_set_background_color(button->element, 0, 0, 0, 0);
+        
+        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored");
+    }
+}
+
+void ui_button_set_hover_state(UINode* button, bool hovered) {
+    if (!button) return;
+    
+    if (hovered) {
+        // État survol : légèrement agrandir et éclaircir
+        int width = atomic_get_width(button->element);
+        int height = atomic_get_height(button->element);
+        atomic_set_size(button->element, width + 2, height + 1);
+        
+        // Ajouter un overlay lumineux
+        atomic_set_background_color(button->element, 255, 255, 255, 30);
+        
+        ui_log_event("UIComponent", "VisualState", button->id, "Button hover state applied");
+    } else {
+        // État normal : restaurer la taille et supprimer l'overlay
+        int width = atomic_get_width(button->element);
+        int height = atomic_get_height(button->element);
+        atomic_set_size(button->element, width - 2, height - 1);
+        
+        // Supprimer l'overlay
+        atomic_set_background_color(button->element, 0, 0, 0, 0);
+        
+        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored from hover");
+    }
+}
+
+void ui_button_reset_visual_state(UINode* button) {
+    if (!button) return;
+    
+    // Restaurer l'apparence par défaut
+    atomic_set_background_color(button->element, 0, 0, 0, 0); // Transparent
+    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255); // Blanc
+    
+    // Note: La taille doit être restaurée manuellement selon le contexte
+    ui_log_event("UIComponent", "VisualState", button->id, "Button visual state reset to default");
+}
+
+void ui_button_apply_success_style(UINode* button) {
+    if (!button) return;
+    
+    atomic_set_background_color(button->element, 100, 200, 100, 200); // Vert translucide
+    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
+    
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Success style applied (green)");
+}
+
+void ui_button_apply_danger_style(UINode* button) {
+    if (!button) return;
+    
+    atomic_set_background_color(button->element, 220, 100, 100, 200); // Rouge translucide
+    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
+    
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Danger style applied (red)");
+}
+
+void ui_button_apply_info_style(UINode* button) {
+    if (!button) return;
+    
+    atomic_set_background_color(button->element, 100, 150, 220, 200); // Bleu translucide
+    atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
+    
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Info style applied (blue)");
+}
+
+void ui_button_apply_warning_style(UINode* button) {
+    if (!button) return;
+    
+    atomic_set_background_color(button->element, 255, 180, 100, 200); // Orange translucide
+    atomic_set_text_color_rgba(button->element, 0, 0, 0, 255);        // Noir pour contraste
+    
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Warning style applied (orange)");
+}
+
+void ui_button_animate_click(UINode* button, int duration_ms) {
+    if (!button) return;
+    
+    // Simulation d'animation simple (dans une vraie implémentation, utiliser un timer)
+    ui_button_set_pressed_state(button, true);
+    
+    // TODO: Implémenter un vrai système de timer pour restaurer après duration_ms
+    ui_log_event("UIComponent", "Animation", button->id, "Click animation started");
+    
+    (void)duration_ms; // Éviter warning unused
+}
+
+void ui_button_animate_hover(UINode* button, bool entering) {
+    if (!button) return;
+    
+    ui_button_set_hover_state(button, entering);
+    
+    char message[256];
+    snprintf(message, sizeof(message), "Hover animation %s", entering ? "started" : "ended");
+    ui_log_event("UIComponent", "Animation", button->id, message);
+}
+
+void ui_button_add_glow_effect(UINode* button, const char* color) {
+    if (!button || !color) return;
+    
+    // TODO: Implémenter un vrai effet de lueur
+    ui_log_event("UIComponent", "Effect", button->id, "Glow effect added");
+    
+    (void)color; // Éviter warning unused
+}
+
+void ui_button_add_shadow_effect(UINode* button, int offset_x, int offset_y) {
+    if (!button) return;
+    
+    // TODO: Implémenter un vrai effet d'ombre
+    ui_log_event("UIComponent", "Effect", button->id, "Shadow effect added");
+    
+    (void)offset_x; (void)offset_y; // Éviter warnings unused
+}
+
+void ui_button_remove_all_effects(UINode* button) {
+    if (!button) return;
+    
+    ui_button_reset_visual_state(button);
+    ui_log_event("UIComponent", "Effect", button->id, "All visual effects removed");
 }
 
 // === FONCTIONS ADDITIONNELLES ===

@@ -361,6 +361,15 @@ void ui_node_set_text(UINode* node, const char* text) {
     atomic_set_text(node->element, text);
 }
 
+// 🆕 NOUVELLE FONCTION: Implémentation de ui_node_set_inner_html
+void ui_node_set_inner_html(UINode* node, const char* html) {
+    if (!node || !html) return;
+    
+    // TODO: Implémenter le parsing HTML plus tard
+    // Pour l'instant, traiter comme du texte simple
+    atomic_set_text(node->element, html);
+}
+
 // === ÉVÉNEMENTS ===
 
 void ui_node_add_event_listener(UINode* node, const char* event, void (*callback)(UINode*, void*), void* user_data) {
@@ -370,8 +379,26 @@ void ui_node_add_event_listener(UINode* node, const char* event, void (*callback
     if (strcmp(event, "click") == 0) {
         // Wrapper pour adapter la signature
         atomic_set_click_handler(node->element, (void(*)(void*, SDL_Event*))callback);
+        
+        // 🔧 FIX PRINCIPAL: Enregistrer automatiquement avec l'EventManager
+        if (node->tree && node->tree->event_manager) {
+            atomic_register_with_event_manager(node->element, node->tree->event_manager);
+            printf("🔗 Element '%s' auto-registered with EventManager for click events\n", 
+                   node->id ? node->id : "NoID");
+        } else {
+            printf("⚠️ No EventManager available for auto-registration of '%s'\n", 
+                   node->id ? node->id : "NoID");
+        }
+        
     } else if (strcmp(event, "hover") == 0 || strcmp(event, "mouseenter") == 0) {
         atomic_set_hover_handler(node->element, (void(*)(void*, SDL_Event*))callback);
+        
+        // 🔧 FIX: Enregistrer pour les événements hover aussi
+        if (node->tree && node->tree->event_manager) {
+            atomic_register_with_event_manager(node->element, node->tree->event_manager);
+            printf("🔗 Element '%s' auto-registered with EventManager for hover events\n", 
+                   node->id ? node->id : "NoID");
+        }
     }
     
     (void)user_data; // TODO: Gérer user_data

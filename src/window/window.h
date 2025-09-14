@@ -18,7 +18,17 @@ typedef struct GameWindow {
     int width;
     int height;
     const char* title;
+    Uint32 window_id; // 🆕 ID unique de la fenêtre SDL
+    bool has_focus;   // 🆕 Focus de la fenêtre
 } GameWindow;
+
+// 🆕 Structure pour un événement avec contexte de fenêtre
+typedef struct WindowEvent {
+    SDL_Event sdl_event;
+    GameWindow* source_window;
+    WindowType window_type;
+    bool is_valid;
+} WindowEvent;
 
 // Fonctions du window manager
 bool window_init_sdl(void);
@@ -42,5 +52,12 @@ GameWindow* use_mini_window(void);
 GameWindow* use_main_window(void);
 GameWindow* use_active_window(void);
 bool window_is_window_active(WindowType type);
+
+// 🆕 Gestion des événements par fenêtre
+bool window_poll_events(WindowEvent* window_event);
+GameWindow* window_get_by_id(Uint32 window_id);
+void window_update_focus(void);
+GameWindow* window_get_focused_window(void);
+bool window_has_events_pending(void);
 
 #endif // WINDOW_H
