@@ -1,0 +1,6 @@
+cd /home/t4x/Desktop/fanoron-sivy
+gdb ./build/fanorona
+(gdb) run
+# Quand ça crash :
+(gdb) bt
+(gdb) info registers

@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
 #include "atomic.h"
+#include "../../utils/asset_manager.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 // Callback interne pour l'event manager
 static void atomic_event_callback(SDL_Event* event, void* user_data) {
@@ -42,6 +45,27 @@ AtomicElement* atomic_create(const char* id) {
     memset(&element->style.margin, 0, sizeof(Spacing));
     memset(&element->style.padding, 0, sizeof(Spacing));
     
+    // Initialiser les propriétés flexbox
+    element->style.flex.direction = FLEX_DIRECTION_ROW;
+    element->style.flex.justify_content = JUSTIFY_START;
+    element->style.flex.align_items = ALIGN_TOP;
+    element->style.flex.wrap = false;
+    element->style.flex.gap = 0;
+    
+    // Initialiser l'alignement
+    element->style.alignment.horizontal = ALIGN_LEFT;
+    element->style.alignment.vertical = ALIGN_TOP;
+    element->style.alignment.auto_center_x = false;
+    element->style.alignment.auto_center_y = false;
+    
+    // Initialiser les propriétés de texte
+    element->style.text.font_path = NULL;
+    element->style.text.font_size = 16;
+    element->style.text.color = (SDL_Color){0, 0, 0, 255};
+    element->style.text.align = TEXT_ALIGN_LEFT;
+    element->style.text.bold = false;
+    element->style.text.italic = false;
+    
     // Initialiser le contenu
     element->content.children_capacity = 4;
     element->content.children = (AtomicElement**)calloc(element->content.children_capacity, sizeof(AtomicElement*));
@@ -62,6 +86,12 @@ void atomic_destroy(AtomicElement* element) {
     
     // Libérer le texte
     free(element->content.text);
+    
+    // Libérer les ressources d'image de fond
+    free(element->style.background_image_path);
+    
+    // Libérer les ressources de police
+    free(element->style.text.font_path);
     
     // Détruire les enfants
     for (int i = 0; i < element->content.children_count; i++) {
@@ -132,6 +162,204 @@ void atomic_set_visibility(AtomicElement* element, bool visible) {
 void atomic_set_opacity(AtomicElement* element, Uint8 opacity) {
     if (!element) return;
     element->style.opacity = opacity;
+}
+
+// === FONCTIONS D'IMAGES DE FOND ===
+
+void atomic_set_background_image(AtomicElement* element, SDL_Texture* texture) {
+    if (!element) return;
+    element->style.background_image = texture;
+}
+
+void atomic_set_background_image_path(AtomicElement* element, const char* path, SDL_Renderer* renderer) {
+    if (!element || !path || !renderer) return;
+    
+    // Libérer l'ancien chemin
+    free(element->style.background_image_path);
+    element->style.background_image_path = strdup(path);
+    
+    // Charger la texture
+    element->style.background_image = asset_load_texture(renderer, path);
+}
+
+// === FONCTIONS DE POSITIONNEMENT ET ALIGNEMENT ===
+
+void atomic_set_alignment(AtomicElement* element, AlignType horizontal, AlignType vertical) {
+    if (!element) return;
+    element->style.alignment.horizontal = horizontal;
+    element->style.alignment.vertical = vertical;
+}
+
+void atomic_set_auto_center(AtomicElement* element, bool center_x, bool center_y) {
+    if (!element) return;
+    element->style.alignment.auto_center_x = center_x;
+    element->style.alignment.auto_center_y = center_y;
+}
+
+void atomic_center_in_parent(AtomicElement* element) {
+    if (!element || !element->parent) return;
+    
+    AtomicElement* parent = element->parent;
+    SDL_Rect parent_rect = atomic_get_content_rect(parent);
+    
+    int center_x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
+    int center_y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
+    
+    atomic_set_position(element, center_x, center_y);
+}
+
+// === FONCTIONS FLEXBOX ===
+
+void atomic_set_flex_direction(AtomicElement* element, FlexDirection direction) {
+    if (!element) return;
+    element->style.flex.direction = direction;
+}
+
+void atomic_set_justify_content(AtomicElement* element, JustifyType justify) {
+    if (!element) return;
+    element->style.flex.justify_content = justify;
+}
+
+void atomic_set_align_items(AtomicElement* element, AlignType align) {
+    if (!element) return;
+    element->style.flex.align_items = align;
+}
+
+void atomic_set_flex_wrap(AtomicElement* element, bool wrap) {
+    if (!element) return;
+    element->style.flex.wrap = wrap;
+}
+
+void atomic_set_flex_gap(AtomicElement* element, int gap) {
+    if (!element) return;
+    element->style.flex.gap = gap;
+}
+
+void atomic_apply_flex_layout(AtomicElement* element) {
+    if (!element || element->style.display != DISPLAY_FLEX) return;
+    
+    SDL_Rect container_rect = atomic_get_content_rect(element);
+    int children_count = element->content.children_count;
+    
+    if (children_count == 0) return;
+    
+    bool is_row = (element->style.flex.direction == FLEX_DIRECTION_ROW || 
+                   element->style.flex.direction == FLEX_DIRECTION_ROW_REVERSE);
+    
+    // Calculer l'espace disponible
+    int available_space = is_row ? container_rect.w : container_rect.h;
+    int total_children_size = 0;
+    int gaps = (children_count - 1) * element->style.flex.gap;
+    
+    // Calculer la taille totale des enfants
+    for (int i = 0; i < children_count; i++) {
+        AtomicElement* child = element->content.children[i];
+        total_children_size += is_row ? child->style.width : child->style.height;
+    }
+    
+    // Calculer l'espace libre
+    int free_space = available_space - total_children_size - gaps;
+    
+    // Positionner les enfants selon justify_content
+    int current_pos = container_rect.x;
+    if (!is_row) current_pos = container_rect.y;
+    
+    switch (element->style.flex.justify_content) {
+        case JUSTIFY_CENTER:
+            current_pos += free_space / 2;
+            break;
+        case JUSTIFY_END:
+            current_pos += free_space;
+            break;
+        case JUSTIFY_SPACE_BETWEEN:
+            if (children_count > 1) {
+                gaps = free_space / (children_count - 1);
+            }
+            break;
+        case JUSTIFY_SPACE_AROUND:
+            if (children_count > 0) {
+                int space_around = free_space / children_count;
+                current_pos += space_around / 2;
+                gaps = space_around;
+            }
+            break;
+        case JUSTIFY_SPACE_EVENLY:
+            if (children_count > 0) {
+                gaps = free_space / (children_count + 1);
+                current_pos += gaps;
+            }
+            break;
+        default: // JUSTIFY_START
+            break;
+    }
+    
+    // Positionner chaque enfant
+    for (int i = 0; i < children_count; i++) {
+        AtomicElement* child = element->content.children[i];
+        
+        if (is_row) {
+            child->style.x = current_pos;
+            
+            // Alignement vertical
+            switch (element->style.flex.align_items) {
+                case ALIGN_CENTER:
+                case ALIGN_MIDDLE:
+                    child->style.y = container_rect.y + (container_rect.h - child->style.height) / 2;
+                    break;
+                case ALIGN_BOTTOM:
+                    child->style.y = container_rect.y + container_rect.h - child->style.height;
+                    break;
+                default: // ALIGN_TOP
+                    child->style.y = container_rect.y;
+                    break;
+            }
+            
+            current_pos += child->style.width + gaps;
+        } else {
+            child->style.y = current_pos;
+            
+            // Alignement horizontal
+            switch (element->style.flex.align_items) {
+                case ALIGN_CENTER:
+                    child->style.x = container_rect.x + (container_rect.w - child->style.width) / 2;
+                    break;
+                case ALIGN_RIGHT:
+                    child->style.x = container_rect.x + container_rect.w - child->style.width;
+                    break;
+                default: // ALIGN_LEFT
+                    child->style.x = container_rect.x;
+                    break;
+            }
+            
+            current_pos += child->style.height + gaps;
+        }
+    }
+}
+
+// === FONCTIONS DE TEXTE ET POLICE ===
+
+void atomic_set_font(AtomicElement* element, const char* font_path, int size) {
+    if (!element || !font_path) return;
+    
+    free(element->style.text.font_path);
+    element->style.text.font_path = strdup(font_path);
+    element->style.text.font_size = size;
+}
+
+void atomic_set_text_color(AtomicElement* element, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+    if (!element) return;
+    element->style.text.color = (SDL_Color){r, g, b, a};
+}
+
+void atomic_set_text_align(AtomicElement* element, TextAlign align) {
+    if (!element) return;
+    element->style.text.align = align;
+}
+
+void atomic_set_text_style(AtomicElement* element, bool bold, bool italic) {
+    if (!element) return;
+    element->style.text.bold = bold;
+    element->style.text.italic = italic;
 }
 
 // === FONCTIONS DE CONTENU ===
@@ -256,6 +484,12 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
         SDL_RenderFillRect(renderer, &render_rect);
     }
     
+    // Dessiner l'image de fond si présente
+    if (element->style.background_image) {
+        SDL_SetTextureAlphaMod(element->style.background_image, element->style.opacity);
+        SDL_RenderCopy(renderer, element->style.background_image, NULL, &render_rect);
+    }
+    
     // Dessiner la bordure
     if (element->style.border_width > 0 && element->style.border_color.a > 0) {
         SDL_SetRenderDrawColor(renderer,
@@ -283,15 +517,40 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     
     // Dessiner le texte (simple rendu de rectangles pour l'instant)
     if (element->content.text) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, element->style.opacity);
-        // Pour l'instant, dessiner un rectangle pour représenter le texte
-        SDL_Rect text_rect = {
-            content_rect.x + 5,
-            content_rect.y + content_rect.h / 2 - 2,
-            content_rect.w - 10,
-            4
-        };
-        SDL_RenderFillRect(renderer, &text_rect);
+        SDL_SetRenderDrawColor(renderer, 
+                             element->style.text.color.r,
+                             element->style.text.color.g,
+                             element->style.text.color.b,
+                             (Uint8)((element->style.text.color.a * element->style.opacity) / 255));
+        
+        // Calculer la position du texte selon l'alignement
+        int text_width = (int)strlen(element->content.text) * 8; // Approximation
+        int text_height = element->style.text.font_size;
+        int text_x = content_rect.x;
+        int text_y = content_rect.y + (content_rect.h - text_height) / 2;
+        
+        switch (element->style.text.align) {
+            case TEXT_ALIGN_CENTER:
+                text_x = content_rect.x + (content_rect.w - text_width) / 2;
+                break;
+            case TEXT_ALIGN_RIGHT:
+                text_x = content_rect.x + content_rect.w - text_width;
+                break;
+            default: // TEXT_ALIGN_LEFT
+                text_x = content_rect.x + 5;
+                break;
+        }
+        
+        // Dessiner des rectangles pour représenter le texte
+        for (int i = 0; i < (int)strlen(element->content.text); i++) {
+            SDL_Rect letter_rect = {
+                text_x + i * 8,
+                text_y,
+                6,
+                text_height
+            };
+            SDL_RenderFillRect(renderer, &letter_rect);
+        }
     }
     
     // Rendu personnalisé
@@ -310,6 +569,26 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
 
 void atomic_update(AtomicElement* element, float delta_time) {
     if (!element) return;
+    
+    // Appliquer le layout flexbox si nécessaire
+    if (element->style.display == DISPLAY_FLEX) {
+        atomic_apply_flex_layout(element);
+    }
+    
+    // Appliquer le centrage automatique
+    if (element->style.alignment.auto_center_x || element->style.alignment.auto_center_y) {
+        if (element->parent) {
+            SDL_Rect parent_rect = atomic_get_content_rect(element->parent);
+            
+            if (element->style.alignment.auto_center_x) {
+                element->style.x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
+            }
+            
+            if (element->style.alignment.auto_center_y) {
+                element->style.y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
+            }
+        }
+    }
     
     // Mise à jour personnalisée
     if (element->custom_update) {

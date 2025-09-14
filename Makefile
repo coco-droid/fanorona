@@ -18,8 +18,13 @@ SOURCES = main.c \
           $(SRC_DIR)/window/window.c \
           $(SRC_DIR)/scene/scene.c \
           $(SRC_DIR)/scene/home_scene.c \
+          $(SRC_DIR)/scene/button_demo_scene.c \
+          $(SRC_DIR)/scene/dom_demo_scene.c \
+          $(SRC_DIR)/scene/advanced_ui_scene.c \
           $(SRC_DIR)/utils/asset_manager.c \
           $(SRC_DIR)/ui/native/atomic.c \
+          $(SRC_DIR)/ui/ui_tree.c \
+          $(SRC_DIR)/ui/ui_components.c \
           $(SRC_DIR)/ui/button.c
 
 # Fichiers objets

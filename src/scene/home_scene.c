@@ -1,4 +1,6 @@
-#include "./scene.h"
+#define _POSIX_C_SOURCE 200809L
+#include "scene.h"
+#include "../ui/ui_components.h"
 #include "../utils/asset_manager.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -9,39 +11,18 @@
 // Données pour la scène home
 typedef struct HomeSceneData {
     bool initialized;
+    UITree* ui_tree;
     SDL_Texture* background_texture;
+    SDL_Texture* logo_texture;
 } HomeSceneData;
 
-// Créer une texture de background par défaut
-static SDL_Texture* create_default_background(SDL_Renderer* renderer, int width, int height) {
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, 
-                                           SDL_TEXTUREACCESS_TARGET, width, height);
-    if (!texture) {
-        printf("Erreur lors de la création de la texture par défaut: %s\n", SDL_GetError());
-        return NULL;
-    }
-    
-    // Définir la texture comme cible de rendu
-    SDL_SetRenderTarget(renderer, texture);
-    
-    // Créer un dégradé bleu-vert
-    for (int y = 0; y < height; y++) {
-        int blue = 100 + (y * 155) / height;   // De 100 à 255
-        int green = 50 + (y * 100) / height;   // De 50 à 150
-        SDL_SetRenderDrawColor(renderer, 30, green, blue, 255);
-        SDL_RenderDrawLine(renderer, 0, y, width, y);
-    }
-    
-    // Remettre le rendu sur la fenêtre
-    SDL_SetRenderTarget(renderer, NULL);
-    
-    printf("Texture de background par défaut créée (%dx%d)\n", width, height);
-    return texture;
-}
+// Callbacks pour les boutons - supprimés car pas de boutons
+// static void play_button_clicked(UINode* node, void* user_data) { ... }
+// static void quit_button_clicked(UINode* node, void* user_data) { ... }
 
 // Initialisation de la scène home
 static void home_scene_init(Scene* scene) {
-    printf("Initialisation de la scène Home\n");
+    printf("🏠 Initialisation de la scène Home avec UI DOM-like\n");
     
     HomeSceneData* data = (HomeSceneData*)malloc(sizeof(HomeSceneData));
     if (!data) {
@@ -51,167 +32,153 @@ static void home_scene_init(Scene* scene) {
     
     data->initialized = true;
     data->background_texture = NULL;
+    data->logo_texture = NULL;
     
-    // Charger l'image de fond
+    // Créer l'arbre UI
+    data->ui_tree = ui_tree_create();
+    ui_set_global_tree(data->ui_tree);
+    
+    // Charger les assets
     GameWindow* window = use_mini_window();
     if (window) {
         SDL_Renderer* renderer = window_get_renderer(window);
         if (renderer) {
-            // Essayer de charger l'image avec l'asset manager
-            data->background_texture = asset_load_texture(renderer, "fix_bg.png");
+            // Charger les textures avec des chemins complets
+            data->background_texture = asset_load_texture(renderer, "home_bg.jpeg");
+            data->logo_texture = asset_load_texture(renderer, "fanorona_text.png");
             
-            // Si aucune texture n'a été créée, créer un background par défaut
-            if (!data->background_texture) {
-                printf("Création d'un background par défaut\n");
-                data->background_texture = create_default_background(renderer, 600, 500);
-            }
+            printf("🔍 Chargement des assets :\n");
+            printf("   Background: %s\n", data->background_texture ? "✅ OK" : "❌ ÉCHEC");
+            printf("   Logo: %s\n", data->logo_texture ? "✅ OK" : "❌ ÉCHEC");
         }
     }
+    
+    // === CRÉATION DE L'INTERFACE ===
+    
+    // Container principal (plein écran)
+    UINode* app = UI_DIV(data->ui_tree, "home-app");
+    if (!app) {
+        printf("❌ Erreur: Impossible de créer le container principal\n");
+        return;
+    }
+    
+    SET_POS(app, 0, 0);
+    SET_SIZE(app, 600, 500);
+    
+    // Définir l'image de fond du container principal
+    if (data->background_texture) {
+        atomic_set_background_image(app->element, data->background_texture);
+    } else {
+        SET_BG(app, "rgb(135, 206, 250)"); // Bleu ciel par défaut
+    }
+    
+    // Container principal en flexbox column pour organiser verticalement
+    ui_set_display_flex(app);
+    FLEX_COLUMN(app);
+    ui_set_justify_content(app, "center");
+    ui_set_align_items(app, "center");
+    ui_set_flex_gap(app, 40);
+    
+    // Logo Fanorona au centre
+    UINode* logo = UI_DIV(data->ui_tree, "fanorona-logo");
+    if (!logo) {
+        printf("❌ Erreur: Impossible de créer le logo\n");
+        return;
+    }
+    
+    SET_SIZE(logo, 400, 100); // Taille pour le logo
+    
+    if (data->logo_texture) {
+        atomic_set_background_image(logo->element, data->logo_texture);
+    } else {
+        // Fallback: dessiner "FANORONA" en style simple
+        SET_BG(logo, "rgb(255,255,255)");
+        UINode* logo_text = UI_TEXT(data->ui_tree, "logo-text", "FANORONA");
+        if (logo_text) {
+            ui_set_text_align(logo_text, "center");
+            ui_set_text_color(logo_text, "rgb(0,0,0)");
+            CENTER(logo_text);
+            APPEND(logo, logo_text);
+        }
+    }
+    
+    // Construire la hiérarchie de manière sécurisée
+    if (data->ui_tree && data->ui_tree->root) {
+        APPEND(data->ui_tree->root, app);
+        APPEND(app, logo);
+    } else {
+        printf("❌ Erreur: Arbre UI ou racine non initialisé\n");
+        return;
+    }
+    
+    printf("✅ Interface Home créée avec :\n");
+    printf("   🖼️  Logo Fanorona centré\n");
+    printf("    Images de fond : %s\n", 
+           data->background_texture && data->logo_texture ? "Chargées" : "Partiellement chargées");
     
     scene->data = data;
 }
 
 // Mise à jour de la scène home
 static void home_scene_update(Scene* scene, float delta_time) {
-    (void)scene;
-    (void)delta_time;
-    // Pas de logique de mise à jour pour l'instant
+    if (!scene || !scene->data) return;
+    
+    HomeSceneData* data = (HomeSceneData*)scene->data;
+    
+    // Mettre à jour l'arbre UI
+    if (data->ui_tree) {
+        ui_tree_update(data->ui_tree, delta_time);
+    }
+    
+    // NOTE: Les événements SDL sont maintenant gérés dans la boucle principale
+    // Ne pas faire SDL_PollEvent ici pour éviter les conflits
 }
 
 // Rendu de la scène home
 static void home_scene_render(Scene* scene, GameWindow* window) {
-    if (!scene || !window) return;
+    if (!scene || !scene->data || !window) return;
     
     SDL_Renderer* renderer = window_get_renderer(window);
     if (!renderer) return;
     
     HomeSceneData* data = (HomeSceneData*)scene->data;
     
-    // Afficher le background si disponible
-    if (data && data->background_texture) {
-        // Afficher le background en plein écran
-        SDL_RenderCopy(renderer, data->background_texture, NULL, NULL);
-    } else {
-        // Fond jaune par défaut si pas d'image
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // Jaune (R=255, G=255, B=0)
-        SDL_RenderClear(renderer);
+    // Clear avec une couleur de fond par défaut
+    SDL_SetRenderDrawColor(renderer, 135, 206, 250, 255); // Bleu ciel
+    SDL_RenderClear(renderer);
+    
+    // Rendre l'arbre UI (qui inclut le background et tous les éléments)
+    if (data->ui_tree) {
+        ui_tree_render(data->ui_tree, renderer);
     }
     
-    // Dessiner le texte "FANORONA" par-dessus le background
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Noir pour le texte
-    
-    // Position centrée dans la mini fenêtre (600x500)
-    int center_x = 300;
-    int center_y = 250;
-    int letter_width = 20;
-    int letter_height = 30;
-    int spacing = 5;
-    
-    // F
-    SDL_Rect f_rects[] = {
-        {center_x - 80, center_y - 15, letter_width, 5},  // ligne horizontale haut
-        {center_x - 80, center_y - 15, 5, letter_height}, // ligne verticale gauche
-        {center_x - 80, center_y - 5, 15, 5}              // ligne horizontale milieu
-    };
-    for (int i = 0; i < 3; i++) {
-        SDL_RenderFillRect(renderer, &f_rects[i]);
-    }
-    
-    // A
-    int a_x = center_x - 80 + letter_width + spacing;
-    SDL_Rect a_rects[] = {
-        {a_x, center_y - 15, letter_width, 5},      // ligne horizontale haut
-        {a_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {a_x + 15, center_y - 15, 5, letter_height}, // ligne verticale droite
-        {a_x, center_y - 5, letter_width, 5}        // ligne horizontale milieu
-    };
-    for (int i = 0; i < 4; i++) {
-        SDL_RenderFillRect(renderer, &a_rects[i]);
-    }
-    
-    // N
-    int n_x = a_x + letter_width + spacing;
-    SDL_Rect n_rects[] = {
-        {n_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {n_x + 15, center_y - 15, 5, letter_height}, // ligne verticale droite
-        {n_x + 5, center_y - 10, 10, 5}             // ligne diagonale (approximative)
-    };
-    for (int i = 0; i < 3; i++) {
-        SDL_RenderFillRect(renderer, &n_rects[i]);
-    }
-    
-    // O
-    int o_x = n_x + letter_width + spacing;
-    SDL_Rect o_rects[] = {
-        {o_x, center_y - 15, letter_width, 5},      // ligne horizontale haut
-        {o_x, center_y + 10, letter_width, 5},      // ligne horizontale bas
-        {o_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {o_x + 15, center_y - 15, 5, letter_height} // ligne verticale droite
-    };
-    for (int i = 0; i < 4; i++) {
-        SDL_RenderFillRect(renderer, &o_rects[i]);
-    }
-    
-    // R
-    int r_x = o_x + letter_width + spacing;
-    SDL_Rect r_rects[] = {
-        {r_x, center_y - 15, letter_width, 5},      // ligne horizontale haut
-        {r_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {r_x + 15, center_y - 15, 5, 15},           // ligne verticale droite (haut)
-        {r_x, center_y - 5, 15, 5},                 // ligne horizontale milieu
-        {r_x + 10, center_y, 10, 15}                // ligne diagonale bas
-    };
-    for (int i = 0; i < 5; i++) {
-        SDL_RenderFillRect(renderer, &r_rects[i]);
-    }
-    
-    // O (deuxième)
-    int o2_x = r_x + letter_width + spacing;
-    SDL_Rect o2_rects[] = {
-        {o2_x, center_y - 15, letter_width, 5},      // ligne horizontale haut
-        {o2_x, center_y + 10, letter_width, 5},      // ligne horizontale bas
-        {o2_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {o2_x + 15, center_y - 15, 5, letter_height} // ligne verticale droite
-    };
-    for (int i = 0; i < 4; i++) {
-        SDL_RenderFillRect(renderer, &o2_rects[i]);
-    }
-    
-    // N (deuxième)
-    int n2_x = o2_x + letter_width + spacing;
-    SDL_Rect n2_rects[] = {
-        {n2_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {n2_x + 15, center_y - 15, 5, letter_height}, // ligne verticale droite
-        {n2_x + 5, center_y - 10, 10, 5}             // ligne diagonale (approximative)
-    };
-    for (int i = 0; i < 3; i++) {
-        SDL_RenderFillRect(renderer, &n2_rects[i]);
-    }
-    
-    // A (deuxième)
-    int a2_x = n2_x + letter_width + spacing;
-    SDL_Rect a2_rects[] = {
-        {a2_x, center_y - 15, letter_width, 5},      // ligne horizontale haut
-        {a2_x, center_y - 15, 5, letter_height},     // ligne verticale gauche
-        {a2_x + 15, center_y - 15, 5, letter_height}, // ligne verticale droite
-        {a2_x, center_y - 5, letter_width, 5}        // ligne horizontale milieu
-    };
-    for (int i = 0; i < 4; i++) {
-        SDL_RenderFillRect(renderer, &a2_rects[i]);
-    }
+    // IMPORTANT: Présenter le rendu à l'écran
+    SDL_RenderPresent(renderer);
 }
 
 // Nettoyage de la scène home
 static void home_scene_cleanup(Scene* scene) {
-    printf("Nettoyage de la scène Home\n");
+    printf("🧹 Nettoyage de la scène Home\n");
     if (scene->data) {
         HomeSceneData* data = (HomeSceneData*)scene->data;
         
-        // Libérer la texture du background
+        // Libérer les textures
         if (data->background_texture) {
             SDL_DestroyTexture(data->background_texture);
             data->background_texture = NULL;
         }
+        if (data->logo_texture) {
+            SDL_DestroyTexture(data->logo_texture);
+            data->logo_texture = NULL;
+        }
+        
+        // Nettoyer l'arbre UI
+        if (data->ui_tree) {
+            ui_tree_destroy(data->ui_tree);
+        }
+        
+        // Réinitialiser l'arbre global
+        ui_set_global_tree(NULL);
         
         free(scene->data);
         scene->data = NULL;

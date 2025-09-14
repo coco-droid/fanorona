@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include "../../event/event.h"
+#include "../../utils/compat.h"
 
 // Énumérations pour les propriétés CSS-like
 typedef enum {
@@ -20,10 +21,71 @@ typedef enum {
     DISPLAY_FLEX
 } DisplayType;
 
+typedef enum {
+    ALIGN_LEFT,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+    ALIGN_TOP,
+    ALIGN_MIDDLE,
+    ALIGN_BOTTOM,
+    ALIGN_STRETCH
+} AlignType;
+
+typedef enum {
+    JUSTIFY_START,
+    JUSTIFY_CENTER,
+    JUSTIFY_END,
+    JUSTIFY_SPACE_BETWEEN,
+    JUSTIFY_SPACE_AROUND,
+    JUSTIFY_SPACE_EVENLY
+} JustifyType;
+
+typedef enum {
+    FLEX_DIRECTION_ROW,
+    FLEX_DIRECTION_COLUMN,
+    FLEX_DIRECTION_ROW_REVERSE,
+    FLEX_DIRECTION_COLUMN_REVERSE
+} FlexDirection;
+
+typedef enum {
+    TEXT_ALIGN_LEFT,
+    TEXT_ALIGN_CENTER,
+    TEXT_ALIGN_RIGHT,
+    TEXT_ALIGN_JUSTIFY
+} TextAlign;
+
 // Structure pour les dimensions et espacements
 typedef struct {
     int top, right, bottom, left;
 } Spacing;
+
+// Structure pour les propriétés flexbox
+typedef struct {
+    FlexDirection direction;
+    JustifyType justify_content;
+    AlignType align_items;
+    AlignType align_content;
+    bool wrap;
+    int gap;
+} FlexProperties;
+
+// Structure pour les propriétés de texte
+typedef struct {
+    char* font_path;           // Chemin vers la police
+    int font_size;             // Taille de la police
+    SDL_Color color;           // Couleur du texte
+    TextAlign align;           // Alignement du texte
+    bool bold;                 // Gras
+    bool italic;               // Italique
+} TextProperties;
+
+// Structure pour les propriétés de positionnement
+typedef struct {
+    AlignType horizontal;      // left, center, right
+    AlignType vertical;        // top, middle, bottom
+    bool auto_center_x;        // Centrage automatique X
+    bool auto_center_y;        // Centrage automatique Y
+} AlignmentProperties;
 
 // Structure pour les propriétés de style CSS-like
 typedef struct {
@@ -45,6 +107,19 @@ typedef struct {
     SDL_Color background_color;
     SDL_Color border_color;
     int border_width;
+    
+    // Images de fond
+    SDL_Texture* background_image;
+    char* background_image_path;
+    
+    // Flexbox
+    FlexProperties flex;
+    
+    // Alignement et positionnement
+    AlignmentProperties alignment;
+    
+    // Texte
+    TextProperties text;
     
     // Opacité
     Uint8 opacity;
@@ -109,6 +184,29 @@ void atomic_set_z_index(AtomicElement* element, int z_index);
 void atomic_set_display(AtomicElement* element, DisplayType display);
 void atomic_set_visibility(AtomicElement* element, bool visible);
 void atomic_set_opacity(AtomicElement* element, Uint8 opacity);
+
+// Fonctions d'images de fond
+void atomic_set_background_image(AtomicElement* element, SDL_Texture* texture);
+void atomic_set_background_image_path(AtomicElement* element, const char* path, SDL_Renderer* renderer);
+
+// Fonctions de positionnement et alignement
+void atomic_set_alignment(AtomicElement* element, AlignType horizontal, AlignType vertical);
+void atomic_set_auto_center(AtomicElement* element, bool center_x, bool center_y);
+void atomic_center_in_parent(AtomicElement* element);
+
+// Fonctions flexbox
+void atomic_set_flex_direction(AtomicElement* element, FlexDirection direction);
+void atomic_set_justify_content(AtomicElement* element, JustifyType justify);
+void atomic_set_align_items(AtomicElement* element, AlignType align);
+void atomic_set_flex_wrap(AtomicElement* element, bool wrap);
+void atomic_set_flex_gap(AtomicElement* element, int gap);
+void atomic_apply_flex_layout(AtomicElement* element);
+
+// Fonctions de texte et police
+void atomic_set_font(AtomicElement* element, const char* font_path, int size);
+void atomic_set_text_color(AtomicElement* element, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+void atomic_set_text_align(AtomicElement* element, TextAlign align);
+void atomic_set_text_style(AtomicElement* element, bool bold, bool italic);
 
 // Fonctions de contenu
 void atomic_set_text(AtomicElement* element, const char* text);

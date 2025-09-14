@@ -33,7 +33,8 @@ SOURCES=(
     "$SRC_DIR/scene/home_scene.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/ui/native/atomic.c"
-    "$SRC_DIR/ui/button.c"
+    "$SRC_DIR/ui/ui_tree.c"
+    "$SRC_DIR/ui/ui_components.c"
 )
 
 # Vérifier que tous les fichiers sources existent
