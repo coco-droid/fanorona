@@ -466,29 +466,41 @@ void game_core_update(GameCore* core) {
     scene_manager_update(core->scene_manager, delta_time);
 }
 
-// Rendre le core
+// Rendre le core (AVEC SYNCHRONISATION AMÉLIORÉE)
 void game_core_render(GameCore* core) {
     if (!core || !core->scene_manager) return;
     
     WindowType active_type = window_get_active_window();
     
-    // Rendre selon le type de fenêtre active
+    // 🔧 FIX: Synchronisation stricte pour éviter le clignotement
     switch (active_type) {
         case WINDOW_TYPE_MAIN: {
             GameWindow* main_window = use_main_window();
-            if (main_window) {
-                window_clear(main_window);
+            if (main_window && main_window->renderer) {
+                // 🔧 Clear avec couleur de fond cohérente
+                SDL_SetRenderDrawColor(main_window->renderer, 135, 206, 250, 255);
+                SDL_RenderClear(main_window->renderer);
+                
+                // Rendu de la scène (sans clear/present)
                 scene_manager_render_main(core->scene_manager);
-                window_present(main_window);
+                
+                // 🔧 Present SEULEMENT à la fin
+                SDL_RenderPresent(main_window->renderer);
             }
             break;
         }
         case WINDOW_TYPE_MINI: {
             GameWindow* mini_window = use_mini_window();
-            if (mini_window) {
-                window_clear(mini_window);
+            if (mini_window && mini_window->renderer) {
+                // 🔧 Clear avec couleur de fond cohérente
+                SDL_SetRenderDrawColor(mini_window->renderer, 135, 206, 250, 255);
+                SDL_RenderClear(mini_window->renderer);
+                
+                // Rendu de la scène (sans clear/present)
                 scene_manager_render_mini(core->scene_manager);
-                window_present(mini_window);
+                
+                // 🔧 Present SEULEMENT à la fin
+                SDL_RenderPresent(mini_window->renderer);
             }
             break;
         }
@@ -496,16 +508,19 @@ void game_core_render(GameCore* core) {
             GameWindow* main_window = use_main_window();
             GameWindow* mini_window = use_mini_window();
             
-            if (main_window) {
-                window_clear(main_window);
+            // 🔧 Rendu séquentiel pour éviter les conflits
+            if (main_window && main_window->renderer) {
+                SDL_SetRenderDrawColor(main_window->renderer, 135, 206, 250, 255);
+                SDL_RenderClear(main_window->renderer);
                 scene_manager_render_main(core->scene_manager);
-                window_present(main_window);
+                SDL_RenderPresent(main_window->renderer);
             }
             
-            if (mini_window) {
-                window_clear(mini_window);
+            if (mini_window && mini_window->renderer) {
+                SDL_SetRenderDrawColor(mini_window->renderer, 135, 206, 250, 255);
+                SDL_RenderClear(mini_window->renderer);
                 scene_manager_render_mini(core->scene_manager);
-                window_present(mini_window);
+                SDL_RenderPresent(mini_window->renderer);
             }
             break;
         }

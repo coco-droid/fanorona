@@ -34,7 +34,7 @@ void window_quit_sdl(void) {
     SDL_Quit();
 }
 
-// Créer une fenêtre générique
+// Créer une fenêtre générique (AVEC VSYNC FORCÉ)
 GameWindow* window_create(const char* title, int width, int height) {
     GameWindow* game_window = (GameWindow*)malloc(sizeof(GameWindow));
     if (!game_window) {
@@ -62,12 +62,22 @@ GameWindow* window_create(const char* title, int width, int height) {
     game_window->window_id = SDL_GetWindowID(game_window->window);
     game_window->has_focus = false;
     
-    // Créer le renderer
+    // 🔧 FIX: Créer le renderer avec VSync OBLIGATOIRE pour éviter le clignotement
     game_window->renderer = SDL_CreateRenderer(
         game_window->window,
         -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
     );
+    
+    if (!game_window->renderer) {
+        printf("⚠️ Tentative sans VSync...\n");
+        // Fallback sans VSync si échec
+        game_window->renderer = SDL_CreateRenderer(
+            game_window->window,
+            -1,
+            SDL_RENDERER_ACCELERATED
+        );
+    }
     
     if (!game_window->renderer) {
         printf("Erreur de création du renderer: %s\n", SDL_GetError());
@@ -76,6 +86,9 @@ GameWindow* window_create(const char* title, int width, int height) {
         return NULL;
     }
     
+    // 🔧 FIX: Forcer le blend mode pour les transparences
+    SDL_SetRenderDrawBlendMode(game_window->renderer, SDL_BLENDMODE_BLEND);
+    
     game_window->width = width;
     game_window->height = height;
     game_window->title = title;
@@ -83,7 +96,7 @@ GameWindow* window_create(const char* title, int width, int height) {
     // 🆕 Logs de création de fenêtre
     char message[256];
     snprintf(message, sizeof(message), 
-            "[window.c] Window created: '%s' (%dx%d) ID=%u", 
+            "[window.c] Window created with VSync: '%s' (%dx%d) ID=%u", 
             title, width, height, game_window->window_id);
     log_console_write("WindowManager", "WindowCreated", "window.c", message);
     

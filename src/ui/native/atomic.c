@@ -772,9 +772,14 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     SDL_Rect render_rect = atomic_get_render_rect(element);
     SDL_Rect content_rect = atomic_get_content_rect(element);
     
-    // Sauvegarder le blend mode actuel
+    // 🔧 FIX: Sauvegarder et restaurer l'état du renderer
     SDL_BlendMode old_blend_mode;
     SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
+    
+    Uint8 old_r, old_g, old_b, old_a;
+    SDL_GetRenderDrawColor(renderer, &old_r, &old_g, &old_b, &old_a);
+    
+    // Activer le blending pour les transparences
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     
     // Dessiner le background SEULEMENT si alpha > 0
@@ -789,7 +794,9 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     
     // Dessiner l'image de fond si présente avec support CSS
     if (element->style.background_image) {
-        SDL_SetTextureAlphaMod(element->style.background_image, element->style.opacity);
+        // 🔧 FIX: Gérer l'alpha de la texture
+        Uint8 texture_alpha = element->style.opacity;
+        SDL_SetTextureAlphaMod(element->style.background_image, texture_alpha);
         
         // Calculer le rectangle de destination selon background-size
         SDL_Rect bg_dest = calculate_background_dest_rect(element, element->style.background_image);
@@ -801,6 +808,9 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
             // TODO: Implémenter repeat, repeat-x, repeat-y
             SDL_RenderCopy(renderer, element->style.background_image, NULL, &bg_dest);
         }
+        
+        // 🔧 Restaurer l'alpha de la texture
+        SDL_SetTextureAlphaMod(element->style.background_image, 255);
     }
     
     // Dessiner la bordure SEULEMENT si width > 0 et alpha > 0
@@ -826,9 +836,10 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     if (element->content.texture) {
         SDL_SetTextureAlphaMod(element->content.texture, element->style.opacity);
         SDL_RenderCopy(renderer, element->content.texture, NULL, &content_rect);
+        SDL_SetTextureAlphaMod(element->content.texture, 255); // Restaurer
     }
     
-    // 🔧 RENDU DU TEXTE SIMPLIFIÉ
+    // 🔧 RENDU DU TEXTE SIMPLIFIÉ (sans clignotement)
     if (element->content.text) {
         SDL_SetRenderDrawColor(renderer, 
                              element->style.text.color.r,
@@ -854,7 +865,7 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
                 break;
         }
         
-        // Dessiner des rectangles pour représenter le texte
+        // 🔧 FIX: Dessiner le texte de manière plus stable
         for (int i = 0; i < (int)strlen(element->content.text); i++) {
             SDL_Rect letter_rect = {
                 text_x + i * 8,
@@ -876,8 +887,9 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
         atomic_render(element->content.children[i], renderer);
     }
     
-    // Restaurer le blend mode
+    // 🔧 FIX: Restaurer l'état original du renderer
     SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
+    SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
 }
 
 // === NOUVELLES IMPLÉMENTATIONS POUR Z-INDEX ===

@@ -293,17 +293,17 @@ static void home_scene_render(Scene* scene, GameWindow* window) {
     
     HomeSceneData* data = (HomeSceneData*)scene->data;
     
-    // Clear avec une couleur de fond par défaut
-    SDL_SetRenderDrawColor(renderer, 135, 206, 250, 255); // Bleu ciel
-    SDL_RenderClear(renderer);
+    // 🔧 FIX: NE PLUS FAIRE Clear ici - le core s'en charge
+    // SDL_SetRenderDrawColor(renderer, 135, 206, 250, 255);
+    // SDL_RenderClear(renderer);
     
-    // Rendre l'arbre UI (qui inclut le background et tous les éléments)
+    // Rendre SEULEMENT l'arbre UI
     if (data->ui_tree) {
         ui_tree_render(data->ui_tree, renderer);
     }
     
-    // IMPORTANT: Présenter le rendu à l'écran
-    SDL_RenderPresent(renderer);
+    // 🔧 FIX PRINCIPAL: NE PLUS FAIRE Present ici - le core s'en charge !
+    // SDL_RenderPresent(renderer);
 }
 
 // Nettoyage de la scène home
