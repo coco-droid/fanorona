@@ -6,6 +6,9 @@
 #include "../../event/event.h"
 #include "../../utils/compat.h"
 
+// Forward declaration for TTF_Font
+typedef struct _TTF_Font TTF_Font;
+
 // Énumérations pour les propriétés CSS-like
 typedef enum {
     POSITION_STATIC,
@@ -28,7 +31,9 @@ typedef enum {
     ALIGN_TOP,
     ALIGN_MIDDLE,
     ALIGN_BOTTOM,
-    ALIGN_STRETCH
+    ALIGN_STRETCH,
+    ALIGN_START,    // Ajout pour compatibilité flexbox
+    ALIGN_END       // Ajout pour compatibilité flexbox
 } AlignType;
 
 typedef enum {
@@ -54,6 +59,21 @@ typedef enum {
     TEXT_ALIGN_JUSTIFY
 } TextAlign;
 
+// Énumérations pour les propriétés de background
+typedef enum {
+    BACKGROUND_SIZE_AUTO,
+    BACKGROUND_SIZE_COVER,
+    BACKGROUND_SIZE_CONTAIN,
+    BACKGROUND_SIZE_STRETCH
+} BackgroundSize;
+
+typedef enum {
+    BACKGROUND_REPEAT_NO_REPEAT,
+    BACKGROUND_REPEAT_REPEAT,
+    BACKGROUND_REPEAT_REPEAT_X,
+    BACKGROUND_REPEAT_REPEAT_Y
+} BackgroundRepeat;
+
 // Structure pour les dimensions et espacements
 typedef struct {
     int top, right, bottom, left;
@@ -72,6 +92,7 @@ typedef struct {
 // Structure pour les propriétés de texte
 typedef struct {
     char* font_path;           // Chemin vers la police
+    TTF_Font* ttf_font;        // Police TTF chargée
     int font_size;             // Taille de la police
     SDL_Color color;           // Couleur du texte
     TextAlign align;           // Alignement du texte
@@ -108,9 +129,11 @@ typedef struct {
     SDL_Color border_color;
     int border_width;
     
-    // Images de fond
+    // Images de fond avec propriétés CSS
     SDL_Texture* background_image;
     char* background_image_path;
+    BackgroundSize background_size;      // cover, contain, auto, stretch
+    BackgroundRepeat background_repeat;  // no-repeat, repeat, repeat-x, repeat-y
     
     // Flexbox
     FlexProperties flex;
@@ -120,6 +143,11 @@ typedef struct {
     
     // Texte
     TextProperties text;
+    
+    // Propriétés de texte étendues pour compatibilité
+    int text_x, text_y;         // Position du texte
+    TTF_Font* font;              // Police directe
+    int font_size;               // Taille de police directe
     
     // Opacité
     Uint8 opacity;
@@ -189,6 +217,12 @@ void atomic_set_opacity(AtomicElement* element, Uint8 opacity);
 void atomic_set_background_image(AtomicElement* element, SDL_Texture* texture);
 void atomic_set_background_image_path(AtomicElement* element, const char* path, SDL_Renderer* renderer);
 
+// Fonctions pour les propriétés CSS background
+void atomic_set_background_size(AtomicElement* element, BackgroundSize size);
+void atomic_set_background_repeat(AtomicElement* element, BackgroundRepeat repeat);
+void atomic_set_background_size_str(AtomicElement* element, const char* size);
+void atomic_set_background_repeat_str(AtomicElement* element, const char* repeat);
+
 // Fonctions de positionnement et alignement
 void atomic_set_alignment(AtomicElement* element, AlignType horizontal, AlignType vertical);
 void atomic_set_auto_center(AtomicElement* element, bool center_x, bool center_y);
@@ -204,6 +238,7 @@ void atomic_apply_flex_layout(AtomicElement* element);
 
 // Fonctions de texte et police
 void atomic_set_font(AtomicElement* element, const char* font_path, int size);
+void atomic_set_font_ttf(AtomicElement* element, TTF_Font* font);
 void atomic_set_text_color(AtomicElement* element, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 void atomic_set_text_align(AtomicElement* element, TextAlign align);
 void atomic_set_text_style(AtomicElement* element, bool bold, bool italic);
@@ -227,6 +262,35 @@ void atomic_update(AtomicElement* element, float delta_time);
 bool atomic_is_point_inside(AtomicElement* element, int x, int y);
 SDL_Rect atomic_get_render_rect(AtomicElement* element);
 SDL_Rect atomic_get_content_rect(AtomicElement* element);
+
+// Nouvelles fonctions pour le système de logs et z-index
+bool atomic_has_explicit_z_index(AtomicElement* element);
+int atomic_get_z_index(AtomicElement* element);
+int atomic_get_width(AtomicElement* element);
+int atomic_get_height(AtomicElement* element);
+
+// Fonctions pour la gestion des positions de texte
+void atomic_set_text_position(AtomicElement* element, int x, int y);
+void atomic_set_text_font(AtomicElement* element, TTF_Font* font);
+void atomic_set_text_size(AtomicElement* element, int size);
+
+// Fonctions pour l'alignement
+void atomic_set_align(AtomicElement* element, const char* horizontal, const char* vertical);
+
+// Fonctions pour les classes CSS
+void atomic_add_class(AtomicElement* element, const char* class_name);
+bool atomic_has_class(AtomicElement* element, const char* class_name);
+
+// Versions string pour la compatibilité UI
+void atomic_set_text_align_str(AtomicElement* element, const char* align);
+void atomic_set_text_color_rgba(AtomicElement* element, int r, int g, int b, int a);
+void atomic_set_display_str(AtomicElement* element, const char* display);
+void atomic_set_flex_direction_str(AtomicElement* element, const char* direction);
+void atomic_set_justify_content_str(AtomicElement* element, const char* justify);
+void atomic_set_align_items_str(AtomicElement* element, const char* align);
+
+// Fonctions de debugging pour le texte
+void atomic_debug_text_rendering(AtomicElement* element, const char* context);
 
 // Fonctions d'événements système
 void atomic_handle_event(AtomicElement* element, SDL_Event* event);

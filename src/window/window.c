@@ -114,7 +114,7 @@ SDL_Renderer* window_get_renderer(GameWindow* window) {
 
 // Créer la mini fenêtre
 GameWindow* create_mini_window(void) {
-    return window_create("Fanorona - Mini Window", 600, 500);
+    return window_create("Fanorona - Mini Window", 700, 500);
 }
 
 // Créer la large fenêtre

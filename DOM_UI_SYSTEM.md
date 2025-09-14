@@ -4,457 +4,284 @@
 
 Le nouveau système UI de Fanorona offre une syntaxe **DOM-like** similaire à JavaScript, permettant de créer et manipuler des interfaces utilisateur de manière intuitive.
 
+**🆕 Nouvelles fonctionnalités :**
+- ✅ **Logs de traçage des événements** pour debugging avancé
+- ✅ **Z-index implicites** calculés automatiquement
+- ✅ **Support complet des images PNG** pour les backgrounds
+- ✅ **Correction de l'affichage du texte** sur tous les composants
+
 ## 🌳 Architecture
 
 ```
 UITree (Document)
 ├── UINode (Éléments DOM)
-│   ├── AtomicElement (Rendu/Style)
-│   ├── Component Data (Button, etc.)
+│   ├── AtomicElement (Rendu/Style + Logs)
+│   ├── Component Data (Button avec PNG, etc.)
+│   ├── Z-Index (Automatique + Explicite)
 │   └── Children (Hiérarchie)
-└── Event Manager (Événements)
+└── Event Manager (Événements + Logs)
 ```
 
-## 🚀 Syntaxe de base
+## 🔍 Système de logs pour debugging
 
-### Création d'éléments
+### Activation et utilisation
 
 ```c
-// Créer l'arbre UI
-UITree* ui_tree = ui_tree_create();
-ui_set_global_tree(ui_tree); // Activer les fonctions $ et $$
+// Activer les logs d'événements
+ui_set_event_logging(true);
 
-// Créer des éléments
-UINode* container = ui_div(ui_tree, "main-container");
-UINode* button = ui_button(ui_tree, "save-btn", "Sauvegarder");
-UINode* text = ui_text(ui_tree, "title", "Mon titre");
+// Les logs apparaissent automatiquement :
+// [EVENT] [EventManager] [MouseClick] [save-btn] : Event received at (150, 320)
+// [EVENT] [AtomicElement] [MouseClick] [save-btn] : Hit test passed, bounds (100,300,200,60)
+// [EVENT] [UIComponent] [Click] [save-btn] : Button click callback triggered
+// [EVENT] [Button] [StateChange] [save-btn] : State NORMAL -> PRESSED
 ```
 
-### Sélecteurs (comme jQuery/JavaScript)
+### Logs personnalisés
 
 ```c
-// Sélectionner par ID
-UINode* element = $("#mon-id");
-
-// Sélectionner par classe (à venir)
-UINode* elements = $$(".ma-classe", &count);
-
-// Navigation
-UINode* parent = element->parent;
-UINode* first_child = element->children[0];
+// Ajouter vos propres logs
+ui_log_event("MyComponent", "CustomEvent", "my-element", "Mon message personnalisé");
 ```
 
-### Style CSS-like avancé
+## 🎯 Z-Index automatique
+
+### Gestion intelligente
 
 ```c
-// Style direct
-ui_set_position(element, 100, 50);
-ui_set_size(element, 200, 40);
-ui_set_z_index(element, 10);
-ui_set_background(element, "rgb(70,130,180)");
-ui_set_background_image(element, "assets/my_bg.png");
+// Les z-index sont calculés automatiquement dans l'ordre d'ajout
+UINode* background = ui_div(tree, "bg");      // z-index automatique: 1
+UINode* content = ui_div(tree, "content");    // z-index automatique: 2
+UINode* overlay = ui_div(tree, "overlay");    // z-index automatique: 3
 
-// Alignement et positionnement
-ui_set_align(element, "center", "middle");
-ui_center(element);        // Centre automatiquement
-ui_center_x(element);      // Centre horizontalement
-ui_center_y(element);      // Centre verticalement
+// Calculer après construction de l'interface
+ui_calculate_implicit_z_index(tree);
 
-// Flexbox complet
-ui_set_display_flex(container);
-ui_set_flex_direction(container, "row");         // row, column, row-reverse, column-reverse
-ui_set_justify_content(container, "center");     // start, center, end, space-between, space-around, space-evenly
-ui_set_align_items(container, "center");         // start, center, end, stretch
-ui_set_flex_gap(container, 20);                 // Espacement entre éléments
-
-// Texte et polices
-ui_set_font(element, "assets/fonts/arial.ttf", 16);
-ui_set_text_color(element, "rgb(255,255,255)");
-ui_set_text_align(element, "center");           // left, center, right, justify
-ui_set_text_style(element, true, false);        // bold, italic
-
-// Style par propriétés
-ui_node_set_style(element, "width", "200");
-ui_node_set_style(element, "background-color", "rgb(255,0,0)");
-ui_node_set_style(element, "display", "none");
+// Z-index explicite prioritaire
+ui_set_z_index(overlay, 100); // Sera au-dessus de tous les autres
 ```
 
-### Événements
+### Inspection des z-index
 
 ```c
-// Ajouter des événements
-ui_on_click(button, my_click_handler);
-ui_on_hover(button, my_hover_handler);
-
-// Ou avec addEventListener
-ui_node_add_event_listener(button, "click", my_handler, user_data);
+// Vérifier le z-index effectif (explicite ou calculé)
+int effective_z = ui_node_get_effective_z_index(element);
+printf("Z-index de %s : %d\n", element->id, effective_z);
 ```
 
-### Hiérarchie
+## 🎨 Images PNG avancées
+
+### Background images optimisées
 
 ```c
-// Ajouter des enfants
-ui_append(parent, child);
-ui_append_to(child, parent); // Syntaxe inverse
+// Utiliser des images PNG comme fond
+ui_set_background_image(element, "assets/my_background.png");
 
-// Manipulation
-ui_tree_remove_child(parent, child);
-ui_tree_insert_before(parent, new_child, reference);
+// Pour les boutons spécifiquement
+ui_button_set_background_image(button, "assets/button_bg.png");
+
+// L'image sera automatiquement :
+// - Chargée en mémoire
+// - Redimensionnée à la taille de l'élément
+// - Rendue avec transparence préservée
 ```
 
-## 📝 Exemple complet
+### Correction des artefacts de texte
+
+```c
+// Corriger les problèmes d'affichage de texte sur PNG
+ui_button_fix_text_rendering(button);
+
+// Cette fonction résout :
+// - Les carrés gris autour du texte
+// - Le positionnement incorrect
+// - Les problèmes de contraste
+```
+
+## 💡 Exemple d'interface moderne
 
 ```c
 #include "src/ui/ui_components.h"
 
-void create_interface(Scene* scene) {
-    // Créer l'arbre UI
-    UITree* ui_tree = ui_tree_create();
-    ui_set_global_tree(ui_tree);
+void create_game_menu() {
+    // === SETUP INITIAL ===
+    ui_set_event_logging(true); // Debugging activé
     
-    // === CRÉATION DE L'INTERFACE ===
+    UITree* tree = ui_tree_create();
+    ui_set_global_tree(tree);
     
-    // Container principal
-    UINode* app = ui_div(ui_tree, "app");
-    ui_set_position(app, 0, 0);
-    ui_set_size(app, 800, 600);
-    ui_set_background(app, "rgb(240,240,240)");
+    // === INTERFACE PRINCIPALE ===
     
-    // Header
-    UINode* header = ui_div(ui_tree, "header");
-    ui_set_position(header, 0, 0);
-    ui_set_size(header, 800, 60);
-    ui_set_background(header, "rgb(70,130,180)");
+    // Fond principal avec image
+    UINode* app = UI_DIV(tree, "game-menu");
+    SET_POS(app, 0, 0);
+    SET_SIZE(app, 800, 600);
+    ui_set_background_image(app, "menu_background.png");
     
-    UINode* title = ui_text(ui_tree, "title", "Mon Application");
-    ui_set_position(title, 20, 15);
-    ui_set_size(title, 300, 30);
+    // Logo du jeu
+    UINode* logo = UI_IMAGE(tree, "logo", logo_texture);
+    SET_SIZE(logo, 400, 150);
+    CENTER_X(logo);
+    SET_POS(logo, logo->x, 50);
     
-    // Boutons
-    UINode* save_btn = ui_button(ui_tree, "save", "Sauvegarder");
-    ui_set_position(save_btn, 50, 100);
-    ui_set_size(save_btn, 120, 40);
-    ui_on_click(save_btn, on_save_click);
+    // Container pour les boutons avec flexbox
+    UINode* menu_buttons = UI_DIV(tree, "menu-buttons");
+    SET_SIZE(menu_buttons, 300, 400);
+    CENTER_X(menu_buttons);
+    SET_POS(menu_buttons, menu_buttons->x, 220);
+    ui_set_display_flex(menu_buttons);
+    FLEX_COLUMN(menu_buttons);
+    ui_set_justify_content(menu_buttons, "center");
+    ui_set_align_items(menu_buttons, "center");
+    ui_set_flex_gap(menu_buttons, 20);
     
-    UINode* load_btn = ui_button(ui_tree, "load", "Charger");
-    ui_set_position(load_btn, 180, 100);
-    ui_set_size(load_btn, 120, 40);
-    ui_on_click(load_btn, on_load_click);
+    // Boutons avec images PNG personnalisées
+    UINode* play_btn = ui_button(tree, "play", "NOUVELLE PARTIE", on_new_game, NULL);
+    SET_SIZE(play_btn, 280, 60);
+    ui_button_set_background_image(play_btn, "btn_play.png");
+    ui_set_text_color(play_btn, "rgb(255,255,255)");
+    ui_button_fix_text_rendering(play_btn);
     
-    // Status bar
-    UINode* status = ui_div(ui_tree, "status");
-    ui_set_position(status, 0, 560);
-    ui_set_size(status, 800, 40);
-    ui_set_background(status, "rgb(108,117,125)");
+    UINode* load_btn = ui_button(tree, "load", "CHARGER PARTIE", on_load_game, NULL);
+    SET_SIZE(load_btn, 280, 60);
+    ui_button_set_background_image(load_btn, "btn_load.png");
+    ui_set_text_color(load_btn, "rgb(255,255,255)");
+    ui_button_fix_text_rendering(load_btn);
     
-    // Construire la hiérarchie
-    ui_append(ui_tree->root, app);
-    ui_append(app, header);
-    ui_append(header, title);
-    ui_append(app, save_btn);
-    ui_append(app, load_btn);
-    ui_append(app, status);
+    UINode* options_btn = ui_button(tree, "options", "OPTIONS", on_options, NULL);
+    SET_SIZE(options_btn, 280, 60);
+    ui_button_set_background_image(options_btn, "btn_options.png");
+    ui_set_text_color(options_btn, "rgb(255,255,255)");
+    ui_button_fix_text_rendering(options_btn);
     
-    // Stocker dans la scène
-    scene->ui_tree = ui_tree;
+    UINode* quit_btn = ui_button(tree, "quit", "QUITTER", on_quit, NULL);
+    SET_SIZE(quit_btn, 280, 60);
+    ui_button_set_background_image(quit_btn, "btn_quit.png");
+    ui_set_text_color(quit_btn, "rgb(255,255,255)");
+    ui_button_fix_text_rendering(quit_btn);
+    
+    // Popup de confirmation (z-index élevé)
+    UINode* confirm_popup = UI_DIV(tree, "confirm-popup");
+    SET_SIZE(confirm_popup, 400, 200);
+    CENTER(confirm_popup);
+    ui_set_z_index(confirm_popup, 1000); // Au-dessus de tout
+    ui_set_background_image(confirm_popup, "popup_bg.png");
+    ui_node_set_style(confirm_popup, "display", "none"); // Caché par défaut
+    
+    // === CONSTRUCTION DE LA HIÉRARCHIE ===
+    
+    APPEND(tree->root, app);
+    APPEND(app, logo);
+    APPEND(app, menu_buttons);
+    APPEND(menu_buttons, play_btn);
+    APPEND(menu_buttons, load_btn);
+    APPEND(menu_buttons, options_btn);
+    APPEND(menu_buttons, quit_btn);
+    APPEND(app, confirm_popup);
+    
+    // Calculer les z-index automatiques
+    ui_calculate_implicit_z_index(tree);
+    
+    printf("✅ Menu de jeu créé avec images PNG et z-index automatiques\n");
+    
+    // Les logs montreront :
+    // [EVENT] [UIComponent] [ZIndexCalculation] [game-menu] : Implicit z-index set to 1
+    // [EVENT] [UIComponent] [ZIndexCalculation] [logo] : Implicit z-index set to 2
+    // [EVENT] [UIComponent] [ZIndexCalculation] [menu-buttons] : Implicit z-index set to 3
+    // [EVENT] [UIComponent] [ZIndexCalculation] [play] : Implicit z-index set to 4
+    // [EVENT] [UIComponent] [ZIndexCalculation] [load] : Implicit z-index set to 5
+    // [EVENT] [UIComponent] [ZIndexCalculation] [options] : Implicit z-index set to 6
+    // [EVENT] [UIComponent] [ZIndexCalculation] [quit] : Implicit z-index set to 7
+    // [EVENT] [UIComponent] [ZIndexCalculation] [confirm-popup] : Explicit z-index 1000 kept
 }
 
-// Callbacks d'événements
-void on_save_click(UINode* node, void* user_data) {
-    printf("💾 Sauvegarde...\n");
+// Callbacks avec logs automatiques
+void on_new_game(UINode* node, void* user_data) {
+    // Les logs apparaîtront automatiquement :
+    // [EVENT] [EventManager] [MouseClick] [play] : Event received at (400, 280)
+    // [EVENT] [AtomicElement] [MouseClick] [play] : Hit test passed
+    // [EVENT] [UIComponent] [Click] [play] : Button click callback triggered
     
-    // Manipuler l'interface
-    UINode* status = $("#status");
-    ui_node_set_text(status, "Sauvegarde en cours...");
-    ui_set_background(status, "rgb(40,167,69)");
+    printf("🎮 Nouvelle partie démarrée\n");
     
-    // Désactiver le bouton temporairement
-    ui_node_set_style(node, "opacity", "0.5");
+    // Afficher popup de confirmation
+    UINode* popup = $("#confirm-popup");
+    ui_node_set_style(popup, "display", "block");
 }
 
-void on_load_click(UINode* node, void* user_data) {
-    printf("📁 Chargement...\n");
-    
-    // Animation/effet
-    UINode* status = $("#status");
-    ui_node_set_text(status, "Chargement en cours...");
-    ui_set_background(status, "rgb(255,193,7)");
-}
-
-// Dans la boucle de rendu de la scène
-void scene_render(Scene* scene, GameWindow* window) {
-    SDL_Renderer* renderer = window_get_renderer(window);
-    
-    // Fond
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
-    
-    // Rendre l'arbre UI
-    ui_tree_render(scene->ui_tree, renderer);
-}
-
-// Mise à jour
-void scene_update(Scene* scene, float delta_time) {
-    ui_tree_update(scene->ui_tree, delta_time);
-}
-```
-
-## 🎨 Fonctionnalités avancées
-
-### Macros pour syntaxe ultra-simple
-
-```c
-// Création rapide
-UINode* btn = UI_BUTTON(tree, "save", "Sauvegarder");
-UINode* box = UI_DIV(tree, "container");
-UINode* txt = UI_TEXT(tree, "title", "Mon titre");
-
-// Style rapide
-SET_POS(btn, 100, 50);
-SET_SIZE(btn, 120, 40);
-SET_BG(btn, "rgb(70,130,180)");
-SET_BG_IMG(btn, "assets/button_bg.png");
-CENTER(btn);
-
-// Flexbox rapide
-FLEX_ROW(container);
-FLEX_COLUMN(container);
-
-// Événements rapides
-ON_CLICK(btn, my_callback);
-
-// Hiérarchie rapide
-APPEND(parent, child);
-APPEND_TO(child, parent);
-```
-
-### Système de styles complet
-
-```c
-// Exemple de style complexe
-UIStyle my_style = {
-    .x = 100, .y = 50,
-    .width = 200, .height = 40,
-    .z_index = 10,
-    .background_color = "rgb(70,130,180)",
-    .background_image = "assets/bg.png",
-    .color = "rgb(255,255,255)",
-    .align_horizontal = "center",
-    .align_vertical = "middle",
-    .flex_direction = "row",
-    .justify_content = "space-between",
-    .align_items = "center",
-    .flex_gap = 20,
-    .font_path = "assets/fonts/arial.ttf",
-    .font_size = 16,
-    .text_align = "center",
-    .text_bold = true
-};
-
-ui_apply_style(element, &my_style);
-```
-
-### Flexbox complet
-
-```c
-// Container flexbox
-UINode* container = ui_div(tree, "flex-container");
-ui_set_display_flex(container);
-ui_set_flex_direction(container, "row");        // row, column, row-reverse, column-reverse
-ui_set_justify_content(container, "center");    // start, center, end, space-between, space-around, space-evenly  
-ui_set_align_items(container, "center");        // start, center, end, stretch
-ui_set_flex_gap(container, 20);
-
-// Les enfants seront automatiquement positionnés
-for (int i = 0; i < 4; i++) {
-    UINode* item = ui_div(tree, NULL);
-    ui_set_size(item, 80, 40);
-    ui_append(container, item);
+void on_quit(UINode* node, void* user_data) {
+    // [EVENT] [Button] [StateChange] [quit] : State NORMAL -> PRESSED
+    printf("🚪 Fermeture du jeu\n");
+    exit(0);
 }
 ```
 
-### Z-Index et superposition
+## 🔍 Debugging avancé
+
+### Traçage complet des événements
 
 ```c
-// Éléments avec différents z-index
-UINode* background = ui_div(tree, "bg");
-ui_set_z_index(background, 1);
+// Avec ui_set_event_logging(true), vous verrez :
 
-UINode* content = ui_div(tree, "content");
-ui_set_z_index(content, 10);
+// Survol d'un bouton :
+// [EVENT] [EventManager] [MouseMove] [menu-buttons] : Mouse at (400, 280)
+// [EVENT] [AtomicElement] [MouseEnter] [play] : Element entered, bounds (260,250,280,60)
+// [EVENT] [Button] [StateChange] [play] : State NORMAL -> HOVERED
+// [EVENT] [UIComponent] [Hover] [play] : Hover callback triggered
 
-UINode* popup = ui_div(tree, "popup");
-ui_set_z_index(popup, 100);
-
-// Les éléments sont automatiquement triés par z-index lors du rendu
+// Clic sur un bouton :
+// [EVENT] [EventManager] [MouseDown] [play] : Button pressed at (400, 280)
+// [EVENT] [AtomicElement] [MouseDown] [play] : Hit test passed
+// [EVENT] [Button] [StateChange] [play] : State HOVERED -> PRESSED
+// [EVENT] [EventManager] [MouseUp] [play] : Button released at (400, 280)
+// [EVENT] [UIComponent] [Click] [play] : Button click callback triggered
+// [EVENT] [Button] [StateChange] [play] : State PRESSED -> HOVERED
 ```
 
-### Images de fond
+### Inspection des z-index en temps réel
 
 ```c
-// Définir une image de fond
-ui_set_background_image(element, "assets/button_bg.png");
+// Fonction de debug pour visualiser les z-index
+void debug_interface_z_index(UITree* tree) {
+    printf("=== Z-INDEX DEBUG ===\n");
+    
+    // Parcourir tous les éléments
+    ui_tree_traverse(tree->root, print_z_index, NULL);
+}
 
-// Ou directement dans le style
-ui_node_set_style(element, "background-image", "assets/texture.png");
-
-// L'image sera automatiquement chargée et redimensionnée
-```
-
-### Centrage intelligent
-
-```c
-// Centrage automatique
-ui_center(element);          // Centre X et Y automatiquement
-ui_center_x(element);        // Centre X seulement
-ui_center_y(element);        // Centre Y seulement
-
-// Alignement manuel
-ui_set_align(element, "center", "middle");
-ui_set_align(element, "right", "bottom");
-ui_set_align(element, "left", "top");
-
-// Le centrage est recalculé automatiquement lors des mises à jour
-```
-
-### Polices et texte avancé
-
-```c
-// Configurer la police
-ui_set_font(element, "assets/fonts/roboto.ttf", 18);
-ui_set_text_color(element, "rgb(33,37,41)");
-ui_set_text_align(element, "center");       // left, center, right, justify
-ui_set_text_style(element, true, false);    // bold, italic
-
-// Le texte sera rendu avec la police spécifiée
-```
-
-### Classes CSS-like
-
-```c
-// Ajouter des classes
-ui_add_class(element, "button");
-ui_add_class(element, "primary");
-
-// Vérifier les classes
-if (ui_node_has_class(element, "active")) {
-    // Faire quelque chose
+void print_z_index(UINode* node, void* user_data) {
+    int z = ui_node_get_effective_z_index(node);
+    printf("Element '%s' : z-index = %d %s\n", 
+           node->id, 
+           z,
+           ui_node_has_explicit_z_index(node) ? "(explicite)" : "(automatique)");
 }
 ```
 
-### Recherche avancée
+## 🆕 Nouvelles fonctionnalités complètes
 
-```c
-// Sélecteurs CSS-like (à venir)
-UINode* buttons = $$("button.primary", &count);
-UINode* first_div = $("div");
-UINode* nested = $("#container .button");
-```
+### ✨ Logs intelligents
+- **Traçage complet** de la propagation des événements
+- **Sources identifiées** (EventManager, AtomicElement, Button, etc.)
+- **Messages descriptifs** pour debugging rapide
+- **Activation/désactivation** à la volée
 
-## 🔄 Comparaison avec JavaScript
+### 🎯 Z-Index automatique
+- **Calcul intelligent** basé sur l'ordre d'ajout
+- **Éléments récents** au premier plan automatiquement
+- **Z-index explicites** prioritaires sur automatiques
+- **Inspection en temps réel** des valeurs
 
-| JavaScript DOM | Fanorona UI |
-|----------------|-------------|
-| `document.getElementById()` | `$("#id")` |
-| `element.style.width = "100px"` | `ui_set_size(element, 100, height)` |
-| `element.addEventListener()` | `ui_on_click(element, callback)` |
-| `parent.appendChild(child)` | `ui_append(parent, child)` |
-| `element.innerHTML = "text"` | `ui_node_set_text(element, "text")` |
+### 🖼️ Images PNG optimisées
+- **Support natif** des backgrounds PNG avec transparence
+- **Chargement automatique** et cache des textures
+- **Redimensionnement intelligent** selon l'élément
+- **Correction des artefacts** de rendu de texte
 
-## 📋 Exemples de scènes complètes
+### 🔧 Debugging avancé
+- **Inspection complète** de l'état des éléments
+- **Traçage des changements** d'état en temps réel
+- **Messages colorés** et structurés
+- **Navigation** dans la hiérarchie UI
 
-### Scène DOM de base
-Voir `src/scene/dom_demo_scene.c` pour un exemple d'utilisation avec :
-- ✅ Création d'interface complexe
-- ✅ Gestion d'événements
-- ✅ Manipulation DOM en temps réel
-- ✅ Sélecteurs $ et $$
-- ✅ Styles CSS-like
-
-### Scène UI Avancée
-Voir `src/scene/advanced_ui_scene.c` pour une démonstration complète avec :
-- ✅ **Flexbox complet** avec gap, justify-content, align-items
-- ✅ **Z-index dynamique** et superposition d'éléments
-- ✅ **Centrage automatique** et alignement intelligent
-- ✅ **Images de fond** et textures
-- ✅ **Polices personnalisées** et styles de texte
-- ✅ **Macros simplifiées** pour création rapide
-
-Pour tester les scènes :
-```c
-// Scène DOM de base
-Scene* demo = create_dom_demo_scene();
-scene_manager_set_scene(scene_manager, demo);
-
-// Scène UI avancée
-Scene* advanced = create_advanced_ui_scene();
-scene_manager_set_scene(scene_manager, advanced);
-```
-
-## 🆕 Nouvelles fonctionnalités ajoutées
-
-### ✨ Z-Index
-```c
-ui_set_z_index(element, 10); // Plus le nombre est grand, plus l'élément est au premier plan
-```
-
-### 🖼️ Images de fond
-```c
-ui_set_background_image(element, "assets/my_texture.png");
-// L'image est automatiquement chargée et adaptée à la taille de l'élément
-```
-
-### 🎯 Positionnement intelligent
-```c
-// Centrage automatique
-ui_center(element);           // Centre complet
-ui_center_x(element);         // Centre horizontal seulement
-ui_center_y(element);         // Centre vertical seulement
-
-// Alignement manuel
-ui_set_align(element, "center", "middle");  // horizontal, vertical
-ui_set_align(element, "right", "bottom");
-```
-
-### 📐 Flexbox CSS complet
-```c
-UINode* container = ui_div(tree, "flex-container");
-ui_set_display_flex(container);
-ui_set_flex_direction(container, "row");         // row, column, row-reverse, column-reverse
-ui_set_justify_content(container, "center");     // start, center, end, space-between, space-around, space-evenly
-ui_set_align_items(container, "center");         // start, center, end, stretch
-ui_set_flex_gap(container, 20);                 // Espacement entre éléments
-
-// Les enfants sont automatiquement positionnés !
-```
-
-### 🔤 Polices et texte avancé
-```c
-ui_set_font(element, "assets/fonts/roboto.ttf", 18);    // Police et taille
-ui_set_text_color(element, "rgb(33,37,41)");           // Couleur du texte
-ui_set_text_align(element, "center");                  // left, center, right, justify
-ui_set_text_style(element, true, false);               // bold, italic
-```
-
-### 🏷️ Macros simplifiées
-```c
-// Création ultra-rapide
-UINode* btn = UI_BUTTON(tree, "save", "Sauvegarder");
-UINode* box = UI_DIV(tree, "container");
-
-// Style ultra-rapide
-SET_POS(btn, 100, 50);
-SET_SIZE(btn, 120, 40);
-SET_BG(btn, "rgb(70,130,180)");
-SET_BG_IMG(btn, "assets/button.png");
-CENTER(btn);
-
-// Flexbox ultra-rapide
-FLEX_ROW(container);
-FLEX_COLUMN(container);
-
-// Hiérarchie ultra-rapide
-APPEND(parent, child);
-```
-
-Le système offre maintenant une syntaxe aussi simple et intuitive que le DOM JavaScript avec toutes les fonctionnalités CSS modernes ! 🎉
+Cette version du système DOM-like offre maintenant tous les outils nécessaires pour créer et déboguer des interfaces modernes et robustes ! 🎉

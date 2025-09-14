@@ -46,7 +46,7 @@ UITree* ui_tree_create(void);
 void ui_tree_destroy(UITree* tree);
 
 // Gestion des nœuds
-UINode* ui_tree_create_node(UITree* tree, const char* tag_name, const char* id);
+UINode* ui_tree_create_node(UITree* tree, const char* id, const char* tag_name);
 void ui_tree_destroy_node(UINode* node);
 
 // Navigation dans l'arbre (syntaxe DOM-like)

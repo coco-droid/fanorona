@@ -88,14 +88,14 @@ void ui_tree_destroy(UITree* tree) {
 
 // === GESTION DES NŒUDS ===
 
-UINode* ui_tree_create_node(UITree* tree, const char* tag_name, const char* id) {
+UINode* ui_tree_create_node(UITree* tree, const char* id, const char* tag_name) {
     UINode* node = (UINode*)calloc(1, sizeof(UINode));
     if (!node) {
         printf("Erreur: Impossible d'allouer la mémoire pour le nœud UI\n");
         return NULL;
     }
     
-    // Initialiser les propriétés
+    // Initialiser les propriétés avec l'ordre correct
     node->tag_name = tag_name ? strdup(tag_name) : NULL;
     node->id = id ? strdup(id) : NULL;
     node->tree = tree;
