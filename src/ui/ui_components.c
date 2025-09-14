@@ -74,8 +74,8 @@ void ui_cleanup_fonts(void) {
 static int calculate_z_index_recursive(UINode* node, int base_z_index) {
     if (!node) return base_z_index;
     
-    // Si le nœud n'a pas de z-index explicite, lui assigner un z-index implicite
-    if (!atomic_has_explicit_z_index(node->element)) {
+    // 🔧 FIX: Vérification directe du z-index au lieu de la fonction manquante
+    if (node->element->style.z_index == 0) { // z-index implicite
         atomic_set_z_index(node->element, base_z_index);
         ui_log_event("UIComponent", "ZIndexCalculation", node->id, 
                     "Implicit z-index calculated and assigned");
@@ -110,8 +110,8 @@ void ui_calculate_implicit_z_index(UITree* tree) {
 void ui_node_set_implicit_z_index(UINode* node, int base_z_index) {
     if (!node) return;
     
-    // Assigner seulement si pas de z-index explicite
-    if (!atomic_has_explicit_z_index(node->element)) {
+    // 🔧 FIX: Vérification directe
+    if (node->element->style.z_index == 0) { // Pas de z-index explicite
         atomic_set_z_index(node->element, base_z_index);
         ui_log_event("UIComponent", "ZIndexCalculation", node->id, "Implicit z-index set");
     }
@@ -120,7 +120,8 @@ void ui_node_set_implicit_z_index(UINode* node, int base_z_index) {
 int ui_node_get_effective_z_index(UINode* node) {
     if (!node || !node->element) return 0;
     
-    return atomic_get_z_index(node->element);
+    // 🔧 FIX: Accès direct au style
+    return node->element->style.z_index;
 }
 
 // === CORRECTIONS BOUTONS ===
@@ -150,7 +151,22 @@ void ui_button_set_background_image(UINode* button, const char* image_path) {
     SDL_Texture* texture = asset_load_texture(renderer, image_path);
     if (texture) {
         atomic_set_background_image(button->element, texture);
-        ui_log_event("UIComponent", "ButtonStyle", button->id, "Background image loaded and applied");
+        
+        // 🔧 FIX PRINCIPAL: Forcer le mode "cover" par défaut pour les boutons
+        atomic_set_background_size_str(button->element, "cover");
+        atomic_set_background_repeat_str(button->element, "no-repeat");
+        
+        // 🔧 SUPPRESSION: Plus de logs verbeux pour le mode COVER
+        // char message[256];
+        // snprintf(message, sizeof(message), 
+        //         "[ui_components.c] Background image loaded with COVER mode for button '%s'",
+        //         button->id ? button->id : "NoID");
+        // ui_log_event("UIComponent", "ButtonStyle", button->id, message);
+        
+        // 🔧 LOG SIMPLE et silencieux
+        // printf("✅ Button '%s' background image set to COVER mode\n", button->id ? button->id : "NoID");
+        
+        ui_log_event("UIComponent", "ButtonStyle", button->id, "Background image applied with cover mode");
     } else {
         ui_log_event("UIComponent", "ButtonError", button->id, "Failed to load background image");
     }
@@ -174,16 +190,14 @@ void ui_button_fix_text_rendering(UINode* button) {
 void ui_button_calculate_text_position(UINode* button) {
     if (!button) return;
     
-    int button_width = atomic_get_width(button->element);
-    int button_height = atomic_get_height(button->element);
+    // 🔧 FIX: Accès direct au style au lieu des fonctions manquantes
+    int button_width = button->element->style.width;
+    int button_height = button->element->style.height;
     
     int text_x = button_width / 2;
     int text_y = button_height / 2;
     
     atomic_set_text_position(button->element, text_x, text_y);
-    
-    // 🔧 SUPPRESSION: Plus de logs
-    // ui_log_event("UIComponent", "ButtonFix", button->id, "Text position calculated");
 }
 
 // === FONCTIONS DE CRÉATION D'ÉLÉMENTS ===
@@ -391,10 +405,19 @@ UINode* ui_set_background_image(UINode* node, const char* image_path) {
                 SDL_Texture* texture = asset_load_texture(renderer, image_path);
                 if (texture) {
                     atomic_set_background_image(node->element, texture);
-                    // Définir cover par défaut pour un rendu optimal
+                    
+                    // 🔧 FIX: Définir cover par défaut pour TOUS les éléments
                     atomic_set_background_size_str(node->element, "cover");
                     atomic_set_background_repeat_str(node->element, "no-repeat");
-                    ui_log_event("UIComponent", "Style", node->id, "Background image set with cover");
+                    
+                    // 🔧 SUPPRESSION: Plus de logs verbeux
+                    // char message[256];
+                    // snprintf(message, sizeof(message), 
+                    //         "[ui_components.c] Background image set with COVER mode for '%s'",
+                    //         node->id ? node->id : "NoID");
+                    // ui_log_event("UIComponent", "Style", node->id, message);
+                    
+                    ui_log_event("UIComponent", "Style", node->id, "Background image set with cover mode");
                 }
             }
         }
@@ -564,9 +587,9 @@ void ui_button_set_pressed_state(UINode* button, bool pressed) {
     if (!button) return;
     
     if (pressed) {
-        // État pressé : réduire la taille et assombrir
-        int width = atomic_get_width(button->element);
-        int height = atomic_get_height(button->element);
+        // 🔧 FIX: Accès direct au style
+        int width = button->element->style.width;
+        int height = button->element->style.height;
         atomic_set_size(button->element, width - 4, height - 2);
         
         // Ajouter un overlay sombre
@@ -574,9 +597,9 @@ void ui_button_set_pressed_state(UINode* button, bool pressed) {
         
         ui_log_event("UIComponent", "VisualState", button->id, "Button pressed state applied");
     } else {
-        // État normal : restaurer la taille et supprimer l'overlay
-        int width = atomic_get_width(button->element);
-        int height = atomic_get_height(button->element);
+        // 🔧 FIX: Accès direct au style
+        int width = button->element->style.width;
+        int height = button->element->style.height;
         atomic_set_size(button->element, width + 4, height + 2);
         
         // Supprimer l'overlay
@@ -590,9 +613,9 @@ void ui_button_set_hover_state(UINode* button, bool hovered) {
     if (!button) return;
     
     if (hovered) {
-        // État survol : légèrement agrandir et éclaircir
-        int width = atomic_get_width(button->element);
-        int height = atomic_get_height(button->element);
+        // 🔧 FIX: Accès direct au style
+        int width = button->element->style.width;
+        int height = button->element->style.height;
         atomic_set_size(button->element, width + 2, height + 1);
         
         // Ajouter un overlay lumineux
@@ -600,9 +623,9 @@ void ui_button_set_hover_state(UINode* button, bool hovered) {
         
         ui_log_event("UIComponent", "VisualState", button->id, "Button hover state applied");
     } else {
-        // État normal : restaurer la taille et supprimer l'overlay
-        int width = atomic_get_width(button->element);
-        int height = atomic_get_height(button->element);
+        // 🔧 FIX: Accès direct au style
+        int width = button->element->style.width;
+        int height = button->element->style.height;
         atomic_set_size(button->element, width - 2, height - 1);
         
         // Supprimer l'overlay

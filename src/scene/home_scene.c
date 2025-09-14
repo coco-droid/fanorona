@@ -24,16 +24,17 @@ typedef struct HomeSceneData {
     UINode* quit_button; // 🆕 Référence vers le bouton Quit
 } HomeSceneData;
 
-// 🆕 Callbacks corrigés avec feedback visuel
+// 🆕 Callbacks simplifiés sans dépendances
 static void play_button_clicked(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
     
-    // 🎯 FEEDBACK VISUEL (sans logs verbeux)
+    // 🎯 FEEDBACK VISUEL SIMPLIFIÉ
     atomic_set_background_color(atomic_element, 100, 200, 100, 255);
     atomic_set_text_color_rgba(atomic_element, 0, 0, 0, 255);
     
-    int current_width = atomic_get_width(atomic_element);
-    int current_height = atomic_get_height(atomic_element);
+    // 🔧 FIX: Utiliser les valeurs directes du style au lieu des fonctions
+    int current_width = atomic_element->style.width;
+    int current_height = atomic_element->style.height;
     atomic_set_size(atomic_element, current_width - 4, current_height - 2);
     
     // 🔧 LOG SIMPLE
@@ -45,12 +46,13 @@ static void play_button_clicked(void* element, SDL_Event* event) {
 static void quit_button_clicked(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
     
-    // 🎯 FEEDBACK VISUEL (sans logs verbeux)
+    // 🎯 FEEDBACK VISUEL SIMPLIFIÉ
     atomic_set_background_color(atomic_element, 220, 100, 100, 255);
     atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
     
-    int current_width = atomic_get_width(atomic_element);
-    int current_height = atomic_get_height(atomic_element);
+    // 🔧 FIX: Utiliser les valeurs directes du style
+    int current_width = atomic_element->style.width;
+    int current_height = atomic_element->style.height;
     atomic_set_size(atomic_element, current_width - 4, current_height - 2);
     
     // 🔧 LOG SIMPLE
@@ -59,29 +61,31 @@ static void quit_button_clicked(void* element, SDL_Event* event) {
     (void)event;
 }
 
-// 🆕 Callback pour hover avec feedback visuel subtil
+// 🆕 Callback pour hover simplifié
 static void button_hovered(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
     
     // 🎯 FEEDBACK SILENCIEUX
     atomic_set_background_color(atomic_element, 255, 255, 255, 50);
     
-    int current_width = atomic_get_width(atomic_element);
-    int current_height = atomic_get_height(atomic_element);
+    // 🔧 FIX: Utiliser les valeurs directes du style
+    int current_width = atomic_element->style.width;
+    int current_height = atomic_element->style.height;
     atomic_set_size(atomic_element, current_width + 2, current_height + 1);
     
     (void)event;
 }
 
-// 🆕 Nouveau callback pour quand la souris quitte le bouton
+// 🆕 Callback pour unhover simplifié
 static void button_unhovered(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
     
     // 🎯 RESTAURATION SILENCIEUSE
     atomic_set_background_color(atomic_element, 0, 0, 0, 0);
     
-    int current_width = atomic_get_width(atomic_element);
-    int current_height = atomic_get_height(atomic_element);
+    // 🔧 FIX: Utiliser les valeurs directes du style
+    int current_width = atomic_element->style.width;
+    int current_height = atomic_element->style.height;
     atomic_set_size(atomic_element, current_width - 2, current_height - 1);
     
     atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
@@ -161,7 +165,7 @@ static void home_scene_init(Scene* scene) {
         return;
     }
     
-    SET_SIZE(logo, 400, 200); // Réduire la taille du logo
+    SET_SIZE(logo, 400, 150); // Réduire la taille du logo
     
     if (data->logo_texture) {
         printf("🖼️ Logo PNG chargé avec composant image (fond transparent)\n");
@@ -201,7 +205,7 @@ static void home_scene_init(Scene* scene) {
     UINode* play_button = ui_button(data->ui_tree, "play-button", "JOUER", NULL, NULL);
     data->play_button = play_button; // 🆕 Sauvegarder la référence
     if (play_button) {
-        SET_SIZE(play_button, 200, 60);
+        SET_SIZE(play_button, 150, 40);
         
         // Configuration visuelle
         ui_button_set_background_image(play_button, "home_bg_btn.png");
@@ -223,7 +227,7 @@ static void home_scene_init(Scene* scene) {
     UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", NULL, NULL);
     data->quit_button = quit_button; // 🆕 Sauvegarder la référence
     if (quit_button) {
-        SET_SIZE(quit_button, 200, 60);
+        SET_SIZE(quit_button, 150, 40);
         
         // Configuration visuelle
         ui_button_set_background_image(quit_button, "home_bg_btn.png");

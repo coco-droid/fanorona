@@ -11,50 +11,67 @@
 // === FONCTIONS STATIQUES (DÉCLARATIONS AVANT UTILISATION) ===
 
 // Calculer le rectangle de destination pour l'image de fond selon background-size
+// 🔧 FIX: Calculer le rectangle de destination pour background "cover"
 static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Texture* texture) {
     SDL_Rect element_rect = atomic_get_render_rect(element);
+    
+    if (!texture) {
+        return element_rect;
+    }
+    
+    int texture_width, texture_height;
+    SDL_QueryTexture(texture, NULL, NULL, &texture_width, &texture_height);
+    
     SDL_Rect dest_rect = element_rect;
-    
-    if (!texture) return dest_rect;
-    
-    int texture_w, texture_h;
-    SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h);
     
     switch (element->style.background_size) {
         case BACKGROUND_SIZE_COVER: {
-            // Couvrir tout l'élément en gardant les proportions
-            float scale_x = (float)element_rect.w / texture_w;
-            float scale_y = (float)element_rect.h / texture_h;
-            float scale = fmaxf(scale_x, scale_y);
+            // 🔧 Mode COVER CORRIGÉ: L'image remplit EXACTEMENT l'élément
+            // Garder les proportions mais s'assurer que l'image couvre tout l'élément
+            float element_aspect = (float)element_rect.w / element_rect.h;
+            float texture_aspect = (float)texture_width / texture_height;
             
-            dest_rect.w = (int)(texture_w * scale);
-            dest_rect.h = (int)(texture_h * scale);
-            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
-            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
+            if (texture_aspect > element_aspect) {
+                // Image plus large : ajuster la largeur pour couvrir la hauteur
+                dest_rect.h = element_rect.h;
+                dest_rect.w = (int)(element_rect.h * texture_aspect);
+                dest_rect.x = element_rect.x - (dest_rect.w - element_rect.w) / 2;
+                dest_rect.y = element_rect.y;
+            } else {
+                // Image plus haute : ajuster la hauteur pour couvrir la largeur
+                dest_rect.w = element_rect.w;
+                dest_rect.h = (int)(element_rect.w / texture_aspect);
+                dest_rect.x = element_rect.x;
+                dest_rect.y = element_rect.y - (dest_rect.h - element_rect.h) / 2;
+            }
+            
+            // 🔧 SUPPRESSION: Plus de logs verbeux
+            // printf("🔧 COVER mode applied: element(%dx%d) -> dest(%dx%d)\n",
+            //        element_rect.w, element_rect.h, dest_rect.w, dest_rect.h);
             break;
         }
         case BACKGROUND_SIZE_CONTAIN: {
-            // Contenir dans l'élément en gardant les proportions
-            float scale_x = (float)element_rect.w / texture_w;
-            float scale_y = (float)element_rect.h / texture_h;
-            float scale = fminf(scale_x, scale_y);
+            // Mode CONTAIN: L'image tient entièrement dans l'élément
+            float element_aspect = (float)element_rect.w / element_rect.h;
+            float texture_aspect = (float)texture_width / texture_height;
             
-            dest_rect.w = (int)(texture_w * scale);
-            dest_rect.h = (int)(texture_h * scale);
-            dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
-            dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
+            if (texture_aspect > element_aspect) {
+                dest_rect.w = element_rect.w;
+                dest_rect.h = (int)(element_rect.w / texture_aspect);
+                dest_rect.x = element_rect.x;
+                dest_rect.y = element_rect.y + (element_rect.h - dest_rect.h) / 2;
+            } else {
+                dest_rect.h = element_rect.h;
+                dest_rect.w = (int)(element_rect.h * texture_aspect);
+                dest_rect.x = element_rect.x + (element_rect.w - dest_rect.w) / 2;
+                dest_rect.y = element_rect.y;
+            }
             break;
         }
-        case BACKGROUND_SIZE_AUTO:
-            // Taille originale de l'image
-            dest_rect.w = texture_w;
-            dest_rect.h = texture_h;
-            dest_rect.x = element_rect.x;
-            dest_rect.y = element_rect.y;
-            break;
         case BACKGROUND_SIZE_STRETCH:
         default:
-            // Étirer pour remplir (comportement par défaut)
+            // Mode STRETCH (par défaut) : étirer pour remplir exactement
+            dest_rect = element_rect;
             break;
     }
     
@@ -691,13 +708,15 @@ void atomic_set_align_items_str(AtomicElement* element, const char* align) {
 void atomic_set_background_size(AtomicElement* element, BackgroundSize size) {
     if (!element) return;
     element->style.background_size = size;
-    printf("🖼️ Background size défini : %d\n", size);
+    // 🔧 SUPPRESSION: Plus de logs verbeux
+    // printf("🖼️ Background size défini : %d\n", size);
 }
 
 void atomic_set_background_repeat(AtomicElement* element, BackgroundRepeat repeat) {
     if (!element) return;
     element->style.background_repeat = repeat;
-    printf("🔄 Background repeat défini : %d\n", repeat);
+    // 🔧 SUPPRESSION: Plus de logs verbeux
+    // printf("🔄 Background repeat défini : %d\n", repeat);
 }
 
 void atomic_set_background_size_str(AtomicElement* element, const char* size) {
@@ -839,17 +858,47 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
         SDL_SetTextureAlphaMod(element->content.texture, 255); // Restaurer
     }
     
-    // 🔧 RENDU DU TEXTE SIMPLIFIÉ (sans clignotement)
-    if (element->content.text) {
-        SDL_SetRenderDrawColor(renderer, 
-                             element->style.text.color.r,
-                             element->style.text.color.g,
-                             element->style.text.color.b,
-                             (Uint8)((element->style.text.color.a * element->style.opacity) / 255));
+    // 🔧 FIX PRINCIPAL: RENDU DU TEXTE AVEC TTF au lieu de rectangles
+    if (element->content.text && strlen(element->content.text) > 0) {
+        // 🔧 FIX: Utiliser le bon champ pour la police
+        TTF_Font* font = element->style.font; // Au lieu de element->style.text.font
+        if (!font) {
+            // Charger la police par défaut si pas de police spécifiée
+            font = atomic_get_default_font();
+            if (!font) {
+                printf("⚠️ No font available for text rendering of '%s'\n", 
+                       element->id ? element->id : "NoID");
+                goto skip_text_rendering; // Aller à la fin du rendu de texte
+            }
+        }
+        
+        // 🔧 Créer une surface de texte avec TTF
+        SDL_Color text_color = {
+            element->style.text.color.r,
+            element->style.text.color.g,
+            element->style.text.color.b,
+            (Uint8)((element->style.text.color.a * element->style.opacity) / 255)
+        };
+        
+        SDL_Surface* text_surface = TTF_RenderText_Blended(font, element->content.text, text_color);
+        if (!text_surface) {
+            printf("⚠️ Failed to create text surface: %s\n", TTF_GetError());
+            goto skip_text_rendering;
+        }
+        
+        // Créer une texture à partir de la surface
+        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+        if (!text_texture) {
+            SDL_FreeSurface(text_surface);
+            printf("⚠️ Failed to create text texture: %s\n", SDL_GetError());
+            goto skip_text_rendering;
+        }
         
         // Calculer la position du texte selon l'alignement
-        int text_width = (int)strlen(element->content.text) * 8; // Approximation
-        int text_height = element->style.text.font_size > 0 ? element->style.text.font_size : 16;
+        int text_width = text_surface->w;
+        int text_height = text_surface->h;
+        SDL_FreeSurface(text_surface); // Libérer la surface maintenant
+        
         int text_x = content_rect.x;
         int text_y = content_rect.y + (content_rect.h - text_height) / 2;
         
@@ -865,17 +914,15 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
                 break;
         }
         
-        // 🔧 FIX: Dessiner le texte de manière plus stable
-        for (int i = 0; i < (int)strlen(element->content.text); i++) {
-            SDL_Rect letter_rect = {
-                text_x + i * 8,
-                text_y,
-                6,
-                text_height
-            };
-            SDL_RenderFillRect(renderer, &letter_rect);
-        }
+        // 🔧 Rendre le texte avec la vraie texture TTF
+        SDL_Rect text_rect = { text_x, text_y, text_width, text_height };
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        
+        // Libérer la texture temporaire
+        SDL_DestroyTexture(text_texture);
     }
+    
+skip_text_rendering:
     
     // Rendu personnalisé
     if (element->custom_render) {
@@ -892,30 +939,40 @@ void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
 }
 
-// === NOUVELLES IMPLÉMENTATIONS POUR Z-INDEX ===
-
-bool atomic_has_explicit_z_index(AtomicElement* element) {
-    if (!element) return false;
-    // Si z_index != 0, on considère qu'il a été défini explicitement
-    return element->style.z_index != 0;
+// 🆕 NOUVELLE FONCTION: Obtenir la police par défaut
+TTF_Font* atomic_get_default_font(void) {
+    static TTF_Font* default_font = NULL;
+    
+    if (!default_font) {
+        // 🔧 Essayer plusieurs polices système courantes
+        const char* font_paths[] = {
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/System/Library/Fonts/Arial.ttf",                    // macOS
+            "C:\\Windows\\Fonts\\arial.ttf",                      // Windows
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+        };
+        
+        for (int i = 0; i < 6; i++) {
+            default_font = TTF_OpenFont(font_paths[i], 16);
+            if (default_font) {
+                printf("✅ Police par défaut chargée: %s\n", font_paths[i]);
+                break;
+            }
+        }
+        
+        if (!default_font) {
+            printf("❌ ERREUR: Aucune police système trouvée!\n");
+            printf("   Polices testées:\n");
+            for (int i = 0; i < 6; i++) {
+                printf("   - %s\n", font_paths[i]);
+            }
+        }
+    }
+    
+    return default_font;
 }
-
-int atomic_get_z_index(AtomicElement* element) {
-    if (!element) return 0;
-    return element->style.z_index;
-}
-
-int atomic_get_width(AtomicElement* element) {
-    if (!element) return 0;
-    return element->style.width;
-}
-
-int atomic_get_height(AtomicElement* element) {
-    if (!element) return 0;
-    return element->style.height;
-}
-
-// === FONCTIONS D'ÉVÉNEMENTS COMPLÈTES (CORRIGÉES) ===
 
 void atomic_handle_event(AtomicElement* element, SDL_Event* event) {
     if (!element) return;
@@ -1046,4 +1103,29 @@ void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* 
     if (!element || !manager) return;
     
     event_manager_unsubscribe(manager, atomic_event_callback, element);
+}
+
+// === FONCTIONS UTILITAIRES MANQUANTES (AJOUTÉES) ===
+
+bool atomic_has_explicit_z_index(AtomicElement* element) {
+    if (!element) return false;
+    
+    // Considérer qu'un z-index est explicite s'il n'est pas 0
+    // (car par défaut on initialise à 0 dans atomic_create)
+    return element->style.z_index != 0;
+}
+
+int atomic_get_z_index(AtomicElement* element) {
+    if (!element) return 0;
+    return element->style.z_index;
+}
+
+int atomic_get_width(AtomicElement* element) {
+    if (!element) return 0;
+    return element->style.width;
+}
+
+int atomic_get_height(AtomicElement* element) {
+    if (!element) return 0;
+    return element->style.height;
 }

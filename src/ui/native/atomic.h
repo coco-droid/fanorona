@@ -92,7 +92,8 @@ typedef struct {
 // Structure pour les propriétés de texte
 typedef struct {
     char* font_path;           // Chemin vers la police
-    TTF_Font* ttf_font;        // Police TTF chargée
+    TTF_Font* font;            // 🔧 FIX: Ajouter le champ manquant
+    TTF_Font* ttf_font;        // Police TTF chargée (pour compatibilité)
     int font_size;             // Taille de la police
     SDL_Color color;           // Couleur du texte
     TextAlign align;           // Alignement du texte
@@ -259,6 +260,9 @@ void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL
 // Fonctions de rendu et mise à jour
 void atomic_render(AtomicElement* element, SDL_Renderer* renderer);
 void atomic_update(AtomicElement* element, float delta_time);
+
+// 🆕 Police par défaut
+TTF_Font* atomic_get_default_font(void);
 
 // Fonctions utilitaires
 bool atomic_is_point_inside(AtomicElement* element, int x, int y);

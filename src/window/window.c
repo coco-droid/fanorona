@@ -1,6 +1,7 @@
 #include "window.h"
 #include "../utils/log_console.h"
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h> // 🔧 Inclure SDL_ttf.h pour TTF
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -25,13 +26,24 @@ bool window_init_sdl(void) {
         return false;
     }
     
+    // 🔧 FIX PRINCIPAL: Initialiser SDL_TTF pour le rendu du texte
+    if (TTF_Init() == -1) {
+        printf("Erreur d'initialisation SDL_TTF: %s\n", TTF_GetError());
+        IMG_Quit();
+        SDL_Quit();
+        return false;
+    }
+    
+    printf("✅ SDL, SDL_image et SDL_TTF initialisés avec succès\n");
     return true;
 }
 
 // Quitter SDL
 void window_quit_sdl(void) {
+    TTF_Quit();  // 🔧 Ajouter le nettoyage TTF
     IMG_Quit();
     SDL_Quit();
+    printf("✅ SDL, SDL_image et SDL_TTF fermés proprement\n");
 }
 
 // Créer une fenêtre générique (AVEC VSYNC FORCÉ)
