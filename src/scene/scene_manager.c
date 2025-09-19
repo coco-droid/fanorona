@@ -111,28 +111,13 @@ void scene_manager_transition_to(SceneManager* manager, Scene* new_scene) {
 void scene_manager_update(SceneManager* manager, float delta_time) {
     if (!manager) return;
     
-    // Mettre à jour la scène actuelle
-    if (manager->current_scene) {
+    // Mettre à jour SEULEMENT la scène actuelle
+    if (manager->current_scene && manager->current_scene->active) {
         manager->current_scene->update(manager->current_scene, delta_time);
     }
     
-    // Vérifier les transitions
-    if (manager->transition_count > 0) {
-        // Obtenir la dernière transition
-        SceneTransition* transition = &manager->transitions[manager->transition_count - 1];
-        
-        // Nettoyer l'ancienne scène
-        if (transition->old_scene) {
-            transition->old_scene->cleanup(transition->old_scene);
-        }
-        
-        // Passer à la nouvelle scène
-        manager->current_scene = transition->new_scene;
-        manager->current_scene->init(manager->current_scene);
-        
-        // Réduire le nombre de transitions en attente
-        manager->transition_count--;
-    }
+    // 🔧 FIX: SUPPRIMER la gestion automatique des transitions avec cleanup
+    // Les transitions sont maintenant immédiates et sans destruction
 }
 
 // Rendre la scène actuelle
@@ -169,7 +154,7 @@ void scene_manager_render_mini(SceneManager* manager) {
     }
 }
 
-// Fonction manquante pour ui_link.c - VERSION SANS DÉPENDANCE
+// Fonction manquante pour ui_link.c - VERSION AMÉLIORÉE
 void scene_manager_transition_to_scene_from_element(UINode* element) {
     if (!element) {
         printf("❌ UINode est NULL dans scene_manager_transition_to_scene_from_element\n");
@@ -195,8 +180,9 @@ void scene_manager_transition_to_scene_from_element(UINode* element) {
     printf("🔄 Transition vers la scène '%s' demandée depuis l'élément UI '%s'\n", 
            target_scene_id, element->id ? element->id : "unknown");
     
-    // TODO: Récupérer le SceneManager global
-    printf("🔧 Transition simulée (implémentation complète en cours)\n");
+    // 🔧 FIX: Cette fonction sera appelée SEULEMENT en fallback
+    printf("⚠️ FALLBACK: Transition simulée - utilisez ui_link_connect_to_manager() pour de vraies transitions\n");
+    printf("🔧 Pour activer les transitions : connectez le lien au SceneManager via ui_link_connect_to_manager()\n");
 }
 
 // Nouvelles fonctions pour l'API étendue
@@ -248,7 +234,10 @@ bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, Win
 
 bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_id, 
                                      SceneTransitionOption option) {
-    if (!manager || !scene_id) return false;
+    if (!manager || !scene_id) {
+        printf("❌ Paramètres invalides pour la transition\n");
+        return false;
+    }
     
     Scene* target_scene = scene_manager_get_scene_by_id(manager, scene_id);
     if (!target_scene) {
@@ -256,10 +245,35 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
         return false;
     }
     
-    printf("🔄 Transition vers la scène '%s' (option: %d)\n", scene_id, option);
+    printf("🔄 SWAP vers la scène '%s' (sans cleanup)\n", scene_id);
     
-    // Pour l'instant, transition simple
-    return scene_manager_set_scene(manager, target_scene);
+    // 🔧 FIX: SIMPLE SWAP SANS CLEANUP
+    Scene* old_scene = manager->current_scene;
+    
+    // Initialiser la nouvelle scène seulement si pas déjà initialisée
+    if (!target_scene->initialized) {
+        printf("🔧 Initialisation de la scène '%s'...\n", scene_id);
+        if (target_scene->init) {
+            target_scene->init(target_scene);
+            target_scene->initialized = true;
+        }
+    } else {
+        printf("ℹ️ Scène '%s' déjà initialisée, réutilisation\n", scene_id);
+    }
+    
+    // Swap simple
+    manager->current_scene = target_scene;
+    target_scene->active = true;
+    
+    // Désactiver l'ancienne scène SANS cleanup
+    if (old_scene) {
+        old_scene->active = false;
+        printf("📴 Ancienne scène '%s' désactivée (conservée en mémoire)\n", 
+               old_scene->name ? old_scene->name : "unknown");
+    }
+    
+    printf("✅ Transition réussie vers '%s' !\n", scene_id);
+    return true;
 }
 
 void scene_manager_dispatch_event(SceneManager* manager, WindowEvent* event) {

@@ -101,8 +101,10 @@ void scene_manager_dispatch_event(SceneManager* manager, WindowEvent* event);
 Scene* create_main_menu_scene(void);
 Scene* create_game_scene(void);
 Scene* create_home_scene(void);
+Scene* create_menu_scene(void);  // 🆕 Ajout de la déclaration pour la nouvelle scène menu
 
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
+void menu_scene_connect_events(Scene* scene, GameCore* core);  // 🔧 AJOUTÉ: Déclaration pour menu_scene
 
 #endif // SCENE_H

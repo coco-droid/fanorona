@@ -453,6 +453,11 @@ EventManager* game_core_get_event_manager(GameCore* core) {
     return core ? core->event_manager : NULL;
 }
 
+// 🆕 Fonction pour obtenir le SceneManager
+SceneManager* game_core_get_scene_manager(GameCore* core) {
+    return core ? core->scene_manager : NULL;
+}
+
 // Mettre à jour le core
 void game_core_update(GameCore* core) {
     if (!core || !core->scene_manager) return;

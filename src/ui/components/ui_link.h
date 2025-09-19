@@ -13,6 +13,7 @@ struct UILinkData {
     SceneTransitionOption transition;    // Type de transition
     WindowType target_window;            // Fenêtre cible (si applicable)
     void (*on_click)(UINode* link);      // Callback personnalisé lors du clic
+    SceneManager* manager;               // 🆕 Référence au SceneManager pour les transitions
 };
 
 // Créer un lien de navigation vers une scène

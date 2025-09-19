@@ -44,6 +44,7 @@ void game_core_render(GameCore* core);
 bool game_core_is_running(GameCore* core);
 void game_core_set_running(GameCore* core, bool running);
 EventManager* game_core_get_event_manager(GameCore* core);
+SceneManager* game_core_get_scene_manager(GameCore* core);  // 🆕 Ajout de la fonction
 
 // 🆕 Fonctions de la boucle d'événements
 EventLoop* event_loop_create(EventManager* event_manager);

@@ -15,6 +15,55 @@ void signal_handler(int sig) {
     exit(sig);
 }
 
+// Dans une fonction d'initialisation ou après la création du core
+bool initialize_scenes(GameCore* core) {
+    // Créer la scène menu
+    Scene* menu_scene = create_menu_scene();
+    if (!menu_scene) {
+        printf("❌ Erreur: Impossible de créer la scène menu\n");
+        return false;
+    }
+    
+    printf("✅ Scène menu créée avec ID: '%s'\n", menu_scene->id);
+    
+    // Enregistrer la scène menu dans le SceneManager
+    SceneManager* scene_manager = game_core_get_scene_manager(core);
+    if (scene_manager) {
+        bool registered = scene_manager_register_scene(scene_manager, menu_scene);
+        if (registered) {
+            printf("✅ Scène menu enregistrée dans le SceneManager\n");
+            
+            // Vérification
+            Scene* found_scene = scene_manager_get_scene_by_id(scene_manager, "menu");
+            if (found_scene) {
+                printf("✅ VÉRIFICATION: Scène 'menu' trouvée par ID\n");
+                
+                // 🔧 FIX: Initialiser et connecter la scène menu IMMÉDIATEMENT
+                printf("🔧 Pré-initialisation de la scène menu...\n");
+                if (!menu_scene->initialized) {
+                    if (menu_scene->init) {
+                        menu_scene->init(menu_scene);
+                        menu_scene->initialized = true;
+                    }
+                }
+                
+                // Connecter les événements de la scène menu
+                menu_scene_connect_events(menu_scene, core);
+                printf("✅ Scène menu pré-initialisée et connectée\n");
+                
+            } else {
+                printf("❌ ERREUR: Scène 'menu' non trouvable après enregistrement!\n");
+            }
+        } else {
+            printf("❌ Échec de l'enregistrement de la scène menu\n");
+        }
+    } else {
+        printf("❌ SceneManager NULL - impossible d'enregistrer les scènes\n");
+    }
+    
+    return true;
+}
+
 int main(int argc, char* argv[]) {
     // Éviter les avertissements pour les paramètres non utilisés
     (void)argc;
@@ -96,6 +145,19 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     printf("✅ Core du jeu créé\n");
+    
+    // Initialiser les scènes
+    printf("🎭 Initialisation des scènes...\n");
+    if (!initialize_scenes(core)) {
+        printf("❌ Erreur: Échec de l'initialisation des scènes\n");
+        window_cleanup_global_windows();
+        game_core_destroy(core);
+        window_quit_sdl();
+#ifdef ENABLE_LOG_CONSOLE
+        log_console_cleanup();
+#endif
+        return -1;
+    }
     
     // 🆕 Finaliser l'initialisation (connecter événements + démarrer boucle)
     printf("🔧 Finalisation de l'initialisation...\n");

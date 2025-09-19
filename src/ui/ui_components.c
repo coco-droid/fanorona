@@ -754,6 +754,15 @@ void ui_set_text_size(UINode* node, int size) {
     }
 }
 
+// 🔧 FIX: Corriger le type de retour et l'implémentation
+UINode* ui_set_font_size(UINode* node, int size) {
+    if (node) {
+        atomic_set_text_size(node->element, size);
+        ui_log_event("UIComponent", "Style", node->id, "Font size set");
+    }
+    return node;  // 🔧 FIX: Retourner le node pour permettre le chaînage
+}
+
 UINode* ui_add_class(UINode* node, const char* class_name) {
     if (node && class_name) {
         atomic_add_class(node->element, class_name);

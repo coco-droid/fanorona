@@ -44,6 +44,8 @@ UINode* ui_set_font(UINode* node, const char* font_path, int size);
 UINode* ui_set_text_color(UINode* node, const char* color);
 UINode* ui_set_text_align(UINode* node, const char* align);
 UINode* ui_set_text_style(UINode* node, bool bold, bool italic);
+UINode* ui_set_font_size(UINode* node, int size);  // 🔧 FIX: UINode* au lieu de void
+void ui_set_text_size(UINode* node, int size);     // 🔧 AJOUTÉ: Déclaration de la fonction void
 
 // Événements fluides
 UINode* ui_on_click(UINode* node, void (*callback)(UINode*, void*));

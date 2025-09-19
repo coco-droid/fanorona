@@ -75,12 +75,13 @@ SOURCES=(
     "$SRC_DIR/scene/scene.c"
     "$SRC_DIR/scene/scene_manager.c"  # Nouveau gestionnaire de scènes
     "$SRC_DIR/scene/home_scene.c"
+    "$SRC_DIR/scene/menu_scene.c"     # 🔧 AJOUTÉ: menu_scene.c pour la compilation
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
     "$SRC_DIR/ui/native/atomic.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
-    "$SRC_DIR/ui/components/ui_link.c"  # 🔧 RÉACTIVÉ avec corrections
+    "$SRC_DIR/ui/components/ui_link.c"  # UI Link pour les transitions
 )
 
 # Vérification préliminaire de l'existence des fichiers

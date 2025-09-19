@@ -3,6 +3,7 @@
 #include "../ui/ui_components.h"
 #include "../utils/asset_manager.h"
 #include "../utils/log_console.h"
+#include "../ui/components/ui_link.h"  // 🔧 AJOUTÉ: Import pour ui_create_link
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <stdbool.h>
@@ -25,24 +26,6 @@ typedef struct HomeSceneData {
 } HomeSceneData;
 
 // 🆕 Callbacks simplifiés sans dépendances
-static void play_button_clicked(void* element, SDL_Event* event) {
-    AtomicElement* atomic_element = (AtomicElement*)element;
-    
-    // 🎯 FEEDBACK VISUEL SIMPLIFIÉ
-    atomic_set_background_color(atomic_element, 100, 200, 100, 255);
-    atomic_set_text_color_rgba(atomic_element, 0, 0, 0, 255);
-    
-    // 🔧 FIX: Utiliser les valeurs directes du style au lieu des fonctions
-    int current_width = atomic_element->style.width;
-    int current_height = atomic_element->style.height;
-    atomic_set_size(atomic_element, current_width - 4, current_height - 2);
-    
-    // 🔧 LOG SIMPLE
-    printf("🎮 Play button clicked with visual feedback\n");
-    
-    (void)event;
-}
-
 static void quit_button_clicked(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
     
@@ -91,6 +74,21 @@ static void button_unhovered(void* element, SDL_Event* event) {
     atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
     
     (void)event;
+}
+
+// Fonction pour appliquer le style de bouton à un lien
+static void style_link_like_button(UINode* link) {
+    if (!link || !link->element) return;
+    
+    SET_SIZE(link, 150, 40);
+    
+    // Configuration visuelle identique au bouton
+    ui_button_set_background_image(link, "home_bg_btn.png");
+    SET_BG_SIZE(link, "cover");
+    SET_BG_REPEAT(link, "no-repeat");
+    ui_set_text_color(link, "rgb(255, 255, 255)");
+    atomic_set_padding(link->element, 10, 15, 10, 15);
+    atomic_set_text_align(link->element, TEXT_ALIGN_CENTER);
 }
 
 // Initialisation de la scène home
@@ -201,31 +199,25 @@ static void home_scene_init(Scene* scene) {
     ui_set_align_items(button_container, "center");
     ui_set_flex_gap(button_container, 15); // Gap plus petit entre les boutons
     
-    // Bouton Play - AVEC ÉVÉNEMENTS CONNECTÉS
-    UINode* play_button = ui_button(data->ui_tree, "play-button", "JOUER", NULL, NULL);
-    data->play_button = play_button; // 🆕 Sauvegarder la référence
-    if (play_button) {
-        SET_SIZE(play_button, 150, 40);
+    // 🆕 REMPLACER LE BOUTON PLAY PAR UN UI LINK
+    UINode* play_link = ui_create_link(data->ui_tree, "play-link", "JOUER", "menu", SCENE_TRANSITION_REPLACE);
+    data->play_button = play_link; // On garde la référence dans play_button pour les callbacks
+    
+    if (play_link) {
+        // Appliquer le même style que le bouton précédent
+        style_link_like_button(play_link);
         
-        // Configuration visuelle
-        ui_button_set_background_image(play_button, "home_bg_btn.png");
-        SET_BG_SIZE(play_button, "cover");
-        SET_BG_REPEAT(play_button, "no-repeat");
-        ui_set_text_color(play_button, "rgb(255, 255, 255)");
-        ui_button_fix_text_rendering(play_button);
+        // Connecter les mêmes événements de hover/unhover pour l'effet visuel
+        atomic_set_hover_handler(play_link->element, button_hovered);
+        atomic_set_unhover_handler(play_link->element, button_unhovered);
         
-        // 🆕 CONNECTER LES ÉVÉNEMENTS AVEC FEEDBACK VISUEL
-        atomic_set_click_handler(play_button->element, play_button_clicked);
-        atomic_set_hover_handler(play_button->element, button_hovered);
-        atomic_set_unhover_handler(play_button->element, button_unhovered); // Nouveau
-        
-        ui_log_event("UIComponent", "ButtonSetup", play_button->id, "Click, hover and unhover handlers attached");
-        printf("✅ Bouton Play créé avec événements visuels connectés\n");
+        ui_log_event("UIComponent", "LinkSetup", play_link->id, "Hover and unhover handlers attached");
+        printf("✅ Lien UI 'Play' créé avec apparence de bouton et événements visuels connectés\n");
     }
     
-    // Bouton Quit - AVEC ÉVÉNEMENTS CONNECTÉS
+    // Bouton Quit - reste inchangé
     UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", NULL, NULL);
-    data->quit_button = quit_button; // 🆕 Sauvegarder la référence
+    data->quit_button = quit_button;
     if (quit_button) {
         SET_SIZE(quit_button, 150, 40);
         
@@ -251,8 +243,8 @@ static void home_scene_init(Scene* scene) {
         APPEND(app, logo);
         APPEND(app, button_container);
         
-        // Ajouter les boutons au container
-        if (play_button) APPEND(button_container, play_button);
+        // Ajouter le lien UI et le bouton au container
+        if (play_link) APPEND(button_container, play_link);
         if (quit_button) APPEND(button_container, quit_button);
         
         // Calculer les z-index implicites après avoir construit la hiérarchie
@@ -265,7 +257,7 @@ static void home_scene_init(Scene* scene) {
     
     printf("✅ Interface Home créée avec :\n");
     printf("   🖼️  Logo Fanorona centré (taille réduite)\n");
-    printf("   🎮  Bouton Play (avec PNG background)\n");
+    printf("   🔗  Lien UI 'Play' vers menu (avec style de bouton)\n");
     printf("   🚪  Bouton Quit (avec PNG background)\n");
     printf("   📊  Z-index calculés automatiquement\n");
     printf("   🔍  Logs d'événements activés\n");
@@ -401,6 +393,21 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
     if (!data) {
         printf("❌ Données de scène NULL\n");
         return;
+    }
+    
+    // 🆕 CONNECTER SPÉCIFIQUEMENT LE LIEN UI AU SCENEMANAGER
+    if (data->play_button) {
+        // Obtenir le SceneManager du Core
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(core);
+        
+        if (scene_manager) {
+            // Connecter le lien UI au SceneManager pour les vraies transitions
+            ui_link_connect_to_manager(data->play_button, scene_manager);
+            printf("🔗 UI Link 'Play' connecté au SceneManager pour les transitions réelles\n");
+        } else {
+            printf("❌ SceneManager non disponible pour le lien UI\n");
+        }
     }
     
     // Obtenir l'EventManager du Core

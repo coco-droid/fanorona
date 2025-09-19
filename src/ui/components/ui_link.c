@@ -35,6 +35,10 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         return;
     }
     
+    printf("🎯 CLIC SUR LE LIEN UI '%s' → Cible: '%s'\n", 
+           node->id ? node->id : "NoID", 
+           link_data->target_scene_id ? link_data->target_scene_id : "NULL");
+    
     // Effet visuel de clic
     atomic_set_background_color(atomic_element, 100, 150, 255, 200);
     
@@ -43,8 +47,57 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         link_data->on_click(node);
     }
     
-    // Effectuer la transition vers la scène cible
-    scene_manager_transition_to_scene_from_element(node);
+    // 🔧 FIX: Effectuer la transition via le SceneManager stocké EN PRIORITÉ
+    if (link_data->manager && link_data->target_scene_id) {
+        printf("🚀 TRANSITION RÉELLE via SceneManager vers '%s'...\n", link_data->target_scene_id);
+        
+        // 🔧 DIAGNOSTIC AVANT TRANSITION
+        Scene* current = scene_manager_get_current_scene(link_data->manager);
+        printf("🔍 Scène courante avant transition: '%s'\n", 
+               current ? (current->name ? current->name : "unnamed") : "NULL");
+        
+        bool success = scene_manager_transition_to_scene(link_data->manager, 
+                                                        link_data->target_scene_id, 
+                                                        link_data->transition);
+        if (success) {
+            printf("✅ Transition réussie vers '%s' !\n", link_data->target_scene_id);
+            
+            // 🔧 VÉRIFICATION APRÈS TRANSITION
+            Scene* new_current = scene_manager_get_current_scene(link_data->manager);
+            printf("🔍 Nouvelle scène courante: '%s'\n", 
+                   new_current ? (new_current->name ? new_current->name : "unnamed") : "NULL");
+        } else {
+            printf("❌ Échec de la transition vers '%s'\n", link_data->target_scene_id);
+            
+            // Diagnostic détaillé
+            printf("🔍 DIAGNOSTIC:\n");
+            printf("   - SceneManager: %s\n", link_data->manager ? "✅ Présent" : "❌ NULL");
+            printf("   - Target ID: '%s'\n", link_data->target_scene_id);
+            printf("   - Scènes enregistrées: %d\n", link_data->manager ? link_data->manager->scene_count : 0);
+            
+            // Lister toutes les scènes disponibles
+            if (link_data->manager) {
+                printf("   - Scènes disponibles:\n");
+                for (int i = 0; i < link_data->manager->scene_count; i++) {
+                    Scene* s = link_data->manager->scenes[i];
+                    printf("     [%d] ID:'%s' Name:'%s'\n", i, 
+                           s ? (s->id ? s->id : "no-id") : "NULL",
+                           s ? (s->name ? s->name : "no-name") : "NULL");
+                }
+            }
+        }
+    } else {
+        printf("⚠️ FALLBACK: Utilisation de l'adapteur de transition...\n");
+        if (!link_data->manager) {
+            printf("   → Cause: SceneManager non connecté (appelez ui_link_connect_to_manager)\n");
+        }
+        if (!link_data->target_scene_id) {
+            printf("   → Cause: target_scene_id est NULL\n");
+        }
+        
+        // Fallback: appeler l'adapteur existant
+        scene_manager_transition_to_scene_from_element(node);
+    }
     
     (void)event; // Éviter l'avertissement de compilation
 }
@@ -94,6 +147,7 @@ UINode* ui_create_link(UITree* tree, const char* id, const char* text,
     link_data->transition = transition;
     link_data->target_window = WINDOW_TYPE_MAIN; // Par défaut
     link_data->on_click = NULL;
+    link_data->manager = NULL; // 🆕 initialisation
     
     // Associer les données au nœud
     link->component_data = link_data;
@@ -162,6 +216,12 @@ void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
     if (!link || !manager || !link->element) {
         printf("❌ Paramètres invalides pour ui_link_connect_to_manager\n");
         return;
+    }
+    
+    // Récupérer les données et stocker le manager pour les transitions futures
+    UILinkData* link_data = (UILinkData*)link->component_data;
+    if (link_data) {
+        link_data->manager = manager; // 🆕 stocker la référence
     }
     
     // 🔧 FIX PRINCIPAL: Utiliser l'EventManager via l'UITree plutôt que active_scenes
