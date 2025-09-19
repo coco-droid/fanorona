@@ -9,7 +9,7 @@ PROJECT_NAME="fanorona"
 SRC_DIR="src"
 BUILD_DIR="build"
 CC="gcc"
-CFLAGS="-Wall -Wextra -std=c99 -g"
+CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -g"
 LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm"
 
 # Flags optionnels
@@ -56,27 +56,72 @@ if [ "$ENABLE_LOG_CONSOLE" = true ]; then
     echo "📝 Flag de compilation ajouté : -DENABLE_LOG_CONSOLE"
 fi
 
-# ...existing code jusqu'à la liste des sources...
+# Créer les répertoires nécessaires
+mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR/$SRC_DIR/core"
+mkdir -p "$BUILD_DIR/$SRC_DIR/event"
+mkdir -p "$BUILD_DIR/$SRC_DIR/window"
+mkdir -p "$BUILD_DIR/$SRC_DIR/scene"
+mkdir -p "$BUILD_DIR/$SRC_DIR/utils"
+mkdir -p "$BUILD_DIR/$SRC_DIR/ui/native"
+mkdir -p "$BUILD_DIR/$SRC_DIR/ui/components"  # Nouveau répertoire pour les composants UI
 
-# Liste des fichiers sources
+# Liste des fichiers sources mise à jour avec les nouveaux fichiers
 SOURCES=(
     "main.c"
     "$SRC_DIR/core/core.c"
     "$SRC_DIR/event/event.c"
     "$SRC_DIR/window/window.c"
     "$SRC_DIR/scene/scene.c"
+    "$SRC_DIR/scene/scene_manager.c"  # Nouveau gestionnaire de scènes
     "$SRC_DIR/scene/home_scene.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
     "$SRC_DIR/ui/native/atomic.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
+    "$SRC_DIR/ui/components/ui_link.c"  # 🔧 RÉACTIVÉ avec corrections
 )
 
-# ...existing code jusqu'à la compilation...
+# Vérification préliminaire de l'existence des fichiers
+missing_files=false
+for source in "${SOURCES[@]}"; do
+    if [ ! -f "$source" ]; then
+        echo "⚠️ Fichier manquant: $source"
+        missing_files=true
+    fi
+done
+
+if [ "$missing_files" = true ]; then
+    echo "❌ Certains fichiers sont manquants. Veuillez vérifier les chemins."
+    echo "Compilation annulée."
+    exit 1
+fi
+
+# 🔧 VÉRIFICATION SPÉCIFIQUE pour ui_link.c
+echo "🔧 Vérification spécifique de ui_link.c..."
+if [ -f "$SRC_DIR/ui/components/ui_link.c" ]; then
+    if grep -q "scene_manager_transition_to_scene_from_element" "$SRC_DIR/ui/components/ui_link.c"; then
+        echo "   ✅ ui_link.c: Fonction de transition trouvée"
+    else
+        echo "   ❌ ui_link.c: Fonction de transition manquante"
+        echo "   🔧 Vérifiez que scene_manager.c implémente cette fonction"
+    fi
+    
+    if grep -q "ui_link_connect_to_manager" "$SRC_DIR/ui/components/ui_link.c"; then
+        echo "   ✅ ui_link.c: Fonction de connexion trouvée"
+    else
+        echo "   ❌ ui_link.c: Fonction de connexion manquante"
+    fi
+else
+    echo "   ⚠️ ui_link.c non trouvé - sera ignoré lors de la compilation"
+    # Retirer ui_link.c de la liste si le fichier n'existe pas
+    SOURCES=(${SOURCES[@]/*ui_link.c*/})
+fi
 
 # Compilation
 echo "Compilation en cours..."
+echo "$CC $CFLAGS ${SOURCES[*]} -o $BUILD_DIR/$PROJECT_NAME $LIBS"
 $CC $CFLAGS "${SOURCES[@]}" -o "$BUILD_DIR/$PROJECT_NAME" $LIBS
 
 # Vérifier le résultat de la compilation

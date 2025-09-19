@@ -19,9 +19,19 @@ echo "3. Structure de la boucle principale:"
 grep -A 5 -B 5 "SDL_PollEvent\|SDL_Quit\|scene.*render" main.c
 
 echo ""
+echo "4. Vérification de l'intégration du SceneManager:"
+grep -n "scene_manager" Makefile
+if [ $? -eq 0 ]; then
+    echo "   ✅ scene_manager.c présent dans Makefile"
+else
+    echo "   ❌ scene_manager.c MANQUANT dans Makefile"
+fi
+
+echo ""
 echo "🎯 Solutions suggérées:"
 echo "   - Ajouter SDL_RenderPresent() après scene_render() dans main.c"
 echo "   - Vérifier que la scène est bien créée et initialisée"
-echo "   - S'assurer que les événements SDL sont gérés correctement"
+echo "   - S'assurer que scene_manager.c est compilé (dans Makefile)"
+echo "   - Vérifier que home_scene.c utilise la nouvelle structure Scene"
 echo ""
 echo "🚀 Exécutez ce diagnostic: chmod +x debug_segfault.sh && ./debug_segfault.sh"

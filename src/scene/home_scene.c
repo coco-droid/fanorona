@@ -2,7 +2,7 @@
 #include "scene.h"
 #include "../ui/ui_components.h"
 #include "../utils/asset_manager.h"
-#include "../utils/log_console.h"  // 🆕 AJOUT: Include pour log_console_write
+#include "../utils/log_console.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <stdbool.h>
@@ -19,9 +19,9 @@ typedef struct HomeSceneData {
     UITree* ui_tree;
     SDL_Texture* background_texture;
     SDL_Texture* logo_texture;
-    GameCore* core; // 🆕 Référence vers le core pour accéder à l'Event Manager
-    UINode* play_button; // 🆕 Référence vers le bouton Play
-    UINode* quit_button; // 🆕 Référence vers le bouton Quit
+    GameCore* core;
+    UINode* play_button;
+    UINode* quit_button;
 } HomeSceneData;
 
 // 🆕 Callbacks simplifiés sans dépendances
@@ -371,7 +371,16 @@ Scene* create_home_scene(void) {
         return NULL;
     }
     
-    scene->name = "Home";
+    // Nouveaux champs pour la structure Scene mise à jour
+    scene->id = "home";                   // Identifiant unique
+    scene->name = "Home";                 // Nom d'affichage
+    scene->target_window = WINDOW_TYPE_MAIN; // Fenêtre cible
+    scene->event_manager = NULL;          // Sera initialisé plus tard
+    scene->ui_tree = NULL;               // Sera créé dans init
+    scene->initialized = false;          // Pas encore initialisé
+    scene->active = false;               // Pas encore actif
+    
+    // Fonctions de callback
     scene->init = home_scene_init;
     scene->update = home_scene_update;
     scene->render = home_scene_render;
@@ -381,8 +390,7 @@ Scene* create_home_scene(void) {
     return scene;
 }
 
-// 🆕 Nouvelle fonction pour connecter l'Event Manager après création du core
-// 🆕 Connexion des événements (SIMPLIFIÉE)
+// Connexion des événements adaptée à la nouvelle architecture
 void home_scene_connect_events(Scene* scene, GameCore* core) {
     if (!scene || !core) {
         printf("❌ Scene ou Core NULL dans home_scene_connect_events\n");
@@ -395,19 +403,26 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
         return;
     }
     
+    // Obtenir l'EventManager du Core
     EventManager* event_manager = game_core_get_event_manager(core);
     if (!event_manager) {
         printf("❌ Event manager NULL\n");
         return;
     }
     
-    // 🔧 FIX PRINCIPAL: Connecter l'EventManager à l'UITree
+    // Stocker l'EventManager dans la scène selon la nouvelle architecture
+    scene->event_manager = event_manager;
+    
+    // Connecter l'EventManager à l'UITree
     if (data->ui_tree) {
         data->ui_tree->event_manager = event_manager;
         printf("🔗 EventManager connecté à l'UITree\n");
         
-        // 🆕 Enregistrer automatiquement tous les éléments qui ont des handlers
+        // Enregistrer tous les éléments UI avec des gestionnaires d'événements
         ui_tree_register_all_events(data->ui_tree);
+        
+        // Stocker l'UITree dans la scène selon la nouvelle architecture
+        scene->ui_tree = data->ui_tree;
         
         printf("✅ Tous les événements connectés via l'UITree\n");
     } else {
@@ -415,7 +430,14 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
         return;
     }
     
-    // 🆕 LOG pour confirmation
+    // Marquer la scène comme initialisée et active
+    scene->initialized = true;
+    scene->active = true;
+    
+    // Stocker la référence du core dans les données de la scène
+    data->core = core;
+    
+    // Log pour confirmation
     log_console_write("HomeScene", "EventsConnected", "home_scene.c", 
-                     "[home_scene.c] All UI elements auto-registered with EventManager");
+                     "[home_scene.c] All UI elements registered with EventManager in new architecture");
 }

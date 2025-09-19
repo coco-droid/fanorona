@@ -17,6 +17,7 @@ SOURCES = main.c \
           $(SRC_DIR)/event/event.c \
           $(SRC_DIR)/window/window.c \
           $(SRC_DIR)/scene/scene.c \
+          $(SRC_DIR)/scene/scene_manager.c \
           $(SRC_DIR)/scene/home_scene.c \
           $(SRC_DIR)/scene/button_demo_scene.c \
           $(SRC_DIR)/scene/dom_demo_scene.c \

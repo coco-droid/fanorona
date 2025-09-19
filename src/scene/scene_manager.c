@@ -2,6 +2,7 @@
 #include "scene.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // Créer un gestionnaire de scènes
 SceneManager* scene_manager_create(void) {
@@ -11,10 +12,24 @@ SceneManager* scene_manager_create(void) {
         return NULL;
     }
     
+    // Initialiser tous les champs correctement
+    manager->scene_count = 0;
     manager->current_scene = NULL;
     manager->next_scene = NULL;
+    manager->scene_change_requested = false;
     manager->transition_count = 0;
-    manager->transition_capacity = 4; // Capacité initiale
+    manager->transition_capacity = 4;
+    manager->core = NULL;
+    
+    // Initialiser le tableau des scènes
+    for (int i = 0; i < 16; i++) {
+        manager->scenes[i] = NULL;
+    }
+    
+    // Initialiser les scènes actives par fenêtre
+    for (int i = 0; i <= WINDOW_TYPE_BOTH; i++) {
+        manager->active_scenes[i] = NULL;
+    }
     
     // Allouer de la mémoire pour les transitions
     manager->transitions = (SceneTransition*)malloc(sizeof(SceneTransition) * manager->transition_capacity);
@@ -130,12 +145,12 @@ void scene_manager_render(SceneManager* manager) {
     }
 }
 
-// 🆕 Obtenir la scène courante
+// Obtenir la scène courante
 Scene* scene_manager_get_current_scene(SceneManager* manager) {
     return manager ? manager->current_scene : NULL;
 }
 
-// 🆕 Fonctions de rendu séparées pour les différentes fenêtres
+// Fonctions de rendu séparées pour les différentes fenêtres
 void scene_manager_render_main(SceneManager* manager) {
     if (!manager || !manager->current_scene) return;
     
@@ -151,5 +166,149 @@ void scene_manager_render_mini(SceneManager* manager) {
     GameWindow* mini_window = use_mini_window();
     if (mini_window) {
         manager->current_scene->render(manager->current_scene, mini_window);
+    }
+}
+
+// Fonction manquante pour ui_link.c - VERSION SANS DÉPENDANCE
+void scene_manager_transition_to_scene_from_element(UINode* element) {
+    if (!element) {
+        printf("❌ UINode est NULL dans scene_manager_transition_to_scene_from_element\n");
+        return;
+    }
+    
+    // Utiliser void* et accès générique aux données
+    void* component_data = element->component_data;
+    if (!component_data) {
+        printf("❌ Component data est NULL\n");
+        return;
+    }
+    
+    // Utiliser une fonction helper depuis ui_link.c
+    extern const char* ui_link_get_target_scene_id_from_data(void* data);
+    
+    const char* target_scene_id = ui_link_get_target_scene_id_from_data(component_data);
+    if (!target_scene_id) {
+        printf("❌ Target scene ID manquant dans les données de lien\n");
+        return;
+    }
+    
+    printf("🔄 Transition vers la scène '%s' demandée depuis l'élément UI '%s'\n", 
+           target_scene_id, element->id ? element->id : "unknown");
+    
+    // TODO: Récupérer le SceneManager global
+    printf("🔧 Transition simulée (implémentation complète en cours)\n");
+}
+
+// Nouvelles fonctions pour l'API étendue
+bool scene_manager_register_scene(SceneManager* manager, Scene* scene) {
+    if (!manager || !scene) return false;
+    
+    if (manager->scene_count >= 16) {
+        printf("❌ Impossible d'ajouter plus de scènes (limite: 16)\n");
+        return false;
+    }
+    
+    manager->scenes[manager->scene_count] = scene;
+    manager->scene_count++;
+    
+    printf("✅ Scène '%s' enregistrée (total: %d)\n", scene->name, manager->scene_count);
+    return true;
+}
+
+Scene* scene_manager_get_scene_by_id(SceneManager* manager, const char* id) {
+    if (!manager || !id) return NULL;
+    
+    for (int i = 0; i < manager->scene_count; i++) {
+        if (manager->scenes[i] && manager->scenes[i]->id && 
+            strcmp(manager->scenes[i]->id, id) == 0) {
+            return manager->scenes[i];
+        }
+    }
+    
+    return NULL;
+}
+
+Scene* scene_manager_get_active_scene(SceneManager* manager) {
+    return scene_manager_get_current_scene(manager);
+}
+
+Scene* scene_manager_get_active_scene_for_window(SceneManager* manager, WindowType window_type) {
+    if (!manager || window_type > WINDOW_TYPE_BOTH) return NULL;
+    
+    return manager->active_scenes[window_type];
+}
+
+bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, WindowType window_type) {
+    if (!manager || !scene || window_type > WINDOW_TYPE_BOTH) return false;
+    
+    manager->active_scenes[window_type] = scene;
+    printf("✅ Scène '%s' assignée à la fenêtre type %d\n", scene->name, window_type);
+    return true;
+}
+
+bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_id, 
+                                     SceneTransitionOption option) {
+    if (!manager || !scene_id) return false;
+    
+    Scene* target_scene = scene_manager_get_scene_by_id(manager, scene_id);
+    if (!target_scene) {
+        printf("❌ Scène '%s' introuvable\n", scene_id);
+        return false;
+    }
+    
+    printf("🔄 Transition vers la scène '%s' (option: %d)\n", scene_id, option);
+    
+    // Pour l'instant, transition simple
+    return scene_manager_set_scene(manager, target_scene);
+}
+
+void scene_manager_dispatch_event(SceneManager* manager, WindowEvent* event) {
+    if (!manager || !event) return;
+    
+    Scene* current = scene_manager_get_current_scene(manager);
+    if (current && current->event_manager) {
+        event_manager_handle_event(current->event_manager, &event->sdl_event);
+    }
+}
+
+Scene* scene_create(const char* id, const char* name, WindowType target_window) {
+    Scene* scene = (Scene*)malloc(sizeof(Scene));
+    if (!scene) return NULL;
+    
+    scene->id = id ? strdup(id) : NULL;
+    scene->name = name ? strdup(name) : NULL;
+    scene->target_window = target_window;
+    scene->event_manager = NULL;
+    scene->ui_tree = NULL;
+    scene->init = NULL;
+    scene->update = NULL;
+    scene->render = NULL;
+    scene->cleanup = NULL;
+    scene->data = NULL;
+    scene->initialized = false;
+    scene->active = false;
+    
+    return scene;
+}
+
+void scene_destroy(Scene* scene) {
+    if (!scene) return;
+    
+    if (scene->cleanup) {
+        scene->cleanup(scene);
+    }
+    
+    if (scene->id) free((void*)scene->id);
+    if (scene->name) free((void*)scene->name);
+    
+    free(scene);
+}
+
+void scene_initialize(Scene* scene) {
+    if (!scene) return;
+    
+    if (scene->init) {
+        scene->init(scene);
+        scene->initialized = true;
     }
 }
