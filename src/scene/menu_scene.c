@@ -248,7 +248,7 @@ Scene* create_menu_scene(void) {
     
     scene->id = "menu";
     scene->name = "Menu Principal";
-    scene->target_window = WINDOW_TYPE_MAIN;
+    scene->target_window = WINDOW_TYPE_MINI; // 🔧 FIX: Change from MAIN to MINI to match the current window
     scene->event_manager = NULL;
     scene->ui_tree = NULL;
     scene->initialized = false;
@@ -276,25 +276,27 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
         return;
     }
     
-    // Obtenir l'EventManager du Core
-    extern EventManager* game_core_get_event_manager(GameCore* core);
-    EventManager* event_manager = game_core_get_event_manager(core);
-    if (!event_manager) {
-        printf("❌ Event manager NULL\n");
-        return;
+    // Créer un EventManager dédié à la scène au lieu d'utiliser celui du Core
+    if (!scene->event_manager) {
+        printf("🔧 Création d'un EventManager dédié pour la scène menu\n");
+        scene->event_manager = event_manager_create();
+        if (!scene->event_manager) {
+            printf("❌ Impossible de créer l'EventManager pour la scène menu\n");
+            return;
+        }
     }
     
-    // Connecter l'EventManager à l'UITree
+    // Connecter l'EventManager dédié à l'UITree
     if (data->ui_tree) {
-        data->ui_tree->event_manager = event_manager;
+        data->ui_tree->event_manager = scene->event_manager;
         
         // Enregistrer tous les éléments UI
         ui_tree_register_all_events(data->ui_tree);
         
-        scene->event_manager = event_manager;
-        scene->ui_tree = data->ui_tree;  // 🔧 AJOUTÉ: Associer l'UITree à la scène
+        // Stocker l'UITree dans la scène
+        scene->ui_tree = data->ui_tree;
         
-        printf("🔗 EventManager connecté à la scène menu\n");
+        printf("🔗 EventManager dédié connecté à la scène menu\n");
     }
     
     // Stocker la référence du core
@@ -304,5 +306,5 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
     scene->initialized = true;
     scene->active = true;
     
-    printf("✅ Scène menu prête pour les transitions\n");
+    printf("✅ Scène menu prête avec son propre système d'événements\n");
 }

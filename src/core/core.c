@@ -310,7 +310,7 @@ bool game_core_finalize_init(GameCore* core) {
     }
     
     if (!core->scene_manager) {
-        printf("❌ Scene manager est NULL\n");
+        printf("❌ SceneManager est NULL\n");
         return false;
     }
     
@@ -325,16 +325,39 @@ bool game_core_finalize_init(GameCore* core) {
         printf("✅ Scène courante trouvée: '%s'\n", current_scene->name ? current_scene->name : "sans nom");
     }
     
+    // Créer un EventManager dédié pour la scène si elle n'en a pas déjà un
+    if (!current_scene->event_manager) {
+        printf("🔧 Création d'un EventManager dédié pour la scène '%s'...\n", current_scene->name);
+        current_scene->event_manager = event_manager_create();
+        if (!current_scene->event_manager) {
+            printf("❌ Impossible de créer l'EventManager pour la scène\n");
+            return false;
+        }
+    }
+    
     // Connexion des événements
     if (current_scene->data) {
         printf("🔗 Connexion des événements de la scène '%s'...\n", current_scene->name);
-        home_scene_connect_events(current_scene, core);
+        
+        // Connecter les événements en fonction du type de scène
+        if (strcmp(current_scene->id, "home") == 0) {
+            home_scene_connect_events(current_scene, core);
+        } else if (strcmp(current_scene->id, "menu") == 0) {
+            menu_scene_connect_events(current_scene, core);
+        } else {
+            printf("⚠️ Type de scène inconnu '%s', pas de connexion d'événements spécifique\n", current_scene->id);
+        }
+        
         printf("✅ Événements de la scène connectés\n");
         
-        // 🆕 DEBUG: Vérifier combien d'éléments sont enregistrés
-        printf("🔍 Debug: Vérification des éléments enregistrés...\n");
-        log_console_debug_event_manager(core->event_manager);
+        // Assigner la scène à sa fenêtre cible
+        WindowType target_window = current_scene->target_window;
+        scene_manager_set_scene_for_window(core->scene_manager, current_scene, target_window);
+        printf("✅ Scène '%s' assignée à la fenêtre type %d\n", current_scene->name, target_window);
         
+        // Debug: Vérifier combien d'éléments sont enregistrés
+        printf("🔍 Debug: Vérification des éléments enregistrés...\n");
+        log_console_debug_event_manager(current_scene->event_manager);
     } else {
         printf("❌ Scène non initialisée\n");
         return false;
@@ -351,9 +374,9 @@ bool game_core_finalize_init(GameCore* core) {
     }
     
     log_console_write("EventLoop", "SystemReady", "core.c", 
-                     "[core.c] Event system fully operational");
+                     "[core.c] Event system fully operational with per-scene routing");
     
-    printf("✅ Core complètement initialisé avec boucle d'événements active\n");
+    printf("✅ Core complètement initialisé avec routage d'événements par scène\n");
     return true;
 }
 
@@ -376,9 +399,9 @@ void game_core_destroy(GameCore* core) {
     free(core);
 }
 
-// 🆕 NOUVELLE FONCTION : Traitement des événements depuis le buffer (LOGS RÉDUITS)
+// 🆕 NOUVELLE FONCTION : Traitement des événements depuis le buffer avec ROUTAGE par FENÊTRE AMÉLIORÉ
 void game_core_handle_events(GameCore* core) {
-    if (!core || !core->event_loop || !core->event_manager) return;
+    if (!core || !core->event_loop) return;
     
     WindowEvent window_event;
     int critical_events = 0;
@@ -386,50 +409,75 @@ void game_core_handle_events(GameCore* core) {
     while (event_loop_pop_event(core->event_loop, &window_event)) {
         SDL_Event* event = &window_event.sdl_event;
         
-        // 🔧 FIX: Classification correcte des événements
+        // Classification correcte des événements
         bool is_critical = false;
         
         switch (event->type) {
-            case SDL_MOUSEBUTTONDOWN: // 1024 - VRAI CLIC
+            case SDL_MOUSEBUTTONDOWN:  // 1024 - Clic souris
                 is_critical = true;
                 break;
-            case SDL_MOUSEBUTTONUP: // 1025 - Important pour UI mais pas critique
-                is_critical = false;
+            case SDL_QUIT:             // 256 - Fermeture app
+                is_critical = true;
+                core->running = false;
                 break;
-            case SDL_WINDOWEVENT: // 512
+            case SDL_WINDOWEVENT:      // 512 - Événement fenêtre
                 if (event->window.event == SDL_WINDOWEVENT_CLOSE) {
                     is_critical = true;
                 }
                 break;
-            case SDL_QUIT: // 256
-                is_critical = true;
-                break;
             default:
-                is_critical = false;
                 break;
         }
         
         if (is_critical) {
             critical_events++;
-            log_console_write_event("CoreEvents", "Processing", "core", 
-                                   "[core.c] Processing critical event", event->type);
+            
+            // Log pour traçage
+            char event_info[256];
+            snprintf(event_info, sizeof(event_info), 
+                    "[core.c] Processing critical event (code=%d=%s)",
+                    event->type, 
+                    event->type == SDL_MOUSEBUTTONDOWN ? "SDL_MOUSEBUTTONDOWN" :
+                    event->type == SDL_QUIT ? "SDL_QUIT" : 
+                    event->type == SDL_WINDOWEVENT ? "SDL_WINDOWEVENT" : "UNKNOWN");
+            log_console_write("CoreEvents", "Processing", "core", event_info);
         }
         
-        // Transmission vers Event Manager de TOUS les événements
-        event_manager_handle_event(core->event_manager, event);
-        
-        if (!event_manager_is_running(core->event_manager)) {
-            core->running = false;
-            break;
+        // Déterminer la scène cible en fonction de la fenêtre source
+        GameWindow* source_window = window_event.source_window;
+        if (source_window) {
+            WindowType window_type = window_get_window_type(source_window);
+            Scene* active_scene = scene_manager_get_active_scene_for_window(core->scene_manager, window_type);
+            
+            if (active_scene && active_scene->event_manager) {
+                // Log pour indiquer le routage vers la scène spécifique
+                char routing_info[256];
+                snprintf(routing_info, sizeof(routing_info), 
+                        "[core.c] Routing event to scene '%s' ONLY (no global fallback)",
+                        active_scene->name ? active_scene->name : "unnamed");
+                log_console_write("EventRouting", "SceneOnly", "core.c", routing_info);
+                
+                // Transmettre l'événement à l'EventManager de la scène
+                event_manager_handle_event(active_scene->event_manager, event);
+            } else {
+                // Log si aucune scène active trouvée pour cette fenêtre
+                log_console_write("EventRouting", "NoScene", "core.c", 
+                                 "[core.c] No active scene or event manager for this window - event dropped");
+            }
+        } else {
+            // Log si aucune fenêtre source identifiée
+            log_console_write("EventRouting", "NoWindow", "core.c", 
+                             "[core.c] No source window identified for event - event dropped");
         }
     }
     
     // LOG RÉSUMÉ SEULEMENT SI ÉVÉNEMENTS CRITIQUES
     if (critical_events > 0) {
-        char message[128];
-        snprintf(message, sizeof(message), 
-                "[core.c] Processed %d critical events", critical_events);
-        log_console_write("CoreEvents", "Summary", "core", message);
+        char summary[256];
+        snprintf(summary, sizeof(summary), 
+                "[core.c] Processed %d critical events with scene-only routing", 
+                critical_events);
+        log_console_write("CoreEvents", "Summary", "core", summary);
     }
 }
 

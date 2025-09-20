@@ -184,7 +184,22 @@ void ui_neon_button_set_animation_speed(UINode* neon_btn, float speed) {
 void ui_neon_button_update_all(UITree* tree, float delta_time) {
     if (!tree || !tree->root) return;
     
-    // Cette fonction devra parcourir tous les neon buttons et les mettre à jour
-    // Pour l'instant, implémentation simple
-    (void)delta_time;
+    // Cette fonction parcourt tous les neon buttons et les met à jour
+    void update_neon_buttons_recursive(UINode* node, float dt) {
+        if (!node) return;
+        
+        // Si c'est un neon button avec des données de composant
+        if (node->component_data && node->component_destroy == neon_button_destroy) {
+            // Utiliser la fonction update qu'on avait définie
+            neon_button_update(node, dt);
+        }
+        
+        // Parcourir les enfants
+        for (int i = 0; i < node->children_count; i++) {
+            update_neon_buttons_recursive(node->children[i], dt);
+        }
+    }
+    
+    // Démarrer le parcours récursif depuis la racine
+    update_neon_buttons_recursive(tree->root, delta_time);
 }

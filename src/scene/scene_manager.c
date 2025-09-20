@@ -130,28 +130,78 @@ void scene_manager_render(SceneManager* manager) {
     }
 }
 
+// Fonctions de rendu séparées pour les différentes fenêtres
+void scene_manager_render_main(SceneManager* manager) {
+    if (!manager) return;
+    
+    GameWindow* main_window = use_main_window();
+    if (!main_window) return;
+    
+    // Utiliser la scène assignée à la fenêtre principale ou la scène courante
+    Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MAIN);
+    
+    if (scene && scene->active && scene->render) {
+        scene->render(scene, main_window);
+    }
+}
+
+void scene_manager_render_mini(SceneManager* manager) {
+    if (!manager) return;
+    
+    GameWindow* mini_window = use_mini_window();
+    if (!mini_window) return;
+    
+    // Utiliser la scène assignée à la mini fenêtre ou la scène courante
+    Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MINI);
+    
+    if (scene && scene->active && scene->render) {
+        scene->render(scene, mini_window);
+    }
+}
+
 // Obtenir la scène courante
 Scene* scene_manager_get_current_scene(SceneManager* manager) {
     return manager ? manager->current_scene : NULL;
 }
 
-// Fonctions de rendu séparées pour les différentes fenêtres
-void scene_manager_render_main(SceneManager* manager) {
-    if (!manager || !manager->current_scene) return;
-    
-    GameWindow* main_window = use_main_window();
-    if (main_window) {
-        manager->current_scene->render(manager->current_scene, main_window);
+// Fonctions améliorées pour l'association scène-fenêtre
+Scene* scene_manager_get_active_scene_for_window(SceneManager* manager, WindowType window_type) {
+    if (!manager || window_type > WINDOW_TYPE_BOTH) {
+        return NULL;
     }
+    
+    // Si une scène est explicitement assignée pour ce type de fenêtre, la renvoyer
+    if (manager->active_scenes[window_type]) {
+        return manager->active_scenes[window_type];
+    }
+    
+    // Sinon, renvoyer la scène courante comme fallback
+    return manager->current_scene;
 }
 
-void scene_manager_render_mini(SceneManager* manager) {
-    if (!manager || !manager->current_scene) return;
-    
-    GameWindow* mini_window = use_mini_window();
-    if (mini_window) {
-        manager->current_scene->render(manager->current_scene, mini_window);
+bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, WindowType window_type) {
+    if (!manager || !scene || window_type > WINDOW_TYPE_BOTH) {
+        printf("❌ Paramètres invalides pour set_scene_for_window\n");
+        return false;
     }
+    
+    // Si la scène n'est pas initialisée, l'initialiser
+    if (!scene->initialized && scene->init) {
+        printf("🔧 Initialisation de la scène '%s' pour la fenêtre %d...\n", 
+               scene->name ? scene->name : "sans nom", window_type);
+        scene->init(scene);
+        scene->initialized = true;
+    }
+    
+    // Assigner la scène à la fenêtre spécifique
+    manager->active_scenes[window_type] = scene;
+    
+    // Activer la scène
+    scene->active = true;
+    
+    printf("✅ Scène '%s' assignée à la fenêtre type %d\n", 
+           scene->name ? scene->name : "sans nom", window_type);
+    return true;
 }
 
 // Fonction manquante pour ui_link.c - VERSION AMÉLIORÉE
@@ -218,20 +268,6 @@ Scene* scene_manager_get_active_scene(SceneManager* manager) {
     return scene_manager_get_current_scene(manager);
 }
 
-Scene* scene_manager_get_active_scene_for_window(SceneManager* manager, WindowType window_type) {
-    if (!manager || window_type > WINDOW_TYPE_BOTH) return NULL;
-    
-    return manager->active_scenes[window_type];
-}
-
-bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, WindowType window_type) {
-    if (!manager || !scene || window_type > WINDOW_TYPE_BOTH) return false;
-    
-    manager->active_scenes[window_type] = scene;
-    printf("✅ Scène '%s' assignée à la fenêtre type %d\n", scene->name, window_type);
-    return true;
-}
-
 bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_id, 
                                      SceneTransitionOption option) {
     if (!manager || !scene_id) {
@@ -239,41 +275,104 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
         return false;
     }
     
-    // 🔧 FIX: Éviter le warning unused parameter
-    (void)option; // Marquer comme intentionnellement non utilisé
-    
     Scene* target_scene = scene_manager_get_scene_by_id(manager, scene_id);
     if (!target_scene) {
         printf("❌ Scène '%s' introuvable\n", scene_id);
         return false;
     }
     
-    printf("🔄 SWAP vers la scène '%s' (sans cleanup)\n", scene_id);
+    printf("🔄 Transition vers la scène '%s' (option: %d)\n", scene_id, option);
     
-    // 🔧 FIX: SIMPLE SWAP SANS CLEANUP
+    // 🆕 Déterminer quelle fenêtre source est actuellement active
+    WindowType source_window_type = window_get_active_window();
+    // Déterminer la fenêtre cible selon la préférence de la scène
+    WindowType target_window = target_scene->target_window;
+    
+    // 🆕 LOG DE DIAGNOSTIC DÉTAILLÉ
+    char transit_msg[256];
+    snprintf(transit_msg, sizeof(transit_msg),
+             "[scene_manager.c] Transition: from window %d to scene '%s' (target window %d) with option %d",
+             source_window_type, scene_id, target_window, option);
+    log_console_write("SceneTransition", "Start", "scene_manager.c", transit_msg);
+    
+    // Stocker l'ancienne scène pour référence
     Scene* old_scene = manager->current_scene;
     
-    // Initialiser la nouvelle scène seulement si pas déjà initialisée
-    if (!target_scene->initialized) {
-        printf("🔧 Initialisation de la scène '%s'...\n", scene_id);
-        if (target_scene->init) {
-            target_scene->init(target_scene);
-            target_scene->initialized = true;
-        }
-    } else {
-        printf("ℹ️ Scène '%s' déjà initialisée, réutilisation\n", scene_id);
+    // 🆕 Gestion des différentes options de transition
+    switch (option) {
+        case SCENE_TRANSITION_REPLACE:
+            // Désactiver l'ancienne scène pour la fenêtre source
+            if (old_scene) {
+                old_scene->active = false;
+                log_console_write("SceneTransition", "DeactivateOld", "scene_manager.c",
+                                 "[scene_manager.c] Deactivated old scene");
+            }
+            
+            // Définir la nouvelle scène comme courante
+            manager->current_scene = target_scene;
+            
+            // 🔧 FIX CRITIQUE: Assigner la nouvelle scène à la fenêtre SOURCE ET CIBLE
+            scene_manager_set_scene_for_window(manager, target_scene, source_window_type);
+            if (target_window != source_window_type) {
+                scene_manager_set_scene_for_window(manager, target_scene, target_window);
+            }
+            
+            // 🆕 Activer la fenêtre cible
+            window_set_active_window(target_window);
+            break;
+            
+        case SCENE_TRANSITION_OPEN_NEW_WINDOW:
+            // Garder l'ancienne scène active et ajouter la nouvelle dans une autre fenêtre
+            scene_manager_set_scene_for_window(manager, target_scene, target_window);
+            window_set_active_window(WINDOW_TYPE_BOTH); // Activer les deux fenêtres
+            break;
+            
+        case SCENE_TRANSITION_CLOSE_AND_OPEN:
+            // Fermer la fenêtre de la scène active actuelle
+            if (manager->current_scene) {
+                manager->current_scene->active = false;
+            }
+            
+            // Ouvrir la nouvelle scène dans sa fenêtre cible
+            manager->current_scene = target_scene;
+            scene_manager_set_scene_for_window(manager, target_scene, target_window);
+            window_set_active_window(target_window);
+            break;
+            
+        case SCENE_TRANSITION_SWAP_WINDOWS:
+            // Échanger les fenêtres des scènes
+            if (manager->current_scene) {
+                WindowType old_window = manager->current_scene->target_window;
+                scene_manager_set_scene_for_window(manager, target_scene, old_window);
+            }
+            manager->current_scene = target_scene;
+            break;
     }
     
-    // Swap simple
-    manager->current_scene = target_scene;
+    // S'assurer que la scène cible est initialisée et active
+    if (!target_scene->initialized && target_scene->init) {
+        log_console_write("SceneTransition", "InitTarget", "scene_manager.c",
+                         "[scene_manager.c] Initializing target scene");
+        target_scene->init(target_scene);
+        target_scene->initialized = true;
+    }
+    
+    // Activer la scène
     target_scene->active = true;
     
-    // Désactiver l'ancienne scène SANS cleanup
-    if (old_scene) {
-        old_scene->active = false;
-        printf("📴 Ancienne scène '%s' désactivée (conservée en mémoire)\n", 
-               old_scene->name ? old_scene->name : "unknown");
+    // 🆕 Vérifier la configuration des EventManagers après transition
+    if (!target_scene->event_manager) {
+        log_console_write("SceneTransition", "CreateEventManager", "scene_manager.c",
+                         "[scene_manager.c] Creating EventManager for target scene");
+        target_scene->event_manager = event_manager_create();
     }
+    
+    // 🆕 LOG DE CONFIRMATION DÉTAILLÉ
+    char result_msg[256];
+    snprintf(result_msg, sizeof(result_msg),
+             "[scene_manager.c] Transition complete: scene '%s' now active in window %d",
+             scene_id, target_window);
+    log_console_write("SceneTransition", "Complete", "scene_manager.c", result_msg);
     
     printf("✅ Transition réussie vers '%s' !\n", scene_id);
     return true;

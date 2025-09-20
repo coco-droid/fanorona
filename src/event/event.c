@@ -128,13 +128,13 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
         return;
     }
     
-    // 🔧 FIX PRINCIPAL: Traiter SEULEMENT SDL_MOUSEBUTTONDOWN comme des clics
+    // Traiter SEULEMENT SDL_MOUSEBUTTONDOWN comme des clics
     if (event->type == SDL_MOUSEBUTTONDOWN) { // 1024 SEULEMENT
         int mouse_x, mouse_y;
         SDL_GetMouseState(&mouse_x, &mouse_y);
         
-        log_console_write_event("EventManager", "Click", "event.c", 
-                               "[event.c] Mouse click DOWN detected", event->type);
+        log_console_write("EventManager", "Click", "event.c", 
+                         "[event.c] Mouse click DOWN detected (code=1024=SDL_MOUSEBUTTONDOWN)");
         
         // 🆕 DEBUG: Compter les éléments avant hit testing
         int element_count = 0;

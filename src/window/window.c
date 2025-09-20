@@ -292,6 +292,20 @@ bool window_is_window_active(WindowType type) {
     return g_active_window_type == type;
 }
 
+// 🆕 Déterminer le type d'une fenêtre (main ou mini)
+WindowType window_get_window_type(GameWindow* window) {
+    if (!window) return WINDOW_TYPE_MINI;  // Default to mini as fallback
+    
+    if (window == g_main_window) {
+        return WINDOW_TYPE_MAIN;
+    } else if (window == g_mini_window) {
+        return WINDOW_TYPE_MINI;
+    }
+    
+    // If we can't identify it, default to mini window type
+    return WINDOW_TYPE_MINI;
+}
+
 // 🆕 Obtenir une fenêtre par son ID SDL
 GameWindow* window_get_by_id(Uint32 window_id) {
     if (g_main_window && g_main_window->window_id == window_id) {
@@ -511,9 +525,9 @@ bool window_poll_events(WindowEvent* window_event) {
     if (source_window) {
         char message[256];
         snprintf(message, sizeof(message), 
-                "[window.c] Event dispatched from window '%s' (ID=%u) type=%d", 
+                "[window.c] Event from window '%s' (ID=%u) type=%d", 
                 source_window->title, source_window->window_id, event_window_type);
-        log_console_write("WindowEvents", "EventDispatched", "window.c", message);
+        log_console_write("WindowEvents", "EventSourceIdentified", "window.c", message);
     }
     
     return true;

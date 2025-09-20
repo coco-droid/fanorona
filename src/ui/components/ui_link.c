@@ -1,5 +1,6 @@
 #include "ui_link.h"
 #include "../native/atomic.h"
+#include "../../utils/log_console.h"  // 🆕 Added missing include
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -51,21 +52,55 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
     if (link_data->manager && link_data->target_scene_id) {
         printf("🚀 TRANSITION RÉELLE via SceneManager vers '%s'...\n", link_data->target_scene_id);
         
+        // 🆕 LOGS DÉTAILLÉS POUR DIAGNOSTIQUER LES PROBLÈMES DE ROUTAGE
+        log_console_write("LinkTransition", "BeforeTransition", "ui_link.c", 
+                         "[ui_link.c] Attempting scene transition");
+        
         // 🔧 DIAGNOSTIC AVANT TRANSITION
         Scene* current = scene_manager_get_current_scene(link_data->manager);
         printf("🔍 Scène courante avant transition: '%s'\n", 
                current ? (current->name ? current->name : "unnamed") : "NULL");
         
+        // 🆕 OBTENIR LE TYPE DE FENÊTRE SOURCE POUR BIEN ASSOCIER LA NOUVELLE SCÈNE
+        WindowType source_window_type = current ? current->target_window : WINDOW_TYPE_MAIN;
+        
+        // Faire la transition avec l'option spécifiée
         bool success = scene_manager_transition_to_scene(link_data->manager, 
                                                         link_data->target_scene_id, 
                                                         link_data->transition);
+        
         if (success) {
             printf("✅ Transition réussie vers '%s' !\n", link_data->target_scene_id);
             
+            // 🆕 LOG DE TRANSITION RÉUSSIE
+            log_console_write("LinkTransition", "Success", "ui_link.c", 
+                             "[ui_link.c] Scene transition successful");
+            
             // 🔧 VÉRIFICATION APRÈS TRANSITION
+            Scene* new_scene = scene_manager_get_scene_by_id(link_data->manager, link_data->target_scene_id);
             Scene* new_current = scene_manager_get_current_scene(link_data->manager);
+            
             printf("🔍 Nouvelle scène courante: '%s'\n", 
                    new_current ? (new_current->name ? new_current->name : "unnamed") : "NULL");
+            
+            // 🆕 ASSOCIER EXPLICITEMENT LA NOUVELLE SCÈNE À LA FENÊTRE SOURCE
+            if (new_scene) {
+                // Créer un EventManager pour la nouvelle scène si nécessaire
+                if (!new_scene->event_manager) {
+                    new_scene->event_manager = event_manager_create();
+                    log_console_write("LinkTransition", "EventManager", "ui_link.c", 
+                                     "[ui_link.c] Created new EventManager for target scene");
+                }
+                
+                // Associer la scène à la fenêtre d'où venait le clic
+                scene_manager_set_scene_for_window(link_data->manager, new_scene, source_window_type);
+                
+                log_console_write("LinkTransition", "WindowAssignment", "ui_link.c", 
+                                 "[ui_link.c] Explicitly assigned new scene to source window");
+                                 
+                printf("🔗 Scène cible '%s' explicitement assignée à la fenêtre type %d\n",
+                       new_scene->name ? new_scene->name : "unnamed", source_window_type);
+            }
         } else {
             printf("❌ Échec de la transition vers '%s'\n", link_data->target_scene_id);
             
@@ -159,6 +194,9 @@ UINode* ui_create_link(UITree* tree, const char* id, const char* text,
     atomic_set_padding(link->element, 5, 10, 5, 10);
     atomic_set_margin(link->element, 2, 2, 2, 2);
     
+    // SÉCURITÉ : s'assurer que le callback peut retrouver le UINode même avant connection au SceneManager
+    link->element->user_data = link;
+    
     // Associer les handlers d'événements
     atomic_set_click_handler(link->element, ui_link_click_handler);
     atomic_set_hover_handler(link->element, ui_link_hover_handler);
@@ -211,7 +249,7 @@ void ui_link_set_click_handler(UINode* link, void (*on_click)(UINode* link)) {
     }
 }
 
-// Connecter le lien au gestionnaire de scènes - VERSION SÉCURISÉE
+// Connecter le lien au gestionnaire de scènes - VERSION SÉCURISÉE ET AMÉLIORÉE
 void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
     if (!link || !manager || !link->element) {
         printf("❌ Paramètres invalides pour ui_link_connect_to_manager\n");
@@ -224,23 +262,36 @@ void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
         link_data->manager = manager; // 🆕 stocker la référence
     }
     
-    // 🔧 FIX PRINCIPAL: Utiliser l'EventManager via l'UITree plutôt que active_scenes
-    if (link->tree && link->tree->event_manager) {
+    // 🆕 CRITIQUE: CONFIGURER USER_DATA POUR CALLBACK
+    link->element->user_data = link;
+    
+    // 🔧 FIX PRINCIPAL: Déterminer la bonne fenêtre pour l'enregistrement
+    Scene* current_scene = scene_manager_get_current_scene(manager);
+    if (current_scene && current_scene->event_manager) {
+        // Enregistrer le lien avec l'event manager de la scène ACTUELLE
+        atomic_register_with_event_manager(link->element, current_scene->event_manager);
+        
+        log_console_write("LinkRegistration", "Success", "ui_link.c", 
+                         "[ui_link.c] Link registered with current scene's EventManager");
+        
+        printf("🔗 Link '%s' registered with EventManager of scene '%s'\n", 
+               link->id ? link->id : "NoID", 
+               current_scene->name ? current_scene->name : "unnamed");
+    } else if (link->tree && link->tree->event_manager) {
+        // Fallback: utiliser l'event manager de l'arbre UI
         atomic_register_with_event_manager(link->element, link->tree->event_manager);
-        printf("🔗 Link '%s' registered via UITree EventManager\n", 
+        
+        log_console_write("LinkRegistration", "TreeFallback", "ui_link.c", 
+                         "[ui_link.c] Link registered with UITree's EventManager (fallback)");
+        
+        printf("⚠️ Link '%s' registered via UITree EventManager (fallback)\n", 
                link->id ? link->id : "NoID");
     } else {
-        // 🔧 FALLBACK SÉCURISÉ: Vérifier active_scenes[WINDOW_TYPE_MAIN] avant accès
-        if (manager->active_scenes[WINDOW_TYPE_MAIN] && 
-            manager->active_scenes[WINDOW_TYPE_MAIN]->event_manager) {
-            atomic_register_with_event_manager(link->element, 
-                                             manager->active_scenes[WINDOW_TYPE_MAIN]->event_manager);
-            printf("🔗 Link '%s' registered via SceneManager EventManager\n", 
-                   link->id ? link->id : "NoID");
-        } else {
-            printf("❌ No EventManager available for link '%s'\n", 
-                   link->id ? link->id : "NoID");
-        }
+        log_console_write("LinkRegistration", "Failed", "ui_link.c", 
+                         "[ui_link.c] No EventManager available for link registration");
+        
+        printf("❌ No EventManager available for link '%s'\n", 
+               link->id ? link->id : "NoID");
     }
 }
 

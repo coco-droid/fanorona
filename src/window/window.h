@@ -60,4 +60,7 @@ void window_update_focus(void);
 GameWindow* window_get_focused_window(void);
 bool window_has_events_pending(void);
 
+// 🆕 Déterminer le type d'une fenêtre (main ou mini)
+WindowType window_get_window_type(GameWindow* window);
+
 #endif // WINDOW_H

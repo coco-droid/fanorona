@@ -410,41 +410,35 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
         }
     }
     
-    // Obtenir l'EventManager du Core
-    EventManager* event_manager = game_core_get_event_manager(core);
-    if (!event_manager) {
-        printf("❌ Event manager NULL\n");
-        return;
+    // Créer un EventManager dédié à la scène si nécessaire
+    if (!scene->event_manager) {
+        printf("🔧 Création d'un EventManager dédié pour la scène home\n");
+        scene->event_manager = event_manager_create();
+        if (!scene->event_manager) {
+            printf("❌ Impossible de créer l'EventManager pour la scène home\n");
+            return;
+        }
     }
-    
-    // Stocker l'EventManager dans la scène selon la nouvelle architecture
-    scene->event_manager = event_manager;
     
     // Connecter l'EventManager à l'UITree
     if (data->ui_tree) {
-        data->ui_tree->event_manager = event_manager;
-        printf("🔗 EventManager connecté à l'UITree\n");
+        data->ui_tree->event_manager = scene->event_manager;
+        printf("🔗 EventManager dédié connecté à l'UITree\n");
         
         // Enregistrer tous les éléments UI avec des gestionnaires d'événements
         ui_tree_register_all_events(data->ui_tree);
         
-        // Stocker l'UITree dans la scène selon la nouvelle architecture
+        // Stocker l'UITree dans la scène
         scene->ui_tree = data->ui_tree;
         
-        printf("✅ Tous les événements connectés via l'UITree\n");
+        printf("✅ Tous les événements connectés via l'UITree avec EventManager dédié\n");
     } else {
         printf("❌ UITree est NULL\n");
         return;
     }
     
-    // Marquer la scène comme initialisée et active
-    scene->initialized = true;
-    scene->active = true;
-    
-    // Stocker la référence du core dans les données de la scène
+    // Stocker la référence du core
     data->core = core;
     
-    // Log pour confirmation
-    log_console_write("HomeScene", "EventsConnected", "home_scene.c", 
-                     "[home_scene.c] All UI elements registered with EventManager in new architecture");
+    printf("✅ Scène home prête avec son propre système d'événements\n");
 }
