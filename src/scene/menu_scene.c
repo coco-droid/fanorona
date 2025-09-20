@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "../ui/ui_components.h"
 #include "../utils/log_console.h"
+#include "../utils/asset_manager.h"  // 🔧 FIX: Ajouter l'include manquant
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,9 +15,25 @@ typedef struct MenuSceneData {
     GameCore* core;
 } MenuSceneData;
 
+// Callbacks pour les neon buttons
+static void multiplayer_clicked(UINode* node, void* user_data) {
+    printf("🌐 Multijoueur sélectionné\n");
+    (void)node; (void)user_data;
+}
+
+static void ai_clicked(UINode* node, void* user_data) {
+    printf("🤖 Jeu contre IA sélectionné\n");
+    (void)node; (void)user_data;
+}
+
+static void wiki_clicked(UINode* node, void* user_data) {
+    printf("📚 Wiki ouvert\n");
+    (void)node; (void)user_data;
+}
+
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
-    printf("📋 Initialisation de la scène Menu\n");
+    printf("📋 Initialisation de la scène Menu avec container modal et neon buttons\n");
     
     MenuSceneData* data = (MenuSceneData*)malloc(sizeof(MenuSceneData));
     if (!data) {
@@ -31,7 +48,24 @@ static void menu_scene_init(Scene* scene) {
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // Container principal (plein écran) avec fond bleu
+    // === CHARGER LES ASSETS (même background que home) ===
+    SDL_Texture* background_texture = NULL;
+    SDL_Texture* logo_texture = NULL;
+    
+    GameWindow* window = use_mini_window();
+    if (window) {
+        SDL_Renderer* renderer = window_get_renderer(window);
+        if (renderer) {
+            background_texture = asset_load_texture(renderer, "fix_bg.png");
+            logo_texture = asset_load_texture(renderer, "fanorona_text.png");
+            
+            printf("🔍 Assets menu chargés :\n");
+            printf("   Background: %s\n", background_texture ? "✅ OK" : "❌ ÉCHEC");
+            printf("   Logo: %s\n", logo_texture ? "✅ OK" : "❌ ÉCHEC");
+        }
+    }
+    
+    // Container principal (plein écran) avec même background que home
     UINode* app = UI_DIV(data->ui_tree, "menu-app");
     if (!app) {
         printf("❌ Erreur: Impossible de créer le container principal\n");
@@ -41,41 +75,119 @@ static void menu_scene_init(Scene* scene) {
     
     SET_POS(app, 0, 0);
     SET_SIZE(app, 700, 500);
-    SET_BG(app, "rgb(0, 100, 200)"); // Fond bleu
     
-    // Titre en haut
-    UINode* title = UI_TEXT(data->ui_tree, "menu-title", "MENU PRINCIPAL");
-    if (title) {
-        SET_POS(title, 250, 50);
-        ui_set_text_color(title, "rgb(255, 255, 255)");
-        ui_set_text_size(title, 24);  // 🔧 FIX: ui_set_font_size -> ui_set_text_size
-        APPEND(app, title);
+    // Utiliser le même background que home
+    if (background_texture) {
+        atomic_set_background_image(app->element, background_texture);
+        printf("🖼️ Background identique à home appliqué\n");
+    } else {
+        SET_BG(app, "rgb(135, 206, 250)"); // Bleu ciel par défaut
     }
     
-    // Retour à la page d'accueil
-    UINode* back_button = ui_button(data->ui_tree, "back-button", "RETOUR", NULL, NULL);
-    if (back_button) {
-        SET_POS(back_button, 50, 400);
-        SET_SIZE(back_button, 150, 40);
-        ui_set_text_color(back_button, "rgb(255, 255, 255)");
-        ui_set_background(back_button, "rgb(50, 50, 150)");  // 🔧 FIX: ui_set_background_color -> ui_set_background
-        APPEND(app, back_button);
+    // === CONTAINER MODAL CENTRÉ (PLUS GRAND) ===
+    UINode* modal_container = UI_CONTAINER_CENTERED(data->ui_tree, "modal-container", 500, 450);
+    if (!modal_container) {
+        printf("❌ Erreur: Impossible de créer le container modal\n");
+        free(data);
+        return;
+    }
+    
+    // === LOGO EN HAUT DU CONTAINER ===
+    UINode* logo = NULL;
+    if (logo_texture) {
+        logo = UI_IMAGE(data->ui_tree, "menu-logo", logo_texture);
+        if (logo) {
+            SET_SIZE(logo, 400, 100);
+            atomic_set_background_color(logo->element, 0, 0, 0, 0); // Transparent
+            ui_container_add_content(modal_container, logo);
+            printf("🖼️ Logo ajouté au container modal\n");
+        }
+    } else {
+        // Fallback texte
+        logo = UI_TEXT(data->ui_tree, "menu-logo-text", "FANORONA");
+        if (logo) {
+            ui_set_text_color(logo, "rgb(255, 165, 0)"); // Orange
+            ui_set_text_size(logo, 24);
+            ui_set_text_align(logo, "center");
+            ui_container_add_content(modal_container, logo);
+            printf("📝 Logo texte de secours ajouté au container\n");
+        }
+    }
+
+    // === TEXTE "STRATEGIE ET TRADITION" ===
+    UINode* subtitle = UI_TEXT(data->ui_tree, "menu-subtitle", "STRATEGIE ET TRADITION");
+    if (subtitle) {
+        ui_set_text_color(subtitle, "rgb(255, 255, 255)"); // Blanc pour contraste
+        ui_set_text_size(subtitle, 16);
+        ui_set_text_align(subtitle, "center");
+        ui_set_text_style(subtitle, false, true); // Italique
+        ui_container_add_content(modal_container, subtitle);
+        printf("📝 Sous-titre ajouté au container\n");
+    }
+    
+    // === CONTAINER POUR LES NEON BUTTONS ===
+    UINode* buttons_container = UI_DIV(data->ui_tree, "neon-buttons-container");
+    if (buttons_container) {
+        // Configuration flexbox pour disposition en colonne
+        ui_set_display_flex(buttons_container);
+        FLEX_COLUMN(buttons_container);
+        ui_set_justify_content(buttons_container, "center");
+        ui_set_align_items(buttons_container, "center");
+        ui_set_flex_gap(buttons_container, 15);
         
-        // Ce bouton sera remplacé plus tard par un lien UI
+        // === NEON BUTTONS ===
+        
+        // 1. Bouton Multijoueur
+        UINode* multiplayer_btn = ui_neon_button(data->ui_tree, "multiplayer-btn", "JOUER EN MULTIJOUEUR", multiplayer_clicked, NULL);
+        if (multiplayer_btn) {
+            SET_SIZE(multiplayer_btn, 280, 45);
+            ui_set_text_align(multiplayer_btn, "center");
+            APPEND(buttons_container, multiplayer_btn);
+            printf("✨ Neon Button 'Multijoueur' créé\n");
+        }
+        
+        // 2. Bouton IA
+        UINode* ai_btn = ui_neon_button(data->ui_tree, "ai-btn", "JOUER CONTRE L'IA", ai_clicked, NULL);
+        if (ai_btn) {
+            SET_SIZE(ai_btn, 280, 45);
+            ui_set_text_align(ai_btn, "center");
+            APPEND(buttons_container, ai_btn);
+            printf("✨ Neon Button 'IA' créé\n");
+        }
+        
+        // 3. Bouton Wiki
+        UINode* wiki_btn = ui_neon_button(data->ui_tree, "wiki-btn", "WIKI", wiki_clicked, NULL);
+        if (wiki_btn) {
+            SET_SIZE(wiki_btn, 280, 45);
+            ui_set_text_align(wiki_btn, "center");
+            APPEND(buttons_container, wiki_btn);
+            printf("✨ Neon Button 'Wiki' créé\n");
+        }
+        
+        // Ajouter le container de boutons au modal
+        ui_container_add_content(modal_container, buttons_container);
     }
     
+    // Construire la hiérarchie
     APPEND(data->ui_tree->root, app);
+    APPEND(app, modal_container);
     
     // Calculer les z-index implicites
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface Menu créée avec fond bleu\n");
+    printf("✅ Interface Menu créée avec :\n");
+    printf("   🖼️  Background identique à home\n");
+    printf("   📦  Container modal centré (500x450, noir transparent, bordure orange)\n");
+    printf("   🖼️  Logo Fanorona en haut du container\n");
+    printf("   📝  Texte 'Stratégie et Tradition' en italique\n");
+    printf("   ✨  3 Neon Buttons avec animation hover automatique\n");
+    printf("   📊  Z-index calculés automatiquement\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;
 }
 
-// Mise à jour de la scène menu
+// Mise à jour de la scène menu avec animations neon
 static void menu_scene_update(Scene* scene, float delta_time) {
     if (!scene || !scene->data) return;
     
@@ -84,6 +196,9 @@ static void menu_scene_update(Scene* scene, float delta_time) {
     // Mettre à jour l'arbre UI
     if (data->ui_tree) {
         ui_tree_update(data->ui_tree, delta_time);
+        
+        // Mettre à jour spécifiquement les animations neon
+        ui_neon_button_update_all(data->ui_tree, delta_time);
     }
 }
 

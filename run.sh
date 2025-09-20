@@ -81,6 +81,8 @@ SOURCES=(
     "$SRC_DIR/ui/native/atomic.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
+    "$SRC_DIR/ui/cnt_ui.c"            # 🔧 FIX: Ajouter cnt_ui.c pour les fonctions container
+    "$SRC_DIR/ui/neon_btn.c"            # 🔧 AJOUTÉ: neon_btn.c pour les boutons avec effet neon
     "$SRC_DIR/ui/components/ui_link.c"  # UI Link pour les transitions
 )
 

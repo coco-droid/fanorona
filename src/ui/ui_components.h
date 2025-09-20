@@ -58,6 +58,41 @@ UINode* ui_append(UINode* parent, UINode* child);
 // Button component function
 UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick)(UINode* node, void* user_data), void* user_data);
 
+// === CONTAINER COMPONENT ===
+
+// Créer un container avec style modal (fond noir transparent, bordure orange)
+UINode* ui_container(UITree* tree, const char* id);
+
+// Container avec taille spécifiée
+UINode* ui_container_with_size(UITree* tree, const char* id, int width, int height);
+
+// Container centré automatiquement
+UINode* ui_container_centered(UITree* tree, const char* id, int width, int height);
+
+// Ajouter un en-tête au container
+void ui_container_add_header(UINode* container, const char* header_text);
+
+// Ajouter du contenu au container
+void ui_container_add_content(UINode* container, UINode* content);
+
+// Basculer entre style modal et normal
+void ui_container_set_modal_style(UINode* container, bool is_modal);
+
+// === NEON BUTTON COMPONENT ===
+
+// Créer un bouton avec effet neon hover automatique
+UINode* ui_neon_button(UITree* tree, const char* id, const char* text, 
+                       void (*onClick)(UINode* node, void* user_data), void* user_data);
+
+// Personnaliser la couleur de lueur
+void ui_neon_button_set_glow_color(UINode* neon_btn, int r, int g, int b);
+
+// Contrôler la vitesse d'animation
+void ui_neon_button_set_animation_speed(UINode* neon_btn, float speed);
+
+// Mettre à jour toutes les animations neon (appelé par le système)
+void ui_neon_button_update_all(UITree* tree, float delta_time);
+
 // Button styling functions
 void ui_button_set_style(UINode* button, const char* bg_color, const char* text_color, const char* border_color);
 void ui_button_set_hover_style(UINode* button, const char* hover_bg_color, const char* hover_text_color);
@@ -175,6 +210,9 @@ void ui_button_remove_all_effects(UINode* button);
 #define UI_DIV(tree, id) ui_div(tree, id)
 #define UI_TEXT(tree, id, content) ui_text(tree, id, content)
 #define UI_IMAGE(tree, id, texture) ui_image(tree, id, texture)
+#define UI_CONTAINER(tree, id) ui_container(tree, id)
+#define UI_CONTAINER_CENTERED(tree, id, w, h) ui_container_centered(tree, id, w, h)
+#define UI_NEON_BUTTON(tree, id, label) ui_neon_button(tree, id, label, NULL, NULL)
 
 #define SET_POS(node, x, y) ui_set_position(node, x, y)
 #define SET_SIZE(node, w, h) ui_set_size(node, w, h)

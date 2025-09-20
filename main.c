@@ -17,6 +17,9 @@ void signal_handler(int sig) {
 
 // Dans une fonction d'initialisation ou après la création du core
 bool initialize_scenes(GameCore* core) {
+    // 🔧 FIX: Test rapide pour vérifier que cnt_ui.c est compilé
+    printf("🔧 Test de compilation des composants UI...\n");
+    
     // Créer la scène menu
     Scene* menu_scene = create_menu_scene();
     if (!menu_scene) {

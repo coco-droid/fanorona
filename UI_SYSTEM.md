@@ -10,12 +10,79 @@ Le système UI de Fanorona est basé sur une architecture atomique où tous les 
 - ✅ **Support des images PNG** pour les backgrounds de boutons
 - ✅ **Correction de l'affichage du texte** sur les boutons
 - 🆕 **Feedback visuel interactif** pour les clics et survols
+- 🆕 **Composant Container** avec style modal
+- 🔧 **API atomic simplifiée** avec fonctions unifiées
 
 **🎯 Système de feedback visuel :**
 - 🎨 **États visuels automatiques** : hover, pressed, normal
 - 🌈 **Styles prédéfinis** : success, danger, info, warning
 - ⚡ **Animations de clic** avec effets de taille et couleur
 - 📊 **Logs détaillés** de tous les changements visuels
+
+## 📦 Composant Container
+
+### Style modal automatique avec API corrigée
+
+```c
+// Créer un container avec style modal (overlay noir, bordure orange)
+UINode* modal = UI_CONTAINER(tree, "my-modal");
+SET_SIZE(modal, 400, 300);
+CENTER(modal);
+
+// Le container utilise maintenant l'API atomic correcte :
+// - atomic_set_border(element, width, r, g, b, a) pour bordures
+// - Fond noir transparent (alpha: 180)
+// - Bordure orange unifiée
+// - Padding interne de 1px
+// - Layout flexbox vertical centré
+// - Gap de 20px entre les éléments
+```
+
+### Utilisation avec contenu
+
+```c
+// Container centré avec taille définie
+UINode* dialog = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
+
+// Ajouter un en-tête orange
+ui_container_add_header(dialog, "CONFIGURATION");
+
+// Ajouter du contenu
+UINode* logo = UI_IMAGE(tree, "logo", logo_texture);
+ui_container_add_content(dialog, logo);
+
+UINode* text = UI_TEXT(tree, "subtitle", "Stratégie et Tradition");
+ui_set_text_color(text, "rgb(255, 255, 255)");
+ui_set_text_style(text, false, true); // Italique
+ui_container_add_content(dialog, text);
+
+// Le container organise automatiquement le contenu en colonne centrée
+```
+
+### Styles de container
+
+```c
+// Style modal complet (overlay sombre, z-index élevé)
+ui_container_set_modal_style(container, true);
+
+// Style normal (fond blanc, bordure grise)
+ui_container_set_modal_style(container, false);
+
+// Le container s'adapte automatiquement :
+// Modal: z-index 1000, fond noir 200 alpha, bordure orange 3px
+// Normal: z-index normal, fond blanc 230 alpha, bordure grise 1px
+```
+
+### Logs de container
+
+```c
+// Avec ui_set_event_logging(true), vous verrez :
+// [UIComponent] [Create] [my-modal] : Container created with modal style (black overlay, orange border)
+// [UIComponent] [Style] [my-modal] : Container size set
+// [UIComponent] [Style] [my-modal] : Container centered
+// [UIComponent] [ContainerHeader] [my-modal] : Header added to container
+// [UIComponent] [ContainerContent] [my-modal] : Content added to container
+```
 
 ## 🎨 Feedback visuel pour les boutons
 

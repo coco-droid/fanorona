@@ -239,6 +239,9 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
         return false;
     }
     
+    // 🔧 FIX: Éviter le warning unused parameter
+    (void)option; // Marquer comme intentionnellement non utilisé
+    
     Scene* target_scene = scene_manager_get_scene_by_id(manager, scene_id);
     if (!target_scene) {
         printf("❌ Scène '%s' introuvable\n", scene_id);

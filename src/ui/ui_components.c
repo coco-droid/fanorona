@@ -456,13 +456,41 @@ UINode* ui_set_text_color(UINode* node, const char* color) {
 
 UINode* ui_center(UINode* node) {
     if (node) {
-        ui_log_event("UIComponent", "Style", node->id, "Element centered");
+        // 🔧 FIX: Implémentation plus simple pour éviter les erreurs
+        // Pour l'instant, juste logger - l'implémentation complète viendra plus tard
+        ui_log_event("UIComponent", "Style", node->id, "Element centered (placeholder implementation)");
+        
+        // 🔧 TODO: Implémenter le vrai centrage basé sur la taille du parent
+        // Pour l'instant, on fait un centrage approximatif
+        if (node->element) {
+            int window_width = 700;  // Taille de fenêtre par défaut
+            int window_height = 500;
+            int element_width = node->element->style.width;
+            int element_height = node->element->style.height;
+            
+            if (element_width > 0 && element_height > 0) {
+                int center_x = (window_width - element_width) / 2;
+                int center_y = (window_height - element_height) / 2;
+                atomic_set_position(node->element, center_x, center_y);
+            }
+        }
     }
     return node;
 }
 
 UINode* ui_center_x(UINode* node) {
     if (node) {
+        // 🔧 FIX: Centrage horizontal uniquement
+        if (node->element) {
+            int window_width = 700;
+            int element_width = node->element->style.width;
+            
+            if (element_width > 0) {
+                int center_x = (window_width - element_width) / 2;
+                int current_y = node->element->style.y;
+                atomic_set_position(node->element, center_x, current_y);
+            }
+        }
         ui_log_event("UIComponent", "Style", node->id, "Element centered horizontally");
     }
     return node;
@@ -470,6 +498,17 @@ UINode* ui_center_x(UINode* node) {
 
 UINode* ui_center_y(UINode* node) {
     if (node) {
+        // 🔧 FIX: Centrage vertical uniquement
+        if (node->element) {
+            int window_height = 500;
+            int element_height = node->element->style.height;
+            
+            if (element_height > 0) {
+                int center_y = (window_height - element_height) / 2;
+                int current_x = node->element->style.x;
+                atomic_set_position(node->element, current_x, center_y);
+            }
+        }
         ui_log_event("UIComponent", "Style", node->id, "Element centered vertically");
     }
     return node;
