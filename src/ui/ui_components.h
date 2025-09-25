@@ -32,6 +32,23 @@ UINode* ui_center(UINode* node); // Centre automatiquement
 UINode* ui_center_x(UINode* node); // Centre horizontalement
 UINode* ui_center_y(UINode* node); // Centre verticalement
 
+// 🆕 NOUVELLES FONCTIONS pour la gestion de l'overflow
+UINode* ui_set_overflow(UINode* node, const char* overflow);
+UINode* ui_set_overflow_visible(UINode* node);   // Les enfants peuvent déborder
+UINode* ui_set_overflow_hidden(UINode* node);    // Les enfants sont contraints
+UINode* ui_set_overflow_scroll(UINode* node);    // Avec scroll (futur)
+UINode* ui_set_overflow_auto(UINode* node);      // Automatique
+
+// Fonctions utilitaires pour l'overflow
+bool ui_is_child_overflowing(UINode* parent, UINode* child);
+void ui_constrain_all_children(UINode* parent);
+
+// 🆕 NOUVELLES FONCTIONS pour align-self
+UINode* ui_set_align_self(UINode* node, const char* align_self);
+UINode* ui_set_align_self_center_x(UINode* node);
+UINode* ui_set_align_self_center_y(UINode* node);
+UINode* ui_set_align_self_center_both(UINode* node);
+
 // Flexbox
 UINode* ui_set_flex_direction(UINode* node, const char* direction);
 UINode* ui_set_justify_content(UINode* node, const char* justify);
@@ -61,6 +78,7 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
 // === CONTAINER COMPONENT ===
 
 // Créer un container avec style modal (fond noir transparent, bordure orange)
+// + Logo et sous-titre "Stratégie et Tradition" par défaut
 UINode* ui_container(UITree* tree, const char* id);
 
 // Container avec taille spécifiée
@@ -69,17 +87,22 @@ UINode* ui_container_with_size(UITree* tree, const char* id, int width, int heig
 // Container centré automatiquement
 UINode* ui_container_centered(UITree* tree, const char* id, int width, int height);
 
-// Ajouter un en-tête au container
-void ui_container_add_header(UINode* container, const char* header_text);
+// 🆕 NOUVELLES FONCTIONS pour le contenu par défaut
+void ui_container_add_default_logo(UINode* container);
+void ui_container_add_default_subtitle(UINode* container);
 
-// Ajouter du contenu au container
+// Ajouter du contenu au container (positionnement automatique sous le sous-titre)
 void ui_container_add_content(UINode* container, UINode* content);
+
+// Ajouter un en-tête orange au container
+void ui_container_add_header(UINode* container, const char* header_text);
 
 // Basculer entre style modal et normal
 void ui_container_set_modal_style(UINode* container, bool is_modal);
 
 // === NEON BUTTON COMPONENT ===
 
+// 🔧 NOTE: Les neon buttons sont implémentés dans neon_btn.c (pas dans ui_components.c)
 // Créer un bouton avec effet neon hover automatique
 UINode* ui_neon_button(UITree* tree, const char* id, const char* text, 
                        void (*onClick)(UINode* node, void* user_data), void* user_data);
@@ -212,7 +235,6 @@ void ui_button_remove_all_effects(UINode* button);
 #define UI_IMAGE(tree, id, texture) ui_image(tree, id, texture)
 #define UI_CONTAINER(tree, id) ui_container(tree, id)
 #define UI_CONTAINER_CENTERED(tree, id, w, h) ui_container_centered(tree, id, w, h)
-#define UI_NEON_BUTTON(tree, id, label) ui_neon_button(tree, id, label, NULL, NULL)
 
 #define SET_POS(node, x, y) ui_set_position(node, x, y)
 #define SET_SIZE(node, w, h) ui_set_size(node, w, h)
@@ -221,12 +243,25 @@ void ui_button_remove_all_effects(UINode* button);
 #define SET_BG_SIZE(node, size) ui_set_background_size(node, size)
 #define SET_BG_REPEAT(node, repeat) ui_set_background_repeat(node, repeat)
 #define CENTER(node) ui_center(node)
+#define CENTER_X(node) ui_center_x(node)
+#define CENTER_Y(node) ui_center_y(node)
+
+// 🔧 FIX: Ajouter les macros manquantes
 #define FLEX_ROW(node) ui_set_flex_direction(node, "row")
 #define FLEX_COLUMN(node) ui_set_flex_direction(node, "column")
-
-#define ON_CLICK(node, callback) ui_on_click(node, callback)
-#define APPEND_TO(child, parent) ui_append_to(child, parent)
 #define APPEND(parent, child) ui_append(parent, child)
+
+// 🆕 NOUVELLES MACROS pour align-self
+#define ALIGN_SELF_X(node) ui_set_align_self_center_x(node)
+#define ALIGN_SELF_Y(node) ui_set_align_self_center_y(node)
+#define ALIGN_SELF_BOTH(node) ui_set_align_self_center_both(node)
+
+// 🆕 NOUVELLES MACROS pour overflow
+#define SET_OVERFLOW(node, type) ui_set_overflow(node, type)
+#define OVERFLOW_HIDDEN(node) ui_set_overflow_hidden(node)
+#define OVERFLOW_VISIBLE(node) ui_set_overflow_visible(node)
+#define OVERFLOW_SCROLL(node) ui_set_overflow_scroll(node)
+#define OVERFLOW_AUTO(node) ui_set_overflow_auto(node)
 
 // Macro de debugging
 #define DEBUG_TEXT(node) ui_debug_text_rendering(node, #node)

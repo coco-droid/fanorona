@@ -13,6 +13,7 @@
 // Calculer le rectangle de destination pour l'image de fond selon background-size
 // 🔧 FIX: Calculer le rectangle de destination pour background "cover"
 static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Texture* texture) {
+    // 🔧 FIX: Utiliser render_rect au lieu des coordonnées brutes
     SDL_Rect element_rect = atomic_get_render_rect(element);
     
     if (!texture) {
@@ -26,32 +27,23 @@ static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Textu
     
     switch (element->style.background_size) {
         case BACKGROUND_SIZE_COVER: {
-            // 🔧 Mode COVER CORRIGÉ: L'image remplit EXACTEMENT l'élément
-            // Garder les proportions mais s'assurer que l'image couvre tout l'élément
             float element_aspect = (float)element_rect.w / element_rect.h;
             float texture_aspect = (float)texture_width / texture_height;
             
             if (texture_aspect > element_aspect) {
-                // Image plus large : ajuster la largeur pour couvrir la hauteur
                 dest_rect.h = element_rect.h;
                 dest_rect.w = (int)(element_rect.h * texture_aspect);
                 dest_rect.x = element_rect.x - (dest_rect.w - element_rect.w) / 2;
                 dest_rect.y = element_rect.y;
             } else {
-                // Image plus haute : ajuster la hauteur pour couvrir la largeur
                 dest_rect.w = element_rect.w;
                 dest_rect.h = (int)(element_rect.w / texture_aspect);
                 dest_rect.x = element_rect.x;
                 dest_rect.y = element_rect.y - (dest_rect.h - element_rect.h) / 2;
             }
-            
-            // 🔧 SUPPRESSION: Plus de logs verbeux
-            // printf("🔧 COVER mode applied: element(%dx%d) -> dest(%dx%d)\n",
-            //        element_rect.w, element_rect.h, dest_rect.w, dest_rect.h);
             break;
         }
         case BACKGROUND_SIZE_CONTAIN: {
-            // Mode CONTAIN: L'image tient entièrement dans l'élément
             float element_aspect = (float)element_rect.w / element_rect.h;
             float texture_aspect = (float)texture_width / texture_height;
             
@@ -70,7 +62,6 @@ static SDL_Rect calculate_background_dest_rect(AtomicElement* element, SDL_Textu
         }
         case BACKGROUND_SIZE_STRETCH:
         default:
-            // Mode STRETCH (par défaut) : étirer pour remplir exactement
             dest_rect = element_rect;
             break;
     }
@@ -168,6 +159,12 @@ AtomicElement* atomic_create(const char* id) {
     element->style.text.align = TEXT_ALIGN_LEFT;
     element->style.text.bold = false;
     element->style.text.italic = false;
+    
+    // 🆕 AJOUT: Initialiser l'overflow par défaut
+    element->style.overflow = OVERFLOW_VISIBLE; // Par défaut, pas de contrainte
+    
+    // Initialiser align-self
+    element->style.alignment.align_self = ALIGN_SELF_AUTO; // 🆕 AJOUT
     
     // Initialiser le contenu
     element->content.children_capacity = 4;
@@ -559,7 +556,7 @@ void atomic_update(AtomicElement* element, float delta_time) {
         atomic_apply_flex_layout(element);
     }
     
-    // Appliquer le centrage automatique
+    // Appliquer le centrage automatique (ancien système)
     if (element->style.alignment.auto_center_x || element->style.alignment.auto_center_y) {
         if (element->parent) {
             SDL_Rect parent_rect = atomic_get_content_rect(element->parent);
@@ -573,6 +570,12 @@ void atomic_update(AtomicElement* element, float delta_time) {
             }
         }
     }
+    
+    // 🆕 AJOUT: Appliquer align-self (nouveau système)
+    atomic_apply_align_self(element);
+    
+    // 🆕 AJOUT: Appliquer les contraintes d'overflow APRÈS les positionnements
+    atomic_apply_overflow_constraints(element);
     
     // Mise à jour personnalisée
     if (element->custom_update) {
@@ -634,6 +637,53 @@ bool atomic_has_class(AtomicElement* element, const char* class_name) {
     if (!element || !class_name || !element->class_name) return false;
     
     return strcmp(element->class_name, class_name) == 0;
+}
+
+// 🆕 NOUVELLES FONCTIONS pour align-self
+void atomic_set_align_self(AtomicElement* element, AlignSelf align_self) {
+    if (!element) return;
+    element->style.alignment.align_self = align_self;
+}
+
+void atomic_set_align_self_center_x(AtomicElement* element) {
+    if (!element) return;
+    element->style.alignment.align_self = ALIGN_SELF_CENTER_X;
+}
+
+void atomic_set_align_self_center_y(AtomicElement* element) {
+    if (!element) return;
+    element->style.alignment.align_self = ALIGN_SELF_CENTER_Y;
+}
+
+void atomic_set_align_self_center_both(AtomicElement* element) {
+    if (!element) return;
+    element->style.alignment.align_self = ALIGN_SELF_CENTER_BOTH;
+}
+
+void atomic_apply_align_self(AtomicElement* element) {
+    if (!element || !element->parent) return;
+    
+    SDL_Rect parent_rect = atomic_get_content_rect(element->parent);
+    
+    switch (element->style.alignment.align_self) {
+        case ALIGN_SELF_CENTER_X:
+            element->style.x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
+            break;
+            
+        case ALIGN_SELF_CENTER_Y:
+            element->style.y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
+            break;
+            
+        case ALIGN_SELF_CENTER_BOTH:
+            element->style.x = parent_rect.x + (parent_rect.w - element->style.width) / 2;
+            element->style.y = parent_rect.y + (parent_rect.h - element->style.height) / 2;
+            break;
+            
+        case ALIGN_SELF_AUTO:
+        default:
+            // Pas de centrage automatique
+            break;
+    }
 }
 
 // === VERSIONS STRING POUR COMPATIBILITÉ ===
@@ -783,161 +833,6 @@ SDL_Rect atomic_get_content_rect(AtomicElement* element) {
 
 // === FONCTIONS DE RENDU COMPLÈTES ===
 
-void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
-    if (!element || !renderer || !element->style.visible || element->style.display == DISPLAY_NONE) {
-        return;
-    }
-    
-    SDL_Rect render_rect = atomic_get_render_rect(element);
-    SDL_Rect content_rect = atomic_get_content_rect(element);
-    
-    // 🔧 FIX: Sauvegarder et restaurer l'état du renderer
-    SDL_BlendMode old_blend_mode;
-    SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
-    
-    Uint8 old_r, old_g, old_b, old_a;
-    SDL_GetRenderDrawColor(renderer, &old_r, &old_g, &old_b, &old_a);
-    
-    // Activer le blending pour les transparences
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    
-    // Dessiner le background SEULEMENT si alpha > 0
-    if (element->style.background_color.a > 0) {
-        SDL_SetRenderDrawColor(renderer, 
-                             element->style.background_color.r,
-                             element->style.background_color.g,
-                             element->style.background_color.b,
-                             (Uint8)((element->style.background_color.a * element->style.opacity) / 255));
-        SDL_RenderFillRect(renderer, &render_rect);
-    }
-    
-    // Dessiner l'image de fond si présente avec support CSS
-    if (element->style.background_image) {
-        // 🔧 FIX: Gérer l'alpha de la texture
-        Uint8 texture_alpha = element->style.opacity;
-        SDL_SetTextureAlphaMod(element->style.background_image, texture_alpha);
-        
-        // Calculer le rectangle de destination selon background-size
-        SDL_Rect bg_dest = calculate_background_dest_rect(element, element->style.background_image);
-        
-        // Gérer background-repeat
-        if (element->style.background_repeat == BACKGROUND_REPEAT_NO_REPEAT) {
-            SDL_RenderCopy(renderer, element->style.background_image, NULL, &bg_dest);
-        } else {
-            // TODO: Implémenter repeat, repeat-x, repeat-y
-            SDL_RenderCopy(renderer, element->style.background_image, NULL, &bg_dest);
-        }
-        
-        // 🔧 Restaurer l'alpha de la texture
-        SDL_SetTextureAlphaMod(element->style.background_image, 255);
-    }
-    
-    // Dessiner la bordure SEULEMENT si width > 0 et alpha > 0
-    if (element->style.border_width > 0 && element->style.border_color.a > 0) {
-        SDL_SetRenderDrawColor(renderer,
-                             element->style.border_color.r,
-                             element->style.border_color.g,
-                             element->style.border_color.b,
-                             (Uint8)((element->style.border_color.a * element->style.opacity) / 255));
-        
-        for (int i = 0; i < element->style.border_width; i++) {
-            SDL_Rect border_rect = {
-                render_rect.x - i,
-                render_rect.y - i,
-                render_rect.w + 2 * i,
-                render_rect.h + 2 * i
-            };
-            SDL_RenderDrawRect(renderer, &border_rect);
-        }
-    }
-    
-    // Dessiner la texture si présente (pour les composants image)
-    if (element->content.texture) {
-        SDL_SetTextureAlphaMod(element->content.texture, element->style.opacity);
-        SDL_RenderCopy(renderer, element->content.texture, NULL, &content_rect);
-        SDL_SetTextureAlphaMod(element->content.texture, 255); // Restaurer
-    }
-    
-    // 🔧 FIX PRINCIPAL: RENDU DU TEXTE AVEC TTF au lieu de rectangles
-    if (element->content.text && strlen(element->content.text) > 0) {
-        // 🔧 FIX: Utiliser le bon champ pour la police
-        TTF_Font* font = element->style.font; // Au lieu de element->style.text.font
-        if (!font) {
-            // Charger la police par défaut si pas de police spécifiée
-            font = atomic_get_default_font();
-            if (!font) {
-                printf("⚠️ No font available for text rendering of '%s'\n", 
-                       element->id ? element->id : "NoID");
-                goto skip_text_rendering; // Aller à la fin du rendu de texte
-            }
-        }
-        
-        // 🔧 Créer une surface de texte avec TTF
-        SDL_Color text_color = {
-            element->style.text.color.r,
-            element->style.text.color.g,
-            element->style.text.color.b,
-            (Uint8)((element->style.text.color.a * element->style.opacity) / 255)
-        };
-        
-        SDL_Surface* text_surface = TTF_RenderText_Blended(font, element->content.text, text_color);
-        if (!text_surface) {
-            printf("⚠️ Failed to create text surface: %s\n", TTF_GetError());
-            goto skip_text_rendering;
-        }
-        
-        // Créer une texture à partir de la surface
-        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-        if (!text_texture) {
-            SDL_FreeSurface(text_surface);
-            printf("⚠️ Failed to create text texture: %s\n", SDL_GetError());
-            goto skip_text_rendering;
-        }
-        
-        // Calculer la position du texte selon l'alignement
-        int text_width = text_surface->w;
-        int text_height = text_surface->h;
-        SDL_FreeSurface(text_surface); // Libérer la surface maintenant
-        
-        int text_x = content_rect.x;
-        int text_y = content_rect.y + (content_rect.h - text_height) / 2;
-        
-        switch (element->style.text.align) {
-            case TEXT_ALIGN_CENTER:
-                text_x = content_rect.x + (content_rect.w - text_width) / 2;
-                break;
-            case TEXT_ALIGN_RIGHT:
-                text_x = content_rect.x + content_rect.w - text_width;
-                break;
-            default: // TEXT_ALIGN_LEFT
-                text_x = content_rect.x + 5;
-                break;
-        }
-        
-        // 🔧 Rendre le texte avec la vraie texture TTF
-        SDL_Rect text_rect = { text_x, text_y, text_width, text_height };
-        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-        
-        // Libérer la texture temporaire
-        SDL_DestroyTexture(text_texture);
-    }
-    
-skip_text_rendering:
-    
-    // Rendu personnalisé
-    if (element->custom_render) {
-        element->custom_render(element, renderer);
-    }
-    
-    // Rendre les enfants
-    for (int i = 0; i < element->content.children_count; i++) {
-        atomic_render(element->content.children[i], renderer);
-    }
-    
-    // 🔧 FIX: Restaurer l'état original du renderer
-    SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
-    SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
-}
 
 // 🆕 NOUVELLE FONCTION: Obtenir la police par défaut
 TTF_Font* atomic_get_default_font(void) {
@@ -1128,4 +1023,280 @@ int atomic_get_width(AtomicElement* element) {
 int atomic_get_height(AtomicElement* element) {
     if (!element) return 0;
     return element->style.height;
+}
+
+// 🆕 NOUVELLE FONCTION: Définir le type d'overflow
+void atomic_set_overflow(AtomicElement* element, OverflowType overflow) {
+    if (!element) return;
+    element->style.overflow = overflow;
+    
+    // Appliquer immédiatement les contraintes si nécessaire
+    if (overflow == OVERFLOW_HIDDEN) {
+        atomic_apply_overflow_constraints(element);
+    }
+}
+
+// 🆕 NOUVELLE FONCTION: Définir l'overflow avec string
+void atomic_set_overflow_str(AtomicElement* element, const char* overflow) {
+    if (!element || !overflow) return;
+    
+    if (strcmp(overflow, "visible") == 0) {
+        atomic_set_overflow(element, OVERFLOW_VISIBLE);
+    } else if (strcmp(overflow, "hidden") == 0) {
+        atomic_set_overflow(element, OVERFLOW_HIDDEN);
+    } else if (strcmp(overflow, "scroll") == 0) {
+        atomic_set_overflow(element, OVERFLOW_SCROLL);
+    } else if (strcmp(overflow, "auto") == 0) {
+        atomic_set_overflow(element, OVERFLOW_AUTO);
+    }
+}
+
+// 🆕 NOUVELLE FONCTION: Calculer la position contrainte d'un enfant
+SDL_Rect atomic_constrain_child_position(AtomicElement* parent, AtomicElement* child, int desired_x, int desired_y) {
+    if (!parent || !child) {
+        return (SDL_Rect){desired_x, desired_y, child ? child->style.width : 0, child ? child->style.height : 0};
+    }
+    
+    // Si le parent permet le débordement, retourner la position désirée
+    if (parent->style.overflow == OVERFLOW_VISIBLE) {
+        return (SDL_Rect){desired_x, desired_y, child->style.width, child->style.height};
+    }
+    
+    // Obtenir la zone de contenu du parent (sans padding/bordure)
+    SDL_Rect parent_content = atomic_get_content_rect(parent);
+    
+    // Calculer les positions contraintes
+    int constrained_x = desired_x;
+    int constrained_y = desired_y;
+    int constrained_width = child->style.width;
+    int constrained_height = child->style.height;
+    
+    // Contraindre horizontalement
+    if (constrained_x < parent_content.x) {
+        constrained_x = parent_content.x;
+    } else if (constrained_x + constrained_width > parent_content.x + parent_content.w) {
+        // Si l'enfant est trop large, le positionner au bord droit
+        constrained_x = parent_content.x + parent_content.w - constrained_width;
+        
+        // Si même ainsi il dépasse à gauche, réduire la largeur (pour overflow HIDDEN)
+        if (constrained_x < parent_content.x) {
+            constrained_x = parent_content.x;
+            constrained_width = parent_content.w;
+        }
+    }
+    
+    // Contraindre verticalement
+    if (constrained_y < parent_content.y) {
+        constrained_y = parent_content.y;
+    } else if (constrained_y + constrained_height > parent_content.y + parent_content.h) {
+        // Si l'enfant est trop haut, le positionner au bord bas
+        constrained_y = parent_content.y + parent_content.h - constrained_height;
+        
+        // Si même ainsi il dépasse en haut, réduire la hauteur (pour overflow HIDDEN)
+        if (constrained_y < parent_content.y) {
+            constrained_y = parent_content.y;
+            constrained_height = parent_content.h;
+        }
+    }
+    
+    return (SDL_Rect){constrained_x, constrained_y, constrained_width, constrained_height};
+}
+
+// 🆕 NOUVELLE FONCTION: Appliquer les contraintes d'overflow à tous les enfants
+void atomic_apply_overflow_constraints(AtomicElement* parent) {
+    if (!parent || parent->style.overflow == OVERFLOW_VISIBLE) return;
+    
+    for (int i = 0; i < parent->content.children_count; i++) {
+        AtomicElement* child = parent->content.children[i];
+        if (!child) continue;
+        
+        // Calculer la position contrainte
+        SDL_Rect constrained = atomic_constrain_child_position(parent, child, child->style.x, child->style.y);
+        
+        // Appliquer les contraintes
+        child->style.x = constrained.x;
+        child->style.y = constrained.y;
+        
+        // Pour overflow HIDDEN, ajuster aussi la taille si nécessaire
+        if (parent->style.overflow == OVERFLOW_HIDDEN) {
+            child->style.width = constrained.w;
+            child->style.height = constrained.h;
+        }
+        
+        // Appliquer récursivement aux enfants
+        atomic_apply_overflow_constraints(child);
+    }
+}
+
+// 🆕 NOUVELLE FONCTION: Vérifier si un enfant déborde
+bool atomic_is_child_overflowing(AtomicElement* parent, AtomicElement* child) {
+    if (!parent || !child) return false;
+    
+    SDL_Rect parent_content = atomic_get_content_rect(parent);
+    SDL_Rect child_rect = atomic_get_render_rect(child);
+    
+    // Vérifier les débordements
+    bool overflow_left = child_rect.x < parent_content.x;
+    bool overflow_right = (child_rect.x + child_rect.w) > (parent_content.x + parent_content.w);
+    bool overflow_top = child_rect.y < parent_content.y;
+    bool overflow_bottom = (child_rect.y + child_rect.h) > (parent_content.y + parent_content.h);
+    
+    return overflow_left || overflow_right || overflow_top || overflow_bottom;
+}
+
+// === FONCTIONS DE RENDU SANS CLIPPING ===
+
+void atomic_render(AtomicElement* element, SDL_Renderer* renderer) {
+    if (!element || !renderer || !element->style.visible || element->style.display == DISPLAY_NONE) {
+        return;
+    }
+    
+    // 🔧 FIX MAJEUR: Utiliser les rectangles calculés au lieu des coordonnées brutes
+    SDL_Rect render_rect = atomic_get_render_rect(element);
+    SDL_Rect content_rect = atomic_get_content_rect(element);
+    
+    // 🔧 FIX: Sauvegarder et restaurer l'état du renderer
+    SDL_BlendMode old_blend_mode;
+    SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
+    
+    Uint8 old_r, old_g, old_b, old_a;
+    SDL_GetRenderDrawColor(renderer, &old_r, &old_g, &old_b, &old_a);
+    
+    // Activer le blending pour les transparences
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    
+    // Dessiner le background SEULEMENT si alpha > 0
+    if (element->style.background_color.a > 0) {
+        SDL_SetRenderDrawColor(renderer, 
+                             element->style.background_color.r,
+                             element->style.background_color.g,
+                             element->style.background_color.b,
+                             (Uint8)((element->style.background_color.a * element->style.opacity) / 255));
+        SDL_RenderFillRect(renderer, &render_rect);
+    }
+    
+    // Dessiner l'image de fond si présente avec support CSS
+    if (element->style.background_image) {
+        // 🔧 FIX: Gérer l'alpha de la texture
+        Uint8 texture_alpha = element->style.opacity;
+        SDL_SetTextureAlphaMod(element->style.background_image, texture_alpha);
+        
+        // 🔧 FIX: Utiliser le rectangle calculé pour le background
+        SDL_Rect bg_dest = calculate_background_dest_rect(element, element->style.background_image);
+        
+        // Gérer background-repeat
+        if (element->style.background_repeat == BACKGROUND_REPEAT_NO_REPEAT) {
+            SDL_RenderCopy(renderer, element->style.background_image, NULL, &bg_dest);
+        } else {
+            SDL_RenderCopy(renderer, element->style.background_image, NULL, &bg_dest);
+        }
+        
+        // 🔧 Restaurer l'alpha de la texture
+        SDL_SetTextureAlphaMod(element->style.background_image, 255);
+    }
+    
+    // Dessiner la bordure SEULEMENT si width > 0 et alpha > 0
+    if (element->style.border_width > 0 && element->style.border_color.a > 0) {
+        SDL_SetRenderDrawColor(renderer,
+                             element->style.border_color.r,
+                             element->style.border_color.g,
+                             element->style.border_color.b,
+                             (Uint8)((element->style.border_color.a * element->style.opacity) / 255));
+        
+        for (int i = 0; i < element->style.border_width; i++) {
+            SDL_Rect border_rect = {
+                render_rect.x - i,
+                render_rect.y - i,
+                render_rect.w + 2 * i,
+                render_rect.h + 2 * i
+            };
+            SDL_RenderDrawRect(renderer, &border_rect);
+        }
+    }
+    
+    // Dessiner la texture si présente (pour les composants image)
+    if (element->content.texture) {
+        SDL_SetTextureAlphaMod(element->content.texture, element->style.opacity);
+        SDL_RenderCopy(renderer, element->content.texture, NULL, &content_rect);
+        SDL_SetTextureAlphaMod(element->content.texture, 255); // Restaurer
+    }
+    
+    // 🔧 FIX PRINCIPAL: RENDU DU TEXTE avec coordonnées correctes
+    if (element->content.text && strlen(element->content.text) > 0) {
+        TTF_Font* font = element->style.font;
+        if (!font) {
+            font = atomic_get_default_font();
+            if (!font) {
+                printf("⚠️ No font available for text rendering of '%s'\n", 
+                       element->id ? element->id : "NoID");
+                goto skip_text_rendering;
+            }
+        }
+        
+        SDL_Color text_color = {
+            element->style.text.color.r,
+            element->style.text.color.g,
+            element->style.text.color.b,
+            (Uint8)((element->style.text.color.a * element->style.opacity) / 255)
+        };
+        
+        SDL_Surface* text_surface = TTF_RenderText_Blended(font, element->content.text, text_color);
+        if (!text_surface) {
+            printf("⚠️ Failed to create text surface: %s\n", TTF_GetError());
+            goto skip_text_rendering;
+        }
+        
+        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+        if (!text_texture) {
+            SDL_FreeSurface(text_surface);
+            printf("⚠️ Failed to create text texture: %s\n", SDL_GetError());
+            goto skip_text_rendering;
+        }
+        
+        // 🔧 FIX: Calculer la position du texte dans le content_rect (qui respecte le padding)
+        int text_width = text_surface->w;
+        int text_height = text_surface->h;
+        SDL_FreeSurface(text_surface);
+        
+        int text_x = content_rect.x;
+        int text_y = content_rect.y + (content_rect.h - text_height) / 2;
+        
+        switch (element->style.text.align) {
+            case TEXT_ALIGN_CENTER:
+                text_x = content_rect.x + (content_rect.w - text_width) / 2;
+                break;
+            case TEXT_ALIGN_RIGHT:
+                text_x = content_rect.x + content_rect.w - text_width;
+                break;
+            default: // TEXT_ALIGN_LEFT
+                text_x = content_rect.x + 5;
+                break;
+        }
+        
+        SDL_Rect text_rect = { text_x, text_y, text_width, text_height };
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        
+        SDL_DestroyTexture(text_texture);
+    }
+    
+skip_text_rendering:
+    
+    // Rendu personnalisé
+    if (element->custom_render) {
+        element->custom_render(element, renderer);
+    }
+    
+    // 🔧 FIX MAJEUR: Rendre les enfants en tenant compte du padding parent
+    for (int i = 0; i < element->content.children_count; i++) {
+        AtomicElement* child = element->content.children[i];
+        if (!child) continue;
+        
+        // 🔧 FIX: Calculer la position de l'enfant relative au content_rect du parent
+        // Si l'enfant utilise align-self, la position sera recalculée dans atomic_update
+        atomic_render(child, renderer);
+    }
+    
+    // 🔧 FIX: Restaurer l'état original du renderer
+    SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
+    SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
 }

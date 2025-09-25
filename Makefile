@@ -25,7 +25,8 @@ SOURCES = main.c \
           $(SRC_DIR)/ui/native/atomic.c \
           $(SRC_DIR)/ui/ui_tree.c \
           $(SRC_DIR)/ui/ui_components.c \
-          $(SRC_DIR)/ui/cnt_ui.c
+          $(SRC_DIR)/ui/cnt_ui.c \
+          $(SRC_DIR)/ui/neon_btn.c
 
 # Fichiers objets
 OBJECTS = $(SOURCES:%.c=$(OBJ_DIR)/%.o)

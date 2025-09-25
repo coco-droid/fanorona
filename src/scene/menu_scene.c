@@ -33,7 +33,7 @@ static void wiki_clicked(UINode* node, void* user_data) {
 
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
-    printf("📋 Initialisation de la scène Menu avec container modal et neon buttons\n");
+    printf("📋 Initialisation de la scène Menu avec container automatique\n");
     
     MenuSceneData* data = (MenuSceneData*)malloc(sizeof(MenuSceneData));
     if (!data) {
@@ -48,24 +48,19 @@ static void menu_scene_init(Scene* scene) {
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // === CHARGER LES ASSETS (même background que home) ===
+    // === CHARGER LE BACKGROUND SEULEMENT ===
     SDL_Texture* background_texture = NULL;
-    SDL_Texture* logo_texture = NULL;
     
     GameWindow* window = use_mini_window();
     if (window) {
         SDL_Renderer* renderer = window_get_renderer(window);
         if (renderer) {
             background_texture = asset_load_texture(renderer, "fix_bg.png");
-            logo_texture = asset_load_texture(renderer, "fanorona_text.png");
-            
-            printf("🔍 Assets menu chargés :\n");
-            printf("   Background: %s\n", background_texture ? "✅ OK" : "❌ ÉCHEC");
-            printf("   Logo: %s\n", logo_texture ? "✅ OK" : "❌ ÉCHEC");
+            printf("🔍 Background menu chargé : %s\n", background_texture ? "✅ OK" : "❌ ÉCHEC");
         }
     }
     
-    // Container principal (plein écran) avec même background que home
+    // Container principal (plein écran) avec background
     UINode* app = UI_DIV(data->ui_tree, "menu-app");
     if (!app) {
         printf("❌ Erreur: Impossible de créer le container principal\n");
@@ -84,91 +79,80 @@ static void menu_scene_init(Scene* scene) {
         SET_BG(app, "rgb(135, 206, 250)"); // Bleu ciel par défaut
     }
     
-    // === CONTAINER MODAL CENTRÉ (PLUS GRAND) ===
+    // === CONTAINER MODAL AVEC LOGO ET TEXTE AUTOMATIQUES ===
     UINode* modal_container = UI_CONTAINER_CENTERED(data->ui_tree, "modal-container", 500, 450);
     if (!modal_container) {
         printf("❌ Erreur: Impossible de créer le container modal\n");
         free(data);
         return;
     }
+    // 🎉 Le container a maintenant automatiquement :
+    // - Logo à 10px du haut depuis l'intérieur, centré horizontalement avec align-self
+    // - Texte "Stratégie et Tradition" à 98px depuis l'intérieur (logo + 8px), centré avec align-self
     
-    // === LOGO EN HAUT DU CONTAINER ===
-    UINode* logo = NULL;
-    if (logo_texture) {
-        logo = UI_IMAGE(data->ui_tree, "menu-logo", logo_texture);
-        if (logo) {
-            SET_SIZE(logo, 400, 100);
-            atomic_set_background_color(logo->element, 0, 0, 0, 0); // Transparent
-            ui_container_add_content(modal_container, logo);
-            printf("🖼️ Logo ajouté au container modal\n");
-        }
-    } else {
-        // Fallback texte
-        logo = UI_TEXT(data->ui_tree, "menu-logo-text", "FANORONA");
-        if (logo) {
-            ui_set_text_color(logo, "rgb(255, 165, 0)"); // Orange
-            ui_set_text_size(logo, 24);
-            ui_set_text_align(logo, "center");
-            ui_container_add_content(modal_container, logo);
-            printf("📝 Logo texte de secours ajouté au container\n");
-        }
-    }
-
-    // === TEXTE "STRATEGIE ET TRADITION" ===
-    UINode* subtitle = UI_TEXT(data->ui_tree, "menu-subtitle", "STRATEGIE ET TRADITION");
-    if (subtitle) {
-        ui_set_text_color(subtitle, "rgb(255, 255, 255)"); // Blanc pour contraste
-        ui_set_text_size(subtitle, 16);
-        ui_set_text_align(subtitle, "center");
-        ui_set_text_style(subtitle, false, true); // Italique
-        ui_container_add_content(modal_container, subtitle);
-        printf("📝 Sous-titre ajouté au container\n");
-    }
-    
-    // === CONTAINER POUR LES NEON BUTTONS ===
-    UINode* buttons_container = UI_DIV(data->ui_tree, "neon-buttons-container");
+    // === CONTAINER POUR LES BOUTONS (SIMPLE) ===
+    UINode* buttons_container = UI_DIV(data->ui_tree, "buttons-container");
     if (buttons_container) {
-        // Configuration flexbox pour disposition en colonne
+        SET_SIZE(buttons_container, 300, 200); // Taille définie
+        
+        // Configuration flexbox UNIQUEMENT pour les boutons à l'intérieur
         ui_set_display_flex(buttons_container);
         FLEX_COLUMN(buttons_container);
         ui_set_justify_content(buttons_container, "center");
         ui_set_align_items(buttons_container, "center");
         ui_set_flex_gap(buttons_container, 15);
         
-        // === NEON BUTTONS ===
+        // === VRAIS NEON BUTTONS (maintenant que neon_btn.c est compilé) ===
         
-        // 1. Bouton Multijoueur
+        // 1. Bouton Multijoueur avec neon
         UINode* multiplayer_btn = ui_neon_button(data->ui_tree, "multiplayer-btn", "JOUER EN MULTIJOUEUR", multiplayer_clicked, NULL);
         if (multiplayer_btn) {
             SET_SIZE(multiplayer_btn, 280, 45);
             ui_set_text_align(multiplayer_btn, "center");
+            
+            // Configuration spécifique neon
+            ui_neon_button_set_glow_color(multiplayer_btn, 0, 255, 127); // Vert neon
+            ui_neon_button_set_animation_speed(multiplayer_btn, 1.5f);
+            
             APPEND(buttons_container, multiplayer_btn);
-            printf("✨ Neon Button 'Multijoueur' créé\n");
+            printf("✨ Neon Button 'Multijoueur' créé avec lueur verte\n");
         }
         
-        // 2. Bouton IA
+        // 2. Bouton IA avec neon
         UINode* ai_btn = ui_neon_button(data->ui_tree, "ai-btn", "JOUER CONTRE L'IA", ai_clicked, NULL);
         if (ai_btn) {
             SET_SIZE(ai_btn, 280, 45);
             ui_set_text_align(ai_btn, "center");
+            
+            // Configuration spécifique neon
+            ui_neon_button_set_glow_color(ai_btn, 255, 0, 255); // Violet neon
+            ui_neon_button_set_animation_speed(ai_btn, 1.2f);
+            
             APPEND(buttons_container, ai_btn);
-            printf("✨ Neon Button 'IA' créé\n");
+            printf("✨ Neon Button 'IA' créé avec lueur violette\n");
         }
         
-        // 3. Bouton Wiki
+        // 3. Bouton Wiki avec neon
         UINode* wiki_btn = ui_neon_button(data->ui_tree, "wiki-btn", "WIKI", wiki_clicked, NULL);
         if (wiki_btn) {
             SET_SIZE(wiki_btn, 280, 45);
             ui_set_text_align(wiki_btn, "center");
+            
+            // Configuration spécifique neon
+            ui_neon_button_set_glow_color(wiki_btn, 0, 191, 255); // Bleu ciel neon
+            ui_neon_button_set_animation_speed(wiki_btn, 1.0f);
+            
             APPEND(buttons_container, wiki_btn);
-            printf("✨ Neon Button 'Wiki' créé\n");
+            printf("✨ Neon Button 'Wiki' créé avec lueur bleu ciel\n");
         }
         
-        // Ajouter le container de boutons au modal
+        // 🎯 AJOUTER LE CONTAINER DE BOUTONS AU MODAL
+        // Il sera automatiquement positionné à 126px du haut (sous-titre + 8px) et centré horizontalement
         ui_container_add_content(modal_container, buttons_container);
+        printf("📦 Container de boutons ajouté avec positionnement automatique à 126px\n");
     }
     
-    // Construire la hiérarchie
+    // Construire la hiérarchie simplifiée
     APPEND(data->ui_tree->root, app);
     APPEND(app, modal_container);
     
@@ -177,11 +161,12 @@ static void menu_scene_init(Scene* scene) {
     
     printf("✅ Interface Menu créée avec :\n");
     printf("   🖼️  Background identique à home\n");
-    printf("   📦  Container modal centré (500x450, noir transparent, bordure orange)\n");
-    printf("   🖼️  Logo Fanorona en haut du container\n");
-    printf("   📝  Texte 'Stratégie et Tradition' en italique\n");
-    printf("   ✨  3 Neon Buttons avec animation hover automatique\n");
-    printf("   📊  Z-index calculés automatiquement\n");
+    printf("   📦  Container modal avec logo et sous-titre AUTOMATIQUES\n");
+    printf("   🎯  Logo : 10px du haut (dans content_rect), align-self center-x\n");
+    printf("   📝  Sous-titre : 98px du haut (logo + 8px), align-self center-x\n");
+    printf("   🎮  Boutons : 126px du haut (sous-titre + 8px), align-self center-x\n");
+    printf("   ✨  NEON BUTTONS avec animations de lueur personnalisées\n");
+    printf("   🌈  Couleurs : Multijoueur=Vert, IA=Violet, Wiki=Bleu ciel\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;

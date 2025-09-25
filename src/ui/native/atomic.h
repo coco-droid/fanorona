@@ -17,6 +17,22 @@ typedef enum {
     POSITION_FIXED
 } PositionType;
 
+// 🆕 AJOUT: Enum pour la gestion des débordements
+typedef enum {
+    OVERFLOW_VISIBLE,   // Les enfants peuvent déborder (comportement par défaut)
+    OVERFLOW_HIDDEN,    // Les enfants sont contraints dans les limites du parent
+    OVERFLOW_SCROLL,    // Débordement avec scroll (pour futures implémentations)
+    OVERFLOW_AUTO       // Automatique selon le contenu
+} OverflowType;
+
+// 🆕 AJOUT: Enum pour align-self (centrage automatique par axe)
+typedef enum {
+    ALIGN_SELF_AUTO,        // Pas de centrage automatique
+    ALIGN_SELF_CENTER_X,    // Centrage horizontal automatique
+    ALIGN_SELF_CENTER_Y,    // Centrage vertical automatique
+    ALIGN_SELF_CENTER_BOTH  // Centrage horizontal et vertical
+} AlignSelf;
+
 typedef enum {
     DISPLAY_BLOCK,
     DISPLAY_INLINE,
@@ -107,6 +123,7 @@ typedef struct {
     AlignType vertical;        // top, middle, bottom
     bool auto_center_x;        // Centrage automatique X
     bool auto_center_y;        // Centrage automatique Y
+    AlignSelf align_self;      // 🆕 AJOUT: Centrage automatique par axe
 } AlignmentProperties;
 
 // Structure pour les propriétés de style CSS-like
@@ -124,6 +141,9 @@ typedef struct {
     DisplayType display;
     int z_index;
     bool visible;
+    
+    // 🆕 AJOUT: Gestion des débordements
+    OverflowType overflow;       // Contrôle du débordement des enfants
     
     // Couleurs
     SDL_Color background_color;
@@ -230,6 +250,13 @@ void atomic_set_alignment(AtomicElement* element, AlignType horizontal, AlignTyp
 void atomic_set_auto_center(AtomicElement* element, bool center_x, bool center_y);
 void atomic_center_in_parent(AtomicElement* element);
 
+// 🆕 NOUVELLES FONCTIONS pour align-self
+void atomic_set_align_self(AtomicElement* element, AlignSelf align_self);
+void atomic_set_align_self_center_x(AtomicElement* element);
+void atomic_set_align_self_center_y(AtomicElement* element);
+void atomic_set_align_self_center_both(AtomicElement* element);
+void atomic_apply_align_self(AtomicElement* element);
+
 // Fonctions flexbox
 void atomic_set_flex_direction(AtomicElement* element, FlexDirection direction);
 void atomic_set_justify_content(AtomicElement* element, JustifyType justify);
@@ -302,5 +329,12 @@ void atomic_debug_text_rendering(AtomicElement* element, const char* context);
 void atomic_handle_event(AtomicElement* element, SDL_Event* event);
 void atomic_register_with_event_manager(AtomicElement* element, EventManager* manager);
 void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* manager);
+
+// 🆕 NOUVELLES FONCTIONS pour la gestion de l'overflow
+void atomic_set_overflow(AtomicElement* element, OverflowType overflow);
+void atomic_set_overflow_str(AtomicElement* element, const char* overflow);
+SDL_Rect atomic_constrain_child_position(AtomicElement* parent, AtomicElement* child, int desired_x, int desired_y);
+void atomic_apply_overflow_constraints(AtomicElement* parent);
+bool atomic_is_child_overflowing(AtomicElement* parent, AtomicElement* child);
 
 #endif // ATOMIC_H

@@ -82,7 +82,7 @@ SOURCES=(
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
     "$SRC_DIR/ui/cnt_ui.c"            # 🔧 FIX: Ajouter cnt_ui.c pour les fonctions container
-    "$SRC_DIR/ui/neon_btn.c"            # 🔧 AJOUTÉ: neon_btn.c pour les boutons avec effet neon
+    "$SRC_DIR/ui/neon_btn.c"          # 🔧 ACTIVÉ: Décommenter neon_btn.c pour les boutons avec effet neon
     "$SRC_DIR/ui/components/ui_link.c"  # UI Link pour les transitions
 )
 
@@ -120,6 +120,21 @@ else
     echo "   ⚠️ ui_link.c non trouvé - sera ignoré lors de la compilation"
     # Retirer ui_link.c de la liste si le fichier n'existe pas
     SOURCES=(${SOURCES[@]/*ui_link.c*/})
+fi
+
+# 🔧 VÉRIFICATION SPÉCIFIQUE pour les conflits de définition
+echo "🔧 Vérification des conflits de définition..."
+if grep -n "ui_neon_button" "$SRC_DIR/ui/ui_components.c" | grep -q "^[0-9]*:.*{"; then
+    echo "   ⚠️ ATTENTION: ui_neon_button défini dans ui_components.c"
+    echo "   🔧 Assurez-vous qu'il n'y a pas de conflit avec neon_btn.c"
+fi
+
+if [ -f "$SRC_DIR/ui/neon_btn.c" ]; then
+    if grep -q "ui_neon_button" "$SRC_DIR/ui/neon_btn.c"; then
+        echo "   ✅ neon_btn.c: Implémentation complète trouvée"
+    fi
+else
+    echo "   ❌ neon_btn.c non trouvé"
 fi
 
 # Compilation

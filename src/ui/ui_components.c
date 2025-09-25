@@ -863,3 +863,97 @@ void ui_apply_style(UINode* node, const UIStyle* style) {
     
     ui_log_event("UIComponent", "Style", node->id, "Complete style applied");
 }
+
+// 🆕 NOUVELLES FONCTIONS pour align-self
+UINode* ui_set_align_self(UINode* node, const char* align_self) {
+    if (node && align_self) {
+        if (strcmp(align_self, "center-x") == 0) {
+            atomic_set_align_self_center_x(node->element);
+        } else if (strcmp(align_self, "center-y") == 0) {
+            atomic_set_align_self_center_y(node->element);
+        } else if (strcmp(align_self, "center") == 0 || strcmp(align_self, "center-both") == 0) {
+            atomic_set_align_self_center_both(node->element);
+        } else if (strcmp(align_self, "auto") == 0) {
+            atomic_set_align_self(node->element, ALIGN_SELF_AUTO);
+        }
+        ui_log_event("UIComponent", "Style", node->id, "Align-self set");
+    }
+    return node;
+}
+
+UINode* ui_set_align_self_center_x(UINode* node) {
+    if (node) {
+        atomic_set_align_self_center_x(node->element);
+        ui_log_event("UIComponent", "Style", node->id, "Align-self center-x applied");
+    }
+    return node;
+}
+
+UINode* ui_set_align_self_center_y(UINode* node) {
+    if (node) {
+        atomic_set_align_self_center_y(node->element);
+        ui_log_event("UIComponent", "Style", node->id, "Align-self center-y applied");
+    }
+    return node;
+}
+
+UINode* ui_set_align_self_center_both(UINode* node) {
+    if (node) {
+        atomic_set_align_self_center_both(node->element);
+        ui_log_event("UIComponent", "Style", node->id, "Align-self center-both applied");
+    }
+    return node;
+}
+
+// 🆕 NOUVELLES FONCTIONS pour la gestion de l'overflow
+
+UINode* ui_set_overflow(UINode* node, const char* overflow) {
+    if (node && overflow) {
+        atomic_set_overflow_str(node->element, overflow);
+        ui_log_event("UIComponent", "Style", node->id, "Overflow behavior set");
+    }
+    return node;
+}
+
+UINode* ui_set_overflow_visible(UINode* node) {
+    if (node) {
+        atomic_set_overflow(node->element, OVERFLOW_VISIBLE);
+        ui_log_event("UIComponent", "Style", node->id, "Overflow set to visible - children can overflow");
+    }
+    return node;
+}
+
+UINode* ui_set_overflow_hidden(UINode* node) {
+    if (node) {
+        atomic_set_overflow(node->element, OVERFLOW_HIDDEN);
+        ui_log_event("UIComponent", "Style", node->id, "Overflow set to hidden - children constrained within bounds");
+    }
+    return node;
+}
+
+UINode* ui_set_overflow_scroll(UINode* node) {
+    if (node) {
+        atomic_set_overflow(node->element, OVERFLOW_SCROLL);
+        ui_log_event("UIComponent", "Style", node->id, "Overflow set to scroll (not yet implemented)");
+    }
+    return node;
+}
+
+UINode* ui_set_overflow_auto(UINode* node) {
+    if (node) {
+        atomic_set_overflow(node->element, OVERFLOW_AUTO);
+        ui_log_event("UIComponent", "Style", node->id, "Overflow set to auto");
+    }
+    return node;
+}
+
+bool ui_is_child_overflowing(UINode* parent, UINode* child) {
+    if (!parent || !child) return false;
+    return atomic_is_child_overflowing(parent->element, child->element);
+}
+
+void ui_constrain_all_children(UINode* parent) {
+    if (!parent) return;
+    atomic_apply_overflow_constraints(parent->element);
+    ui_log_event("UIComponent", "Layout", parent->id, "All children positions constrained to parent bounds");
+}
