@@ -421,7 +421,9 @@ void ui_tree_update(UITree* tree, float delta_time) {
 void ui_tree_render(UITree* tree, SDL_Renderer* renderer) {
     if (!tree || !tree->root || !renderer) return;
     
-    atomic_render(tree->root->element, renderer);
+    // 🆕 UTILISATION DU MOTEUR OPTIMUM pour le rendu
+    #include "native/optimum.h"
+    optimum_render_ui_tree(tree, renderer);
 }
 
 // === HELPERS POUR SYNTAXE SIMPLIFIÉE ===

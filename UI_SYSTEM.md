@@ -5,6 +5,7 @@
 Le système UI de Fanorona est basé sur une architecture atomique où tous les composants héritent d'un élément de base `AtomicElement` qui fournit des propriétés CSS-like et une gestion d'événements intégrée.
 
 **🆕 Nouvelles fonctionnalités :**
+- ✅ **Moteur de rendu Optimum** - Rendu dédié et optimisé séparé de la logique atomique
 - ✅ **Logs de traçage des événements** pour debugging
 - ✅ **Z-index implicites** basés sur l'ordre d'ajout
 - ✅ **Support des images PNG** pour les backgrounds de boutons
@@ -16,7 +17,60 @@ Le système UI de Fanorona est basé sur une architecture atomique où tous les 
 - 🆕 **Gestion des débordements par calcul** - plus de clipping SDL, contraintes intelligentes
 - 🆕 **Calculs de position absolue** - SET_POS résolu en coordonnées écran réelles
 
-**🎯 Système de feedback visuel :**
+## 🎨 Moteur de rendu Optimum
+
+Le nouveau moteur de rendu **Optimum** sépare complètement la logique de rendu de la logique métier atomique :
+
+### Architecture séparée
+
+```c
+// atomic.c : Logique métier et style des éléments
+AtomicElement* element = atomic_create("my-button");
+atomic_set_background_color(element, 255, 0, 0, 255);
+atomic_set_text(element, "Click me!");
+
+// optimum.c : Moteur de rendu dédié
+void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer);
+void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer);
+```
+
+### Avantages du moteur Optimum
+
+- 🚀 **Performance optimisée** : Rendu spécialisé sans logique métier
+- 🔧 **Maintenance simplifiée** : Code de rendu centralisé
+- 🎯 **Debugging avancé** : Fonctions de debug dédiées au rendu  
+- ⚡ **Extensibilité** : Nouveau moteur de rendu sans casser l'existant
+- 🧹 **Code plus propre** : Séparation claire des responsabilités
+
+### Utilisation du moteur Optimum
+
+```c
+// Rendu d'un élément individuel
+optimum_render_element(button->element, renderer);
+
+// Rendu d'un arbre UI complet (recommandé)
+optimum_render_ui_tree(tree, renderer);
+
+// Debug des limites d'éléments
+optimum_debug_render_bounds(element, renderer, true);
+
+// Nettoyage des ressources
+optimum_cleanup();
+```
+
+### Migration transparente
+
+L'ancienne fonction `atomic_render()` redirige automatiquement vers Optimum :
+
+```c
+// Cette ligne fonctionne toujours (compatibilité)
+atomic_render(element, renderer);
+
+// Mais elle appelle maintenant en interne :
+optimum_render_element(element, renderer);
+```
+
+## 🎯 Système de feedback visuel :
 - 🎨 **États visuels automatiques** : hover, pressed, normal
 - 🌈 **Styles prédéfinis** : success, danger, info, warning
 - ⚡ **Animations de clic** avec effets de taille et couleur

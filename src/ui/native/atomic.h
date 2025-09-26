@@ -326,7 +326,7 @@ void atomic_set_align_items_str(AtomicElement* element, const char* align);
 void atomic_debug_text_rendering(AtomicElement* element, const char* context);
 
 // Fonctions d'événements système
-void atomic_handle_event(AtomicElement* element, SDL_Event* event);
+void atomic_handle_event(SDL_Event* event, void* user_data) ;
 void atomic_register_with_event_manager(AtomicElement* element, EventManager* manager);
 void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* manager);
 

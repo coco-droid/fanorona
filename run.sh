@@ -79,6 +79,7 @@ SOURCES=(
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
     "$SRC_DIR/ui/native/atomic.c"
+    "$SRC_DIR/ui/native/optimum.c"        # 🆕 AJOUTÉ: optimum.c
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
     "$SRC_DIR/ui/cnt_ui.c"            # 🔧 FIX: Ajouter cnt_ui.c pour les fonctions container
