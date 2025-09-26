@@ -194,6 +194,69 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     }
 }
 
+// 🆕 HITBOX VISUALIZATION SUPPORT
+void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer) {
+    if (!manager || !renderer) return;
+    
+    // Déclarer la fonction externe pour la visualisation
+    extern bool atomic_is_hitbox_visualization_enabled(void);
+    
+    if (!atomic_is_hitbox_visualization_enabled()) {
+        return; // Visualisation désactivée
+    }
+    
+    // Sauvegarder l'état du renderer
+    SDL_BlendMode old_blend_mode;
+    SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
+    Uint8 old_r, old_g, old_b, old_a;
+    SDL_GetRenderDrawColor(renderer, &old_r, &old_g, &old_b, &old_a);
+    
+    // Activer le blending
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    
+    // Parcourir tous les éléments enregistrés
+    EventElement* current = manager->elements;
+    int hitbox_count = 0;
+    
+    while (current) {
+        if (current->display) {
+            hitbox_count++;
+            
+            SDL_Rect hitbox_rect = {current->x, current->y, current->width, current->height};
+            
+            // 🔴 FOND ROUGE TRANSPARENT
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 30);
+            SDL_RenderFillRect(renderer, &hitbox_rect);
+            
+            // 🔵 BORDURE BLEUE OPAQUE (2px)
+            SDL_SetRenderDrawColor(renderer, 0, 0, 255, 200);
+            for (int i = 0; i < 2; i++) {
+                SDL_Rect border_rect = {
+                    hitbox_rect.x - i,
+                    hitbox_rect.y - i,
+                    hitbox_rect.w + 2 * i,
+                    hitbox_rect.h + 2 * i
+                };
+                SDL_RenderDrawRect(renderer, &border_rect);
+            }
+        }
+        current = current->next;
+    }
+    
+    // Restaurer l'état du renderer
+    SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
+    SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
+    
+    // Log périodique pour éviter le spam
+    static int render_counter = 0;
+    if (render_counter++ % 180 == 0) { // Log toutes les 3 secondes à 60 FPS
+        char message[256];
+        snprintf(message, sizeof(message), 
+                "[event.c] Rendered %d hitboxes (red transparent + blue border)", hitbox_count);
+        log_console_write("EventManager", "HitboxRender", "event.c", message);
+    }
+}
+
 // Définir l'état de fonctionnement
 void event_manager_set_running(EventManager* manager, bool running) {
     if (manager) {

@@ -1,5 +1,6 @@
 #include "window.h"
 #include "../utils/log_console.h"
+#include "../config.h" // <-- ajout
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h> // 🔧 Inclure SDL_ttf.h pour TTF
 #include <stdlib.h>
@@ -152,12 +153,12 @@ SDL_Renderer* window_get_renderer(GameWindow* window) {
 
 // Créer la mini fenêtre
 GameWindow* create_mini_window(void) {
-    return window_create("Fanorona - Mini Window", 700, 500);
+    return window_create("Fanorona - Mini Window", DEFAULT_MINI_WINDOW_WIDTH, DEFAULT_MINI_WINDOW_HEIGHT);
 }
 
 // Créer la large fenêtre
 GameWindow* create_large_window(void) {
-    return window_create("Fanorona - Game Window", 800, 600);
+    return window_create("Fanorona - Game Window", DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT);
 }
 
 // Initialiser les fenêtres globales
@@ -531,4 +532,75 @@ bool window_poll_events(WindowEvent* window_event) {
     }
     
     return true;
+}
+
+// 🆕 NOUVELLES FONCTIONS pour la transmission automatique des dimensions
+WindowDimensions window_get_active_dimensions(void) {
+    WindowDimensions dims = {700, 500, WINDOW_TYPE_MINI}; // Par défaut
+    
+    switch (g_active_window_type) {
+        case WINDOW_TYPE_MAIN:
+            if (g_main_window) {
+                dims.width = g_main_window->width;
+                dims.height = g_main_window->height;
+                dims.type = WINDOW_TYPE_MAIN;
+            }
+            break;
+            
+        case WINDOW_TYPE_MINI:
+            if (g_mini_window) {
+                dims.width = g_mini_window->width;
+                dims.height = g_mini_window->height;
+                dims.type = WINDOW_TYPE_MINI;
+            }
+            break;
+            
+        case WINDOW_TYPE_BOTH:
+            // Retourner les dimensions de la fenêtre principale par défaut
+            if (g_main_window) {
+                dims.width = g_main_window->width;
+                dims.height = g_main_window->height;
+                dims.type = WINDOW_TYPE_MAIN;
+            } else if (g_mini_window) {
+                dims.width = g_mini_window->width;
+                dims.height = g_mini_window->height;
+                dims.type = WINDOW_TYPE_MINI;
+            }
+            break;
+    }
+    
+    return dims;
+}
+
+WindowDimensions window_get_dimensions_for_type(WindowType type) {
+    WindowDimensions dims = {700, 500, type}; // Par défaut
+    
+    switch (type) {
+        case WINDOW_TYPE_MAIN:
+            if (g_main_window) {
+                dims.width = g_main_window->width;
+                dims.height = g_main_window->height;
+            } else {
+                dims.width = 800;  // Taille par défaut de la grande fenêtre
+                dims.height = 600;
+            }
+            break;
+            
+        case WINDOW_TYPE_MINI:
+            if (g_mini_window) {
+                dims.width = g_mini_window->width;
+                dims.height = g_mini_window->height;
+            } else {
+                dims.width = 700;  // Taille par défaut de la mini fenêtre
+                dims.height = 500;
+            }
+            break;
+            
+        case WINDOW_TYPE_BOTH:
+            // Retourner les dimensions de la mini par défaut
+            dims = window_get_dimensions_for_type(WINDOW_TYPE_MINI);
+            break;
+    }
+    
+    return dims;
 }

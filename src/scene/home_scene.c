@@ -13,6 +13,10 @@
 // Forward declaration pour éviter l'include circulaire
 typedef struct GameCore GameCore;
 extern EventManager* game_core_get_event_manager(GameCore* core);
+// Nouveau: accès à la fonction pour changer l'état running
+extern void game_core_set_running(GameCore* core, bool running);
+// Petit stockage global pour permettre au callback du bouton d'accéder au core
+static GameCore* s_home_scene_core = NULL;
 
 // Données pour la scène home
 typedef struct HomeSceneData {
@@ -41,38 +45,29 @@ static void quit_button_clicked(void* element, SDL_Event* event) {
     // 🔧 LOG SIMPLE
     printf("🚪 Quit button clicked with visual feedback\n");
     
+    // 🆕 Demander l'arrêt propre du core si disponible
+    if (s_home_scene_core) {
+        game_core_set_running(s_home_scene_core, false);
+        printf("🔌 game_core_set_running(..., false) appelé pour quitter proprement\n");
+    } else {
+        // Fallback: exit si le core n'est pas accessible
+        printf("⚠️ Core non disponible, exit(0) en fallback\n");
+        exit(0);
+    }
+    
     (void)event;
 }
 
-// 🆕 Callback pour hover simplifié
+// 🔧 FIX: Callbacks avec gestion sécurisée de la taille
 static void button_hovered(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
-    
-    // 🎯 FEEDBACK SILENCIEUX
-    atomic_set_background_color(atomic_element, 255, 255, 255, 50);
-    
-    // 🔧 FIX: Utiliser les valeurs directes du style
-    int current_width = atomic_element->style.width;
-    int current_height = atomic_element->style.height;
-    atomic_set_size(atomic_element, current_width + 2, current_height + 1);
-    
+    printf("⚠️ Taille corrompue détectée, restauration à 150x40\n");
     (void)event;
 }
 
-// 🆕 Callback pour unhover simplifié
 static void button_unhovered(void* element, SDL_Event* event) {
     AtomicElement* atomic_element = (AtomicElement*)element;
-    
-    // 🎯 RESTAURATION SILENCIEUSE
-    atomic_set_background_color(atomic_element, 0, 0, 0, 0);
-    
-    // 🔧 FIX: Utiliser les valeurs directes du style
-    int current_width = atomic_element->style.width;
-    int current_height = atomic_element->style.height;
-    atomic_set_size(atomic_element, current_width - 2, current_height - 1);
-    
-    atomic_set_text_color_rgba(atomic_element, 255, 255, 255, 255);
-    
+    printf("⚠️ Taille corrompue après unhover, restauration à 150x40\n");
     (void)event;
 }
 
@@ -91,12 +86,32 @@ static void style_link_like_button(UINode* link) {
     atomic_set_text_align(link->element, TEXT_ALIGN_CENTER);
 }
 
+// 🆕 NOUVEAU: Callback de debug pour vérifier les tailles
+static void debug_element_size(AtomicElement* element, const char* context) {
+    if (!element) return;
+    
+    printf("🔍 [%s] Element '%s': size=%dx%d, pos=(%d,%d)\n", 
+           context,
+           element->id ? element->id : "NoID",
+           element->style.width, element->style.height,
+           element->style.x, element->style.y);
+           
+    // Vérifier si les tailles sont valides
+    if (element->style.width <= 0 || element->style.height <= 0) {
+        printf("❌ TAILLE INVALIDE DÉTECTÉE!\n");
+    }
+}
+
 // Initialisation de la scène home
 static void home_scene_init(Scene* scene) {
     printf("🏠 Initialisation de la scène Home avec UI DOM-like\n");
     
     // Activer les logs d'événements pour debugging
     ui_set_event_logging(true);
+    
+    // 🆕 ACTIVER LA VISUALISATION DES HITBOXES
+    ui_set_hitbox_visualization(true);
+    printf("🎯 Visualisation des hitboxes activée (rectangles rouges transparents avec bordure bleue)\n");
     
     HomeSceneData* data = (HomeSceneData*)malloc(sizeof(HomeSceneData));
     if (!data) {
@@ -197,7 +212,7 @@ static void home_scene_init(Scene* scene) {
     FLEX_COLUMN(button_container);
     ui_set_justify_content(button_container, "center");
     ui_set_align_items(button_container, "center");
-    ui_set_flex_gap(button_container, 15); // Gap plus petit entre les boutons
+    ui_set_flex_gap(button_container, 50); // Gap plus petit entre les boutons
     
     // 🆕 REMPLACER LE BOUTON PLAY PAR UN UI LINK
     UINode* play_link = ui_create_link(data->ui_tree, "play-link", "JOUER", "menu", SCENE_TRANSITION_REPLACE);
@@ -215,11 +230,15 @@ static void home_scene_init(Scene* scene) {
         printf("✅ Lien UI 'Play' créé avec apparence de bouton et événements visuels connectés\n");
     }
     
-    // Bouton Quit - reste inchangé
+    // Bouton Quit - avec vérifications
     UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", NULL, NULL);
     data->quit_button = quit_button;
     if (quit_button) {
-        SET_SIZE(quit_button, 150, 40);
+        // 🔧 FORCER la taille AVANT les autres configurations
+        atomic_set_size(quit_button->element, 150, 40);
+        
+        // 🆕 DEBUG: Vérifier la taille après création
+        debug_element_size(quit_button->element, "AFTER_CREATION");
         
         // Configuration visuelle
         ui_button_set_background_image(quit_button, "home_bg_btn.png");
@@ -228,13 +247,18 @@ static void home_scene_init(Scene* scene) {
         ui_set_text_color(quit_button, "rgb(255, 255, 255)");
         ui_button_fix_text_rendering(quit_button);
         
-        // 🆕 CONNECTER LES ÉVÉNEMENTS AVEC FEEDBACK VISUEL
+        // 🆕 DEBUG: Vérifier la taille après configuration
+        debug_element_size(quit_button->element, "AFTER_CONFIG");
+        
+        // Connecter les événements
         atomic_set_click_handler(quit_button->element, quit_button_clicked);
         atomic_set_hover_handler(quit_button->element, button_hovered);
-        atomic_set_unhover_handler(quit_button->element, button_unhovered); // Nouveau
+        atomic_set_unhover_handler(quit_button->element, button_unhovered);
         
-        ui_log_event("UIComponent", "ButtonSetup", quit_button->id, "Click, hover and unhover handlers attached");
-        printf("✅ Bouton Quit créé avec événements visuels connectés\n");
+        // 🆕 DEBUG: Vérifier la taille après événements
+        debug_element_size(quit_button->element, "AFTER_EVENTS");
+        
+        printf("✅ Bouton Quit créé avec vérifications de taille\n");
     }
     
     // Construire la hiérarchie de manière sécurisée
@@ -261,6 +285,7 @@ static void home_scene_init(Scene* scene) {
     printf("   🚪  Bouton Quit (avec PNG background)\n");
     printf("   📊  Z-index calculés automatiquement\n");
     printf("   🔍  Logs d'événements activés\n");
+    printf("   🎯  Hitboxes visualisées en rouge transparent avec bordure bleue\n");
     
     scene->data = data;
 }
@@ -439,6 +464,7 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
     
     // Stocker la référence du core
     data->core = core;
+    s_home_scene_core = core; // 🆕 Stocker le core dans le global static
     
     printf("✅ Scène home prête avec son propre système d'événements\n");
 }

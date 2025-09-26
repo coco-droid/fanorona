@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
-#define _GNU_SOURCE  // 🆕 AJOUT: Pour garantir la disponibilité de usleep
+// 🔧 FIX: Supprimer la redéfinition pour éviter le warning
+// #define _GNU_SOURCE est déjà défini par les flags de compilation
 #include "log_console.h"
 #include <SDL2/SDL.h>  // 🔧 FIX: Ajout pour Uint32 et autres types SDL
 #include <stdio.h>

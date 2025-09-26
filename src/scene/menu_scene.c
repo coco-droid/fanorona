@@ -34,7 +34,7 @@ static void wiki_clicked(UINode* node, void* user_data) {
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
     printf("📋 Initialisation de la scène Menu avec container automatique\n");
-    
+    ui_set_hitbox_visualization(true);
     MenuSceneData* data = (MenuSceneData*)malloc(sizeof(MenuSceneData));
     if (!data) {
         printf("❌ Erreur: Impossible d'allouer la mémoire pour MenuSceneData\n");

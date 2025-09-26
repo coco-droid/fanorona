@@ -16,31 +16,94 @@ Le système UI de Fanorona est basé sur une architecture atomique où tous les 
 - 🔧 **Correction du rendu avec padding** - les éléments respectent maintenant les content_rect
 - 🆕 **Gestion des débordements par calcul** - plus de clipping SDL, contraintes intelligentes
 - 🆕 **Calculs de position absolue** - SET_POS résolu en coordonnées écran réelles
+- 🎯 **Synchronisation post-calculs des hitboxes** - Assignation après tous les calculs de layout
 
-## 🎨 Moteur de rendu Optimum
+## 🎯 Système de synchronisation post-calculs des hitboxes
 
-Le nouveau moteur de rendu **Optimum** sépare complètement la logique de rendu de la logique métier atomique :
+Le nouveau système garantit que les hitboxes sont assignées avec les positions finales calculées, après tous les calculs de layout :
 
-### Architecture séparée
+### Architecture de synchronisation en 3 phases
 
 ```c
-// atomic.c : Logique métier et style des éléments
-AtomicElement* element = atomic_create("my-button");
-atomic_set_background_color(element, 255, 0, 0, 255);
-atomic_set_text(element, "Click me!");
+// PHASE 1: Calculs de layout complets
+ui_tree_update(tree, delta_time);
+├── ui_tree_update_node_recursive()  // Tous les calculs individuels
+├── atomic_calculate_layout()         // Flexbox, align-self, contraintes
+└── atomic_apply_overflow_constraints() // Finalisation positions
 
-// optimum.c : Moteur de rendu dédié
-void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer);
-void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer);
+// PHASE 2: Synchronisation des hitboxes (NOUVEAU)
+optimum_sync_all_hitboxes_post_layout(tree);
+├── optimum_sync_element_hitbox_recursive() // Parcours complet de l'arbre
+├── atomic_get_final_render_rect()          // Position finale calculée
+└── atomic_sync_event_manager_position()    // Mise à jour EventManager
+
+// PHASE 3: Rendu avec hitboxes exactes
+optimum_render_ui_tree(tree, renderer);
+└── event_manager_render_hitboxes()  // Hitboxes aux bonnes positions
 ```
 
-### Avantages du moteur Optimum
+### Avantages de la synchronisation post-calculs
 
-- 🚀 **Performance optimisée** : Rendu spécialisé sans logique métier
-- 🔧 **Maintenance simplifiée** : Code de rendu centralisé
-- 🎯 **Debugging avancé** : Fonctions de debug dédiées au rendu  
-- ⚡ **Extensibilité** : Nouveau moteur de rendu sans casser l'existant
-- 🧹 **Code plus propre** : Séparation claire des responsabilités
+- 🎯 **Positions exactes** : Hitboxes basées sur les positions finales après tous les calculs
+- 🔄 **Ordre unifié** : Même séquence que le moteur de rendu (calculs → positions → affichage)
+- ⚡ **Performance optimisée** : Une seule synchronisation par frame au lieu de multiples
+- 🐛 **Debugging précis** : Les hitboxes correspondent exactement aux éléments visibles
+- 🔧 **Maintenance simplifiée** : Logique centralisée dans le moteur Optimum
+
+### Utilisation du nouveau système
+
+```c
+// L'ancienne méthode (problématique) :
+atomic_update(element, delta_time);  // Calculs individuels
+atomic_register_with_event_manager(element, manager); // Position peut être incorrecte !
+
+// La nouvelle méthode (automatique) :
+ui_tree_update(tree, delta_time);    // Tout est géré automatiquement :
+                                     // 1. Calculs complets
+                                     // 2. Synchronisation hitboxes
+                                     // 3. Prêt pour le rendu
+```
+
+### API de synchronisation
+
+```c
+// Fonction principale (appelée automatiquement par ui_tree_update)
+void optimum_sync_all_hitboxes_post_layout(UITree* tree);
+
+// Parcours récursif pour synchroniser chaque élément
+void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager);
+
+// Synchronisation individuelle (maintenant plus précise)
+void atomic_sync_event_manager_position(AtomicElement* element, EventManager* manager);
+
+// Position finale calculée (utilisée pour les hitboxes)
+SDL_Rect atomic_get_final_render_rect(AtomicElement* element);
+```
+
+### Logs de synchronisation
+
+```
+[14:32:15] [UITree] [UpdateStarted] [ui_tree.c] : 🔄 Starting complete UI tree update
+[14:32:15] [UITree] [LayoutCalculated] [ui_tree.c] : ✅ All layout calculations completed
+[14:32:15] [OptimumSync] [SyncStarted] [optimum.c] : 🎯 Starting post-layout hitbox synchronization
+[14:32:15] [AtomicSync] [ElementSynced] [atomic.c] : Element 'play-button' synchronized - Final position: (120,200,150x40)
+[14:32:15] [AtomicSync] [ElementSynced] [atomic.c] : Element 'quit-button' synchronized - Final position: (120,260,150x40)
+[14:32:15] [OptimumSync] [SyncCompleted] [optimum.c] : ✅ Post-layout hitbox synchronization completed
+[14:32:15] [UITree] [HitboxesSynced] [ui_tree.c] : 🎯 All hitboxes synchronized with final positions
+[14:32:15] [UITree] [UpdateCompleted] [ui_tree.c] : ✅ UI tree update completed (layout + hitboxes)
+```
+
+### Ordre d'exécution garanti
+
+1. **Calculs individuels** : `atomic_update()` pour chaque élément
+2. **Calculs de layout** : Flexbox, align-self, contraintes d'overflow
+3. **Positions finales** : Tous les ajustements terminés
+4. **Synchronisation hitboxes** : `optimum_sync_all_hitboxes_post_layout()`
+5. **Rendu** : Les hitboxes correspondent parfaitement aux éléments
+
+Cette approche garantit que les événements sont assignés aux bonnes positions, même après des calculs complexes de layout comme le flexbox ou l'align-self ! 🎯✨
+
+## 🎨 Moteur de rendu Optimum
 
 ### Utilisation du moteur Optimum
 
@@ -48,15 +111,43 @@ void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer);
 // Rendu d'un élément individuel
 optimum_render_element(button->element, renderer);
 
-// Rendu d'un arbre UI complet (recommandé)
+// Rendu d'un arbre UI complet (recommandé) - inclut automatiquement les hitboxes
 optimum_render_ui_tree(tree, renderer);
+
+// 🆕 Synchronisation post-calculs (appelée automatiquement par ui_tree_update)
+optimum_sync_all_hitboxes_post_layout(tree);
 
 // Debug des limites d'éléments
 optimum_debug_render_bounds(element, renderer, true);
 
+// Contrôler la visualisation des hitboxes
+ui_set_hitbox_visualization(true);  // Afficher les hitboxes (par défaut)
+ui_set_hitbox_visualization(false); // Masquer les hitboxes
+
 // Nettoyage des ressources
 optimum_cleanup();
 ```
+
+## 🎯 Système de visualisation des hitboxes intégré
+
+Le moteur Optimum inclut maintenant un système de visualisation des hitboxes synchronisées avec les positions finales calculées :
+
+```c
+// Activation/désactivation globale
+ui_set_hitbox_visualization(true);  // Activé par défaut
+
+// Les hitboxes apparaissent automatiquement après la synchronisation post-calculs :
+// - Rectangle rouge transparent (alpha: 30)
+// - Bordure bleue opaque (2px d'épaisseur)
+// - Position exacte finale après tous les calculs de layout
+```
+
+**🎨 Caractéristiques des hitboxes synchronisées :**
+- 🔴 **Fond rouge transparent** : Visualise la zone cliquable finale
+- 🔵 **Bordure bleue** : Délimite précisément les limites calculées
+- 📊 **Position post-calculs** : Utilise `atomic_get_final_render_rect()` après tous les ajustements
+- ⚡ **Synchronisation unifiée** : Une seule passe après tous les calculs de l'arbre
+- 🔧 **Précision garantie** : Les hitboxes correspondent exactement aux éléments visibles
 
 ### Migration transparente
 
@@ -69,6 +160,51 @@ atomic_render(element, renderer);
 // Mais elle appelle maintenant en interne :
 optimum_render_element(element, renderer);
 ```
+
+**🎯 Exemple complet avec hitboxes :**
+
+```c
+#include "src/ui/ui_components.h"
+
+void create_debug_interface() {
+    // Activer la visualisation des hitboxes
+    ui_set_hitbox_visualization(true);
+    
+    UITree* tree = ui_tree_create();
+    ui_set_global_tree(tree);
+    
+    // Créer des éléments
+    UINode* container = UI_DIV(tree, "container");
+    SET_POS(container, 50, 50);
+    SET_SIZE(container, 300, 200);
+    SET_BG(container, "rgb(100, 100, 100)");
+    
+    UINode* button = ui_button(tree, "test-btn", "Test", on_test_click, NULL);
+    SET_POS(button, 20, 30);
+    SET_SIZE(button, 120, 40);
+    
+    // Construction hiérarchie
+    APPEND(tree->root, container);
+    APPEND(container, button);
+    
+    // Les hitboxes seront automatiquement visibles :
+    // - Rectangle rouge transparent pour chaque élément
+    // - Bordure bleue pour délimiter précisément les zones cliquables
+    // - Position exacte après tous les calculs de flexbox, align-self, etc.
+}
+
+// Fonction de rendu principale
+void render_with_hitboxes(UITree* tree, SDL_Renderer* renderer) {
+    // Un seul appel suffit - les hitboxes sont incluses automatiquement
+    optimum_render_ui_tree(tree, renderer);
+    
+    // Les hitboxes apparaissent par-dessus les éléments normaux
+    // Permettant de vérifier visuellement que les zones cliquables
+    // correspondent bien aux positions des éléments à l'écran
+}
+```
+
+Cette intégration des hitboxes permet de déboguer visuellement les problèmes de positionnement et de détection d'événements de manière très efficace ! 🎯✨
 
 ## 🎯 Système de feedback visuel :
 - 🎨 **États visuels automatiques** : hover, pressed, normal

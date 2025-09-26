@@ -4,7 +4,7 @@
 #include "native/atomic.h"
 #include "../utils/asset_manager.h"
 #include "../utils/log_console.h"
-#include "../window/window.h"
+#include "../window/window.h"  // 🔧 FIX: Include pour WindowDimensions
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +28,23 @@ void ui_set_event_logging(bool enabled) {
     } else {
         log_console_ui_event("UIComponent", "LoggingState", "system", "Event logging deactivated");
     }
+}
+
+// 🆕 HITBOX VISUALIZATION WRAPPERS
+void ui_set_hitbox_visualization(bool enabled) {
+    // Appeler la fonction du système atomique
+    extern void atomic_set_hitbox_visualization(bool enabled);
+    atomic_set_hitbox_visualization(enabled);
+    
+    // Log UI
+    ui_log_event("UIComponent", "HitboxVisualization", "system", 
+                enabled ? "Hitbox visualization enabled (red transparent + blue border)" :
+                         "Hitbox visualization disabled");
+}
+
+bool ui_is_hitbox_visualization_enabled(void) {
+    extern bool atomic_is_hitbox_visualization_enabled(void);
+    return atomic_is_hitbox_visualization_enabled();
 }
 
 bool ui_is_event_logging_enabled(void) {
@@ -252,21 +269,32 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
     
     UINode* node = ui_tree_create_node(tree, id, "button");
     if (node && text) {
+        // 🔧 FIX: FORCER la taille IMMÉDIATEMENT après création
+        atomic_set_size(node->element, 150, 40);
+        
+        // 🆕 VÉRIFICATION immédiate
+        if (node->element->style.width != 150 || node->element->style.height != 40) {
+            printf("❌ [BUTTON_CREATE] Size not set correctly for '%s': %dx%d\n",
+                   id ? id : "NoID", node->element->style.width, node->element->style.height);
+        } else {
+            printf("✅ [BUTTON_CREATE] Button '%s' size confirmed: %dx%d\n",
+                   id ? id : "NoID", node->element->style.width, node->element->style.height);
+        }
+        
         atomic_set_text(node->element, text);
         
-        // 🔧 LOG RÉDUIT - Seulement l'essentiel
+        // Log de création
         printf("📝 Button '%s' created with text: '%s'\n", id ? id : "NoID", text);
         
-        // 🔧 FIX PRINCIPAL: Auto-enregistrement si onClick fourni
+        // Auto-enregistrement si onClick fourni
         if (onClick && tree->event_manager) {
-            // Définir le callback ET enregistrer automatiquement
             atomic_set_click_handler(node->element, (void(*)(void*, SDL_Event*))onClick);
             atomic_register_with_event_manager(node->element, tree->event_manager);
             printf("🔗 Button '%s' auto-registered with click handler\n", id ? id : "NoID");
         }
     }
     
-    (void)user_data; // Éviter warnings
+    (void)user_data;
     return node;
 }
 
@@ -456,22 +484,21 @@ UINode* ui_set_text_color(UINode* node, const char* color) {
 
 UINode* ui_center(UINode* node) {
     if (node) {
-        // 🔧 FIX: Implémentation plus simple pour éviter les erreurs
-        // Pour l'instant, juste logger - l'implémentation complète viendra plus tard
-        ui_log_event("UIComponent", "Style", node->id, "Element centered (placeholder implementation)");
+        // 🔧 FIX: Obtenir les dimensions automatiquement depuis le window manager
+        WindowDimensions dims = window_get_active_dimensions();
         
-        // 🔧 TODO: Implémenter le vrai centrage basé sur la taille du parent
-        // Pour l'instant, on fait un centrage approximatif
         if (node->element) {
-            int window_width = 700;  // Taille de fenêtre par défaut
-            int window_height = 500;
             int element_width = node->element->style.width;
             int element_height = node->element->style.height;
             
             if (element_width > 0 && element_height > 0) {
-                int center_x = (window_width - element_width) / 2;
-                int center_y = (window_height - element_height) / 2;
+                int center_x = (dims.width - element_width) / 2;
+                int center_y = (dims.height - element_height) / 2;
                 atomic_set_position(node->element, center_x, center_y);
+                
+                char message[128];
+                snprintf(message, sizeof(message), "Element centered in %dx%d window", dims.width, dims.height);
+                ui_log_event("UIComponent", "Style", node->id, message);
             }
         }
     }
@@ -480,36 +507,44 @@ UINode* ui_center(UINode* node) {
 
 UINode* ui_center_x(UINode* node) {
     if (node) {
-        // 🔧 FIX: Centrage horizontal uniquement
+        // 🔧 FIX: Obtenir les dimensions automatiquement
+        WindowDimensions dims = window_get_active_dimensions();
+        
         if (node->element) {
-            int window_width = 700;
             int element_width = node->element->style.width;
             
             if (element_width > 0) {
-                int center_x = (window_width - element_width) / 2;
+                int center_x = (dims.width - element_width) / 2;
                 int current_y = node->element->style.y;
                 atomic_set_position(node->element, center_x, current_y);
+                
+                char message[128];
+                snprintf(message, sizeof(message), "Element centered horizontally in %dpx width", dims.width);
+                ui_log_event("UIComponent", "Style", node->id, message);
             }
         }
-        ui_log_event("UIComponent", "Style", node->id, "Element centered horizontally");
     }
     return node;
 }
 
 UINode* ui_center_y(UINode* node) {
     if (node) {
-        // 🔧 FIX: Centrage vertical uniquement
+        // 🔧 FIX: Obtenir les dimensions automatiquement
+        WindowDimensions dims = window_get_active_dimensions();
+        
         if (node->element) {
-            int window_height = 500;
             int element_height = node->element->style.height;
             
             if (element_height > 0) {
-                int center_y = (window_height - element_height) / 2;
+                int center_y = (dims.height - element_height) / 2;
                 int current_x = node->element->style.x;
                 atomic_set_position(node->element, current_x, center_y);
+                
+                char message[128];
+                snprintf(message, sizeof(message), "Element centered vertically in %dpx height", dims.height);
+                ui_log_event("UIComponent", "Style", node->id, message);
             }
         }
-        ui_log_event("UIComponent", "Style", node->id, "Element centered vertically");
     }
     return node;
 }
@@ -956,4 +991,66 @@ void ui_constrain_all_children(UINode* parent) {
     if (!parent) return;
     atomic_apply_overflow_constraints(parent->element);
     ui_log_event("UIComponent", "Layout", parent->id, "All children positions constrained to parent bounds");
+}
+
+// 🔧 FIX: Ajouter les déclarations forward manquantes
+void ui_container_add_default_logo(UINode* container);
+void ui_container_add_default_subtitle(UINode* container);
+
+// 🔧 FIX: Implémenter les fonctions manquantes
+void ui_container_add_default_logo(UINode* container) {
+    if (!container) return;
+    
+    // Charger le logo Fanorona
+    SDL_Texture* logo_texture = NULL;
+    GameWindow* window = use_mini_window();
+    if (window) {
+        SDL_Renderer* renderer = window_get_renderer(window);
+        if (renderer) {
+            logo_texture = asset_load_texture(renderer, "fanorona_text.png");
+        }
+    }
+    
+    UINode* logo = NULL;
+    if (logo_texture) {
+        logo = ui_image(container->tree, "container-default-logo", logo_texture);
+        if (logo) {
+            ui_set_size(logo, 300, 80);
+            ui_set_position(logo, 0, 10);
+            ui_set_align_self_center_x(logo);
+            atomic_set_background_color(logo->element, 0, 0, 0, 0);
+            ui_append(container, logo);
+        }
+    } else {
+        // Fallback texte
+        logo = ui_text(container->tree, "container-default-logo-text", "FANORONA");
+        if (logo) {
+            ui_set_text_color(logo, "rgb(255, 165, 0)");
+            ui_set_text_size(logo, 24);
+            ui_set_text_align(logo, "center");
+            ui_set_position(logo, 0, 10);
+            ui_set_align_self_center_x(logo);
+            ui_append(container, logo);
+        }
+    }
+    
+    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default logo positioned at 10px from content top");
+}
+
+void ui_container_add_default_subtitle(UINode* container) {
+    if (!container) return;
+    
+    UINode* subtitle = ui_text(container->tree, "container-default-subtitle", "STRATEGIE ET TRADITION");
+    if (subtitle) {
+        ui_set_text_color(subtitle, "rgb(255, 255, 255)");
+        ui_set_text_size(subtitle, 14);
+        ui_set_text_align(subtitle, "center");
+        ui_set_text_style(subtitle, false, true);
+        ui_set_position(subtitle, 0, 98);
+        ui_set_align_self_center_x(subtitle);
+        atomic_set_margin(subtitle->element, 0, 0, 0, 0);
+        ui_append(container, subtitle);
+    }
+    
+    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default subtitle positioned 8px after logo");
 }

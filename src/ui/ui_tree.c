@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "ui_tree.h"
+#include "../utils/log_console.h"  // 🔧 FIX: Ajouter l'include manquant
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -410,19 +411,91 @@ void ui_node_remove_event_listener(UINode* node, const char* event, void (*callb
     // TODO: Implémenter la suppression d'événements
 }
 
+// 🆕 FONCTION MANQUANTE: Mise à jour récursive des nœuds
+static void ui_tree_update_node_recursive(UINode* node, float delta_time) {
+    if (!node || !node->element) return;
+    
+    // Mettre à jour l'élément atomique
+    atomic_update(node->element, delta_time);
+    
+    // Mettre à jour récursivement tous les enfants
+    for (int i = 0; i < node->children_count; i++) {
+        if (node->children[i]) {
+            ui_tree_update_node_recursive(node->children[i], delta_time);
+        }
+    }
+}
+
+// 🔧 FIX: Déplacer la déclaration AVANT son utilisation
+static void ui_tree_validate_element_sizes(UINode* node) {
+    if (!node || !node->element) return;
+    
+    // Vérifier et corriger les tailles invalides
+    if (node->element->style.width <= 0 || node->element->style.height <= 0) {
+        printf("❌ [SIZE_VALIDATION] Element '%s' has invalid size: %dx%d\n",
+               node->id ? node->id : "NoID",
+               node->element->style.width, node->element->style.height);
+               
+        // Corriger avec des tailles par défaut selon le type
+        if (node->tag_name && strcmp(node->tag_name, "button") == 0) {
+            atomic_set_size(node->element, 150, 40);
+            printf("🔧 [SIZE_FIX] Button '%s' restored to 150x40\n", node->id);
+        } else {
+            atomic_set_size(node->element, 100, 50);
+            printf("🔧 [SIZE_FIX] Element '%s' restored to 100x50\n", node->id);
+        }
+    }
+    
+    // Valider récursivement les enfants
+    for (int i = 0; i < node->children_count; i++) {
+        if (node->children[i]) {
+            ui_tree_validate_element_sizes(node->children[i]);
+        }
+    }
+}
+
 // === RENDU ===
 
 void ui_tree_update(UITree* tree, float delta_time) {
     if (!tree || !tree->root) return;
     
-    atomic_update(tree->root->element, delta_time);
+    // 1️⃣ PHASE 1: CALCULS DE LAYOUT COMPLETS
+    log_console_write("UITree", "UpdateStarted", "ui_tree.c", 
+                     "[ui_tree.c] 🔄 Starting complete UI tree update");
+    
+    // Mise à jour récursive de tous les éléments
+    ui_tree_update_node_recursive(tree->root, delta_time);
+    
+    log_console_write("UITree", "LayoutCalculated", "ui_tree.c", 
+                     "[ui_tree.c] ✅ All layout calculations completed");
+    
+    // 🆕 PHASE 1.5: VÉRIFICATION DES TAILLES AVANT SYNC
+    ui_tree_validate_element_sizes(tree->root);
+    
+    // 2️⃣ PHASE 2: SYNCHRONISATION DES HITBOXES POST-CALCULS
+    if (tree->event_manager) {
+        extern void optimum_sync_all_hitboxes_post_layout(UITree* tree);
+        optimum_sync_all_hitboxes_post_layout(tree);
+        
+        log_console_write("UITree", "HitboxesSynced", "ui_tree.c", 
+                         "[ui_tree.c] 🎯 All hitboxes synchronized with final positions");
+    } else {
+        log_console_write("UITree", "NoEventManager", "ui_tree.c", 
+                         "[ui_tree.c] ⚠️ No EventManager - hitbox sync skipped");
+    }
+    
+    log_console_write("UITree", "UpdateCompleted", "ui_tree.c", 
+                     "[ui_tree.c] ✅ UI tree update completed (layout + hitboxes)");
 }
 
 void ui_tree_render(UITree* tree, SDL_Renderer* renderer) {
-    if (!tree || !tree->root || !renderer) return;
+    if (!tree || !tree->root || !renderer) {
+        printf("⚠️ [UI_TREE] Invalid parameters for UI tree rendering\n");
+        return;
+    }
     
     // 🆕 UTILISATION DU MOTEUR OPTIMUM pour le rendu
-    #include "native/optimum.h"
+    extern void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer);
     optimum_render_ui_tree(tree, renderer);
 }
 

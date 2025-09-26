@@ -9,6 +9,49 @@
 // Forward declaration for TTF_Font
 typedef struct _TTF_Font TTF_Font;
 
+// 🔧 FIX: Ajouter les types manquants
+typedef struct AtomicContext {
+    SDL_Renderer* renderer;
+    int screen_width;
+    int screen_height;
+    bool debug_mode;
+} AtomicContext;
+
+// 🔧 FIX: Ajouter l'enum PositioningSystem manquant
+typedef enum {
+    POSITIONING_RELATIVE,
+    POSITIONING_ABSOLUTE,
+    POSITIONING_FLEXBOX,
+    POSITIONING_STATIC
+} PositioningSystem;
+
+// 🆕 ERROR HANDLING SYSTEM - MOVE BEFORE AtomicElement
+typedef enum {
+    ATOMIC_SUCCESS = 0,
+    ATOMIC_ERROR_NULL_POINTER,
+    ATOMIC_ERROR_INVALID_PARAMETER,
+    ATOMIC_ERROR_MEMORY_ALLOCATION,
+    ATOMIC_ERROR_TEXTURE_LOADING,
+    ATOMIC_ERROR_CIRCULAR_REFERENCE,
+    ATOMIC_ERROR_MAX_CHILDREN_EXCEEDED,
+    ATOMIC_ERROR_FONT_LOADING
+} AtomicError;
+
+// 🆕 DESTRUCTION STATE TRACKING - MOVE BEFORE AtomicElement
+typedef enum {
+    ELEMENT_STATE_ACTIVE,
+    ELEMENT_STATE_DESTROYING,
+    ELEMENT_STATE_DESTROYED
+} ElementState;
+
+// 🆕 TEXTURE REFERENCE COUNTING SYSTEM - MOVE BEFORE AtomicElement
+typedef struct AtomicTextureRef {
+    SDL_Texture* texture;
+    char* path;
+    int ref_count;
+    struct AtomicTextureRef* next;
+} AtomicTextureRef;
+
 // Énumérations pour les propriétés CSS-like
 typedef enum {
     POSITION_STATIC,
@@ -103,6 +146,8 @@ typedef struct {
     AlignType align_content;
     bool wrap;
     int gap;
+    int grow;      // 🔧 FIX: Ajouter le champ grow manquant
+    int shrink;    // 🔧 FIX: Ajouter le champ shrink manquant
 } FlexProperties;
 
 // Structure pour les propriétés de texte
@@ -217,7 +262,47 @@ typedef struct AtomicElement {
     // Fonctions de rendu personnalisées
     void (*custom_render)(struct AtomicElement* element, SDL_Renderer* renderer);
     void (*custom_update)(struct AtomicElement* element, float delta_time);
+    
+    // 🆕 ERROR HANDLING & STATE
+    ElementState state;                 // État de l'élément pour éviter la double destruction
+    AtomicError last_error;             // Dernière erreur rencontrée
+    char* error_message;                // Message d'erreur détaillé
+    
+    // 🆕 TEXTURE REFERENCE
+    AtomicTextureRef* texture_ref;      // Référence vers la texture partagée
 } AtomicElement;
+
+// === ERROR HANDLING FUNCTIONS ===
+
+// Obtenir le dernier code d'erreur
+AtomicError atomic_get_last_error(AtomicElement* element);
+
+// Obtenir le message d'erreur détaillé
+const char* atomic_get_error_message(AtomicElement* element);
+
+// Effacer l'état d'erreur
+void atomic_clear_error(AtomicElement* element);
+
+// Convertir un code d'erreur en message
+const char* atomic_error_to_string(AtomicError error);
+
+// 🆕 TEXTURE REFERENCE COUNTING FUNCTIONS
+AtomicError atomic_set_background_image_with_path(AtomicElement* element, const char* path, SDL_Renderer* renderer);
+void atomic_texture_ref_add(const char* path, SDL_Texture* texture);
+SDL_Texture* atomic_texture_ref_get(const char* path);
+void atomic_texture_ref_release(const char* path);
+void atomic_texture_ref_cleanup_all(void);
+
+// 🆕 SAFE DESTRUCTION FUNCTIONS
+AtomicError atomic_destroy_safe(AtomicElement* element);
+bool atomic_is_destroying(AtomicElement* element);
+AtomicError atomic_remove_child_safe(AtomicElement* parent, AtomicElement* child);
+
+// 🆕 COMPLETE FLEXBOX FUNCTIONS
+AtomicError atomic_set_flex_wrap_safe(AtomicElement* element, bool wrap);
+AtomicError atomic_set_flex_shrink_safe(AtomicElement* element, int shrink);
+AtomicError atomic_set_flex_basis(AtomicElement* element, int basis);
+void atomic_apply_flex_shrink(AtomicElement* container);
 
 // Fonctions de création et destruction
 AtomicElement* atomic_create(const char* id);
@@ -295,6 +380,7 @@ TTF_Font* atomic_get_default_font(void);
 bool atomic_is_point_inside(AtomicElement* element, int x, int y);
 SDL_Rect atomic_get_render_rect(AtomicElement* element);
 SDL_Rect atomic_get_content_rect(AtomicElement* element);
+SDL_Rect atomic_get_final_render_rect(AtomicElement* element);  // 🆕 AJOUT: Position finale après calculs
 
 // Nouvelles fonctions pour le système de logs et z-index
 bool atomic_has_explicit_z_index(AtomicElement* element);
@@ -336,5 +422,31 @@ void atomic_set_overflow_str(AtomicElement* element, const char* overflow);
 SDL_Rect atomic_constrain_child_position(AtomicElement* parent, AtomicElement* child, int desired_x, int desired_y);
 void atomic_apply_overflow_constraints(AtomicElement* parent);
 bool atomic_is_child_overflowing(AtomicElement* parent, AtomicElement* child);
+
+// 🔧 FIX: Ajouter les fonctions manquantes
+void atomic_set_context(AtomicContext* context);
+AtomicContext* atomic_get_context(void);
+
+// Fonctions flexbox étendues
+void atomic_set_flex_grow(AtomicElement* element, int grow);
+void atomic_set_flex_shrink(AtomicElement* element, int shrink);
+void atomic_apply_flex_layout_improved(AtomicElement* container);
+
+// Système de positionnement unifié
+void atomic_calculate_layout(AtomicElement* element);
+
+// 🆕 NEW UTILITY FUNCTION FOR EVENT MANAGER SYNC
+void atomic_sync_event_manager_position(AtomicElement* element, EventManager* manager);
+
+// 🆕 HITBOX VISUALIZATION SYSTEM
+// Contrôler l'affichage des hitboxes
+void atomic_set_hitbox_visualization(bool enabled);
+bool atomic_is_hitbox_visualization_enabled(void);
+
+// Dessiner la hitbox d'un élément (rectangle rouge transparent avec bordure bleue)
+void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer);
+
+// Dessiner les hitboxes de tous les éléments enregistrés dans l'EventManager
+void atomic_render_all_hitboxes(EventManager* manager, SDL_Renderer* renderer);
 
 #endif // ATOMIC_H

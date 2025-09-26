@@ -1,5 +1,6 @@
 #include "../utils/log_console.h"
 #include "scene.h"
+#include "../ui/native/atomic.h" // <-- ajout
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -133,13 +134,17 @@ void scene_manager_render(SceneManager* manager) {
 // Fonctions de rendu séparées pour les différentes fenêtres
 void scene_manager_render_main(SceneManager* manager) {
     if (!manager) return;
-    
+
     GameWindow* main_window = use_main_window();
     if (!main_window) return;
-    
+
+    // Définir le contexte atomic pour la fenêtre principale
+    AtomicContext ctx_main = { main_window->renderer, main_window->width, main_window->height, false };
+    atomic_set_context(&ctx_main);
+
     // Utiliser la scène assignée à la fenêtre principale ou la scène courante
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MAIN);
-    
+
     if (scene && scene->active && scene->render) {
         scene->render(scene, main_window);
     }
@@ -147,13 +152,17 @@ void scene_manager_render_main(SceneManager* manager) {
 
 void scene_manager_render_mini(SceneManager* manager) {
     if (!manager) return;
-    
+
     GameWindow* mini_window = use_mini_window();
     if (!mini_window) return;
-    
+
+    // Définir le contexte atomic pour la mini fenêtre
+    AtomicContext ctx_mini = { mini_window->renderer, mini_window->width, mini_window->height, false };
+    atomic_set_context(&ctx_mini);
+
     // Utiliser la scène assignée à la mini fenêtre ou la scène courante
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MINI);
-    
+
     if (scene && scene->active && scene->render) {
         scene->render(scene, mini_window);
     }

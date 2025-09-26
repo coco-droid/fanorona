@@ -7,6 +7,8 @@
 // Forward declarations
 typedef struct AtomicElement AtomicElement;
 typedef struct UITree UITree;
+typedef struct UINode UINode;
+typedef struct EventManager EventManager;
 
 // === OPTIMUM RENDER ENGINE ===
 // Moteur de rendu dédié pour l'UI atomique
@@ -29,6 +31,13 @@ void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer);
  * Nettoyer les ressources du moteur Optimum
  */
 void optimum_cleanup(void);
+
+// 🆕 SYSTÈME DE SYNCHRONISATION POST-CALCULS
+// Synchroniser toutes les hitboxes après les calculs de layout complets
+void optimum_sync_all_hitboxes_post_layout(UITree* tree);
+
+// Parcourir récursivement l'arbre et synchroniser les positions avec l'EventManager
+void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager);
 
 // === FONCTIONS DE DEBUG ===
 

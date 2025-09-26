@@ -4,6 +4,7 @@
 #include "../ui_tree.h"
 #include "../../utils/asset_manager.h"
 #include "../../utils/log_console.h"
+#include "../../event/event.h"  // 🔧 FIX: Ajouter l'include pour EventManager
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdlib.h>
@@ -271,9 +272,15 @@ void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer) {
     // Rendre l'arbre UI complet en commençant par la racine
     optimum_render_element(tree->root->element, renderer);
     
+    // 🆕 RENDU DES HITBOXES après le rendu normal
+    if (tree->event_manager) {
+        // 🔧 FIX: Utiliser le bon type EventManager* au lieu de void*
+        event_manager_render_hitboxes(tree->event_manager, renderer);
+    }
+    
     // Log de fin de rendu
     log_console_write("OptimumEngine", "RenderComplete", "optimum.c", 
-                     "[optimum.c] ✅ UI tree rendering completed");
+                     "[optimum.c] ✅ UI tree rendering completed with hitbox visualization");
 }
 
 void optimum_cleanup(void) {
@@ -314,4 +321,62 @@ void optimum_render_performance_info(SDL_Renderer* renderer, int elements_render
     // TODO: Implémenter l'affichage des informations de performance
     (void)renderer; // Éviter le warning unused parameter
     printf("🎯 [OPTIMUM] Rendered %d elements in %.2fms\n", elements_rendered, render_time_ms);
+}
+
+// === SYSTÈME DE SYNCHRONISATION POST-CALCULS ===
+
+/**
+ * Synchroniser récursivement les hitboxes d'un élément et ses enfants
+ * APPELÉ APRÈS tous les calculs de layout pour avoir les positions finales
+ */
+void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager) {
+    if (!node || !node->element || !manager) return;
+    
+    // Vérifier si l'élément a des handlers d'événements
+    bool has_handlers = (node->element->events.on_click != NULL ||
+                        node->element->events.on_hover != NULL ||
+                        node->element->events.on_unhover != NULL);
+    
+    if (has_handlers) {
+        // Synchroniser la position finale calculée avec l'EventManager
+        atomic_sync_event_manager_position(node->element, manager);
+        
+        // Log de synchronisation (périodique pour éviter le spam)
+        static int sync_counter = 0;
+        if (sync_counter++ % 60 == 0) { // Log toutes les 60 frames
+            SDL_Rect final_rect = atomic_get_final_render_rect(node->element);
+            char sync_message[256];
+            snprintf(sync_message, sizeof(sync_message),
+                    "[optimum.c] Element '%s' hitbox synced to final position (%d,%d,%dx%d)",
+                    node->id ? node->id : "NoID",
+                    final_rect.x, final_rect.y, final_rect.w, final_rect.h);
+            log_console_write("OptimumSync", "HitboxSynced", "optimum.c", sync_message);
+        }
+    }
+    
+    // Parcourir récursivement tous les enfants
+    for (int i = 0; i < node->children_count; i++) {
+        optimum_sync_element_hitbox_recursive(node->children[i], manager);
+    }
+}
+
+/**
+ * Synchroniser toutes les hitboxes après les calculs de layout complets
+ * POINT D'ENTRÉE PRINCIPAL pour la synchronisation post-calculs
+ */
+void optimum_sync_all_hitboxes_post_layout(UITree* tree) {
+    if (!tree || !tree->root || !tree->event_manager) {
+        log_console_write("OptimumSync", "SyncSkipped", "optimum.c", 
+                         "[optimum.c] Sync skipped - invalid tree or event manager");
+        return;
+    }
+    
+    log_console_write("OptimumSync", "SyncStarted", "optimum.c", 
+                     "[optimum.c] 🎯 Starting post-layout hitbox synchronization");
+    
+    // Parcourir récursivement l'arbre entier et synchroniser toutes les hitboxes
+    optimum_sync_element_hitbox_recursive(tree->root, tree->event_manager);
+    
+    log_console_write("OptimumSync", "SyncCompleted", "optimum.c", 
+                     "[optimum.c] ✅ Post-layout hitbox synchronization completed");
 }

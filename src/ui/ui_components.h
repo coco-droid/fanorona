@@ -131,6 +131,11 @@ void ui_tree_register_all_events(UITree* tree);
 void ui_set_event_logging(bool enabled);
 bool ui_is_event_logging_enabled(void);
 
+// 🆕 HITBOX VISUALIZATION SYSTEM
+// Contrôler l'affichage des hitboxes (rectangles rouges transparents avec bordure bleue)
+void ui_set_hitbox_visualization(bool enabled);
+bool ui_is_hitbox_visualization_enabled(void);
+
 // Logs spécifiques pour le debugging
 void ui_log_event(const char* source, const char* event_type, const char* element_id, const char* message);
 

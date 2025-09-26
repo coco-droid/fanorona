@@ -9,7 +9,7 @@ PROJECT_NAME="fanorona"
 SRC_DIR="src"
 BUILD_DIR="build"
 CC="gcc"
-CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -g"
+CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g"
 LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm"
 
 # Flags optionnels

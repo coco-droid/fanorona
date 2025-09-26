@@ -9,12 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 🔧 FIX: Déclarations forward des nouvelles fonctions
-void ui_container_add_default_logo(UINode* container);
-void ui_container_add_default_subtitle(UINode* container);
-
-// === COMPOSANT CONTAINER AVEC CONTENU PAR DÉFAUT ===
-
+// 🔧 FIX: Utiliser les fonctions de ui_components.c au lieu de redéfinir
 UINode* ui_container(UITree* tree, const char* id) {
     if (!tree) {
         ui_log_event("UIComponent", "CreateError", id, "Tree is NULL");
@@ -29,97 +24,23 @@ UINode* ui_container(UITree* tree, const char* id) {
     }
     
     // Style modal : fond noir transparent avec bordure orange
-    atomic_set_background_color(container->element, 0, 0, 0, 180); // Noir transparent
-    atomic_set_border(container->element, 2, 255, 165, 0, 255); // Bordure orange de 2px
-    atomic_set_padding(container->element, 2, 2, 2, 2); // 🔧 FIX: Padding interne de 2px (au lieu de 1px)
-    
-    // 🆕 AJOUT: Container avec overflow:hidden par défaut pour éviter les débordements
+    atomic_set_background_color(container->element, 0, 0, 0, 180);
+    atomic_set_border(container->element, 2, 255, 165, 0, 255);
+    atomic_set_padding(container->element, 2, 2, 2, 2);
     atomic_set_overflow(container->element, OVERFLOW_HIDDEN);
     
-    // === AJOUTER LE LOGO ET LE TEXTE PAR DÉFAUT ===
+    // Utiliser les fonctions de ui_components.c
     ui_container_add_default_logo(container);
     ui_container_add_default_subtitle(container);
     
-    // Log de création
     ui_log_event("UIComponent", "Create", id, "Container created with overflow:hidden and default content");
-    printf("📦 Container '%s' créé avec overflow:hidden et contenu par défaut\n", id ? id : "NoID");
     
     return container;
 }
 
 // 🆕 NOUVELLE FONCTION: Ajouter le logo par défaut avec align-self
-void ui_container_add_default_logo(UINode* container) {
-    if (!container) return;
-    
-    // Charger le logo Fanorona
-    SDL_Texture* logo_texture = NULL;
-    GameWindow* window = use_mini_window();
-    if (window) {
-        SDL_Renderer* renderer = window_get_renderer(window);
-        if (renderer) {
-            logo_texture = asset_load_texture(renderer, "fanorona_text.png");
-        }
-    }
-    
-    UINode* logo = NULL;
-    if (logo_texture) {
-        logo = UI_IMAGE(container->tree, "container-default-logo", logo_texture);
-        if (logo) {
-            SET_SIZE(logo, 300, 80); // Taille réduite pour le container
-            
-            // 🔧 FIX MAJEUR: Logo à 10px DEPUIS L'INTÉRIEUR du content_rect
-            SET_POS(logo, 0, 10);
-            ALIGN_SELF_X(logo);
-            
-            atomic_set_background_color(logo->element, 0, 0, 0, 0);
-            APPEND(container, logo);
-            
-            printf("🖼️ Logo par défaut positionné à 10px depuis l'intérieur du content_rect\n");
-        }
-    } else {
-        // Fallback texte
-        logo = UI_TEXT(container->tree, "container-default-logo-text", "FANORONA");
-        if (logo) {
-            ui_set_text_color(logo, "rgb(255, 165, 0)"); // Orange
-            ui_set_text_size(logo, 24);
-            ui_set_text_align(logo, "center");
-            
-            SET_POS(logo, 0, 10);
-            ALIGN_SELF_X(logo);
-            
-            APPEND(container, logo);
-            printf("📝 Logo texte positionné à 10px depuis l'intérieur du content_rect\n");
-        }
-    }
-    
-    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default logo positioned at 10px from content top");
-}
 
 // 🆕 NOUVELLE FONCTION: Ajouter le sous-titre par défaut avec calcul correct
-void ui_container_add_default_subtitle(UINode* container) {
-    if (!container) return;
-    
-    UINode* subtitle = UI_TEXT(container->tree, "container-default-subtitle", "STRATEGIE ET TRADITION");
-    if (subtitle) {
-        ui_set_text_color(subtitle, "rgb(255, 255, 255)"); // Blanc
-        ui_set_text_size(subtitle, 14);
-        ui_set_text_align(subtitle, "center");
-        ui_set_text_style(subtitle, false, true); // Italique
-        
-        // 🔧 FIX MAJEUR: Calcul correct basé sur le content_rect
-        // Logo à Y=10 + hauteur logo=80 + espacement=8 = 98px depuis le content_rect
-        SET_POS(subtitle, 0, 98);
-        ALIGN_SELF_X(subtitle);
-        
-        atomic_set_margin(subtitle->element, 0, 0, 0, 0); // Pas de margin-bottom
-        
-        APPEND(container, subtitle);
-        
-        printf("📝 Sous-titre positionné à 98px depuis l'intérieur du content_rect (logo + 8px)\n");
-    }
-    
-    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default subtitle positioned 8px after logo");
-}
 
 // 🆕 NOUVELLE FONCTION: Ajouter du contenu avec calcul correct
 void ui_container_add_content(UINode* container, UINode* content) {
@@ -201,4 +122,3 @@ void ui_container_set_modal_style(UINode* container, bool is_modal) {
         ui_log_event("UIComponent", "ContainerStyle", container->id, "Normal style applied with 2px padding");
     }
 }
-

@@ -1,6 +1,6 @@
 # Makefile pour Fanorona
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g
+CFLAGS = -Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g
 LIBS = -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm
 
 # Dossiers

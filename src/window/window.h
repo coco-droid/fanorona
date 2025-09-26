@@ -63,4 +63,17 @@ bool window_has_events_pending(void);
 // 🆕 Déterminer le type d'une fenêtre (main ou mini)
 WindowType window_get_window_type(GameWindow* window);
 
+// 🆕 NOUVELLES FONCTIONS pour la transmission automatique des dimensions
+typedef struct WindowDimensions {
+    int width;
+    int height;
+    WindowType type;
+} WindowDimensions;
+
+// Obtenir les dimensions de la fenêtre active
+WindowDimensions window_get_active_dimensions(void);
+
+// Obtenir les dimensions d'un type de fenêtre spécifique
+WindowDimensions window_get_dimensions_for_type(WindowType type);
+
 #endif // WINDOW_H
