@@ -10,16 +10,77 @@ Le nouveau système UI de Fanorona offre une syntaxe **DOM-like** similaire à J
 - ✅ **Support complet des images PNG** pour les backgrounds
 - ✅ **Correction de l'affichage du texte** sur tous les composants
 
-## 🌳 Architecture
+## 📦 Architecture Container Modulaire - NOUVEAU ! 
 
+### 🎯 Containers avec sections spécialisées
+
+La nouvelle architecture divise les containers en **3 sections spécialisées** :
+
+```c
+// Container principal avec sections automatiques
+UINode* modal = UI_CONTAINER_CENTERED(tree, "game-menu", 500, 400);
+
+// Architecture créée automatiquement :
+// ┌─── Container Principal (flexbox column) ───┐
+// │  ┌─── Section Logo (400x100) ───┐         │
+// │  │     Logo centré               │         │
+// │  └─────────────────────────────┘         │
+// │  ┌─── Section Sous-titre (400x50) ───┐   │
+// │  │     "Stratégie et Tradition"      │   │
+// │  └─────────────────────────────────┘     │
+// │  ┌─── Section Contenu (450x250) ───┐     │
+// │  │     Vos boutons/contenu         │     │
+// │  │     (centré automatiquement)    │     │
+// │  └─────────────────────────────────┘     │
+// └─────────────────────────────────────────┘
 ```
-UITree (Document)
-├── UINode (Éléments DOM)
-│   ├── AtomicElement (Rendu/Style + Logs)
-│   ├── Component Data (Button avec PNG, etc.)
-│   ├── Z-Index (Automatique + Explicite)
-│   └── Children (Hiérarchie)
-└── Event Manager (Événements + Logs)
+
+### ✨ Avantages de cette architecture
+
+1. **🎯 Centrage automatique** : Chaque section centre son contenu
+2. **📏 Tailles dédiées** : Chaque section a sa taille optimisée
+3. **🔧 Sans margin/padding** : Plus besoin de calculs complexes
+4. **🎨 Flexbox natif** : Utilisation pure de CSS Flexbox
+5. **📦 Modulaire** : Chaque section est indépendante
+
+### 🚀 Utilisation simplifiée
+
+```c
+// 1. Créer le container (logo et sous-titre automatiques)
+UINode* dialog = UI_CONTAINER_CENTERED(tree, "my-dialog", 500, 400);
+
+// 2. Ajouter votre contenu (sera centré automatiquement)
+UINode* button_group = UI_DIV(tree, "buttons");
+ui_set_display_flex(button_group);
+FLEX_COLUMN(button_group);
+ui_set_flex_gap(button_group, 15);
+
+// Ajouter des boutons au groupe
+UINode* play = ui_button(tree, "play", "JOUER", on_play, NULL);
+UINode* quit = ui_button(tree, "quit", "QUITTER", on_quit, NULL);
+APPEND(button_group, play);
+APPEND(button_group, quit);
+
+// 3. Le contenu va dans la section dédiée (centré automatiquement)
+ui_container_add_content(dialog, button_group);
+
+// Résultat : Interface parfaitement centrée sans calculs manuels !
+```
+
+### 🔄 Migration depuis l'ancien système
+
+```c
+// ANCIEN (calculs manuels) :
+ui_set_position(logo, calculated_x, 23);
+ui_set_position(subtitle, calculated_x, 111);
+atomic_set_margin(subtitle, 0, 0, 20, 0);
+// ... calculs complexes de positions ...
+
+// NOUVEAU (automatique) :
+UINode* container = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
+ui_container_add_content(container, my_buttons);
+// Logo et sous-titre positionnés automatiquement !
+// Boutons centrés automatiquement dans leur section !
 ```
 
 ## 🔍 Système de logs pour debugging

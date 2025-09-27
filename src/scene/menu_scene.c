@@ -165,10 +165,15 @@ static void menu_scene_init(Scene* scene) {
             printf("✨ Neon Button 'Wiki' créé avec lueur bleu ciel\n");
         }
         
-        // 🎯 AJOUTER LE CONTAINER DE BOUTONS AU MODAL
+        // 🎯 AJOUTER LE CONTAINER DE BOUTONS AU MODAL AVEC CENTRAGE VERTICAL
         // Il sera automatiquement positionné à 126px du haut (sous-titre + 8px) et centré horizontalement
         ui_container_add_content(modal_container, buttons_container);
-        printf("📦 Container de boutons ajouté avec positionnement automatique à 126px\n");
+        
+        // 🆕 CENTRAGE VERTICAL: Utiliser align-self pour centrer le container de boutons
+        ALIGN_SELF_Y(buttons_container);  // Centrage vertical automatique
+        
+        printf("📦 Container de boutons ajouté avec positionnement automatique et centrage Y\n");
+        printf("   📍 Position: centré horizontalement ET verticalement dans le modal\n");
     }
     
     // Construire la hiérarchie simplifiée
@@ -183,7 +188,7 @@ static void menu_scene_init(Scene* scene) {
     printf("   📦  Container modal avec logo et sous-titre AUTOMATIQUES\n");
     printf("   🎯  Logo : 10px du haut (dans content_rect), align-self center-x\n");
     printf("   📝  Sous-titre : 98px du haut (logo + 8px), align-self center-x\n");
-    printf("   🎮  Boutons : 126px du haut (sous-titre + 8px), align-self center-x\n");
+    printf("   🎮  Boutons : CENTRÉS verticalement ET horizontalement avec align-self\n");
     printf("   ✨  NEON BUTTONS avec animations de lueur personnalisées\n");
     printf("   🌈  Couleurs : Multijoueur=Vert, IA=Violet, Wiki=Bleu ciel\n");
     

@@ -337,7 +337,7 @@ if (ui_is_child_overflowing(dialog, button)) {
 // Créer un container avec style modal + logo et sous-titre automatiques
 UINode* modal = UI_CONTAINER(tree, "my-modal");
 SET_SIZE(modal, 400, 300);
-ALIGN_SELF_BOTH(modal); // Centrage automatique avec align-self
+ALIGN_SELF_BOTH(modal); // Centrage automatique
 
 // Le container inclut maintenant automatiquement :
 // - Logo Fanorona à 9px DEPUIS L'INTÉRIEUR (bordure + padding + marge), centré avec align-self center-x
@@ -353,18 +353,19 @@ ALIGN_SELF_BOTH(modal); // Centrage automatique avec align-self
 // Container centré avec contenu par défaut
 UINode* dialog = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
 
-// Ajouter du contenu - sera positionné automatiquement et centré avec align-self
-UINode* button_container = UI_DIV(tree, "buttons");
-SET_SIZE(button_container, 300, 200);
+// Ajouter un en-tête orange
+ui_container_add_header(dialog, "CONFIGURATION");
 
-ui_container_add_content(dialog, button_container);
+// Ajouter du contenu
+UINode* logo = UI_IMAGE(tree, "logo", logo_texture);
+ui_container_add_content(dialog, logo);
 
-// Le contenu est automatiquement :
-// - Positionné à 121px DEPUIS L'INTÉRIEUR (sous "Stratégie et Tradition" + margin-bottom 2px)
-// - Centré horizontalement avec align-self center-x
-// - Avec espacement amélioré grâce au padding 2px et margin-bottom
-// - COMPLÈTEMENT à l'intérieur des bordures du container
-// - Prêt pour recevoir d'autres éléments
+UINode* text = UI_TEXT(tree, "subtitle", "Stratégie et Tradition");
+ui_set_text_color(text, "rgb(255, 255, 255)");
+ui_set_text_style(text, false, true); // Italique
+ui_container_add_content(dialog, text);
+
+// Le container organise automatiquement le contenu en colonne centrée
 ```
 
 ### Système align-self pour centrage intelligent
@@ -381,13 +382,17 @@ ui_set_align_self(element, "center-y");     // Vertical
 ui_set_align_self(element, "center-both");  // Les deux
 ui_set_align_self(element, "auto");         // Désactiver
 
-// Organisation verticale CORRIGÉE avec espacement précis :
-// 1. Logo : Y=10px DEPUIS L'INTÉRIEUR du content_rect, align-self center-x
-// 2. Sous-titre : Y=98px DEPUIS L'INTÉRIEUR (logo Y=10 + hauteur=80 + espacement=8), align-self center-x
-// 3. Contenu : Y=126px DEPUIS L'INTÉRIEUR (sous-titre Y=98 + hauteur≈20 + espacement=8), align-self center-x
-// Tous centrés horizontalement automatiquement !
-// Espacement de 8px entre chaque élément pour un rendu équilibré
-// AUCUN élément ne chevauche les bordures du container (overflow:hidden)
+// 🆕 EXEMPLE D'USAGE DANS UN CONTAINER :
+UINode* modal = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
+UINode* content = UI_DIV(tree, "content");
+SET_SIZE(content, 300, 200);
+
+ui_container_add_content(modal, content);  // Centrage X automatique
+ALIGN_SELF_Y(content);                     // Ajouter le centrage Y
+
+// Le contenu sera maintenant parfaitement centré dans le modal !
+// Centrage X : align-self center-x (automatique)
+// Centrage Y : align-self center-y (ajouté manuellement)
 ```
 
 ### Macros disponibles pour la construction UI

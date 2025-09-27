@@ -143,8 +143,9 @@ void ui_tree_destroy_node(UINode* node) {
     free(node->class_name);
     free(node->children);
     
+    // 🔧 FIX: Utiliser la destruction sécurisée au lieu de atomic_destroy
     if (node->element) {
-        atomic_destroy(node->element);
+        atomic_destroy_safe(node->element);
     }
     
     free(node);

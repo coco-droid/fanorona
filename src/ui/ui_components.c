@@ -1016,7 +1016,10 @@ void ui_container_add_default_logo(UINode* container) {
         logo = ui_image(container->tree, "container-default-logo", logo_texture);
         if (logo) {
             ui_set_size(logo, 300, 80);
-            ui_set_position(logo, 0, 10);
+            
+            // 🆕 AJUSTER la position pour le padding augmenté (15px au lieu de 2px = +13px)
+            ui_set_position(logo, 0, 23); // 10px + 13px = 23px
+            
             ui_set_align_self_center_x(logo);
             atomic_set_background_color(logo->element, 0, 0, 0, 0);
             ui_append(container, logo);
@@ -1028,13 +1031,16 @@ void ui_container_add_default_logo(UINode* container) {
             ui_set_text_color(logo, "rgb(255, 165, 0)");
             ui_set_text_size(logo, 24);
             ui_set_text_align(logo, "center");
-            ui_set_position(logo, 0, 10);
+            
+            // 🆕 AJUSTER la position pour le padding augmenté
+            ui_set_position(logo, 0, 23); // 10px + 13px = 23px
+            
             ui_set_align_self_center_x(logo);
             ui_append(container, logo);
         }
     }
     
-    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default logo positioned at 10px from content top");
+    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default logo positioned at 23px from content top (adjusted for 15px padding)");
 }
 
 void ui_container_add_default_subtitle(UINode* container) {
@@ -1046,11 +1052,17 @@ void ui_container_add_default_subtitle(UINode* container) {
         ui_set_text_size(subtitle, 14);
         ui_set_text_align(subtitle, "center");
         ui_set_text_style(subtitle, false, true);
-        ui_set_position(subtitle, 0, 98);
+        
+        // 🆕 AJUSTER la position pour le padding augmenté
+        ui_set_position(subtitle, 0, 111); // 98px + 13px = 111px
+        
         ui_set_align_self_center_x(subtitle);
-        atomic_set_margin(subtitle->element, 0, 0, 0, 0);
+        
+        // 🆕 AUGMENTER la marge bottom pour plus d'espace
+        atomic_set_margin(subtitle->element, 0, 0, 20, 0); // 20px margin-bottom
+        
         ui_append(container, subtitle);
     }
     
-    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default subtitle positioned 8px after logo");
+    ui_log_event("UIComponent", "ContainerDefault", container->id, "Default subtitle positioned at 111px with 20px margin-bottom (adjusted for 15px padding)");
 }

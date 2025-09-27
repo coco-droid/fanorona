@@ -688,7 +688,7 @@ void atomic_apply_align_self(AtomicElement* element) {
     }
 }
 
-// === ERROR HANDLING IMPLEMENTATION ===
+// === IMPROVED ERROR HANDLING IMPLEMENTATION ===
 
 static void atomic_set_error(AtomicElement* element, AtomicError error, const char* message) {
     if (!element) return;
@@ -1064,16 +1064,57 @@ AtomicElement* atomic_create(const char* id) {
         return NULL;
     }
     
+    // 🔧 FIX: Initialiser le champ custom_data
+    element->custom_data = NULL;
+    
     log_console_write("AtomicElement", "Created", "atomic.c", 
                      "[atomic.c] Element created with error handling");
     
     return element;
 }
 
-// === COMPATIBILITY WRAPPER ===
+// 🆕 SYSTÈME DE DONNÉES PERSONNALISÉES pour les containers
+// 🔧 FIX: La structure est maintenant définie dans atomic.h
 
-void atomic_destroy(AtomicElement* element) {
-    atomic_destroy_safe(element);
+// 🆕 FONCTIONS pour gérer les données personnalisées
+void atomic_set_custom_data(AtomicElement* element, const char* key, void* value) {
+    if (!element || !key) return;
+    
+    // Créer une nouvelle entrée
+    CustomDataEntry* entry = malloc(sizeof(CustomDataEntry));
+    if (!entry) return;
+    
+    entry->key = strdup(key);
+    entry->value = value;
+    entry->next = element->custom_data;
+    element->custom_data = entry;
+}
+
+void* atomic_get_custom_data(AtomicElement* element, const char* key) {
+    if (!element || !key) return NULL;
+    
+    CustomDataEntry* current = element->custom_data;
+    while (current) {
+        if (strcmp(current->key, key) == 0) {
+            return current->value;
+        }
+        current = current->next;
+    }
+    return NULL;
+}
+
+// 🆕 NETTOYAGE des données personnalisées
+void atomic_cleanup_custom_data(AtomicElement* element) {
+    if (!element) return;
+    
+    CustomDataEntry* current = element->custom_data;
+    while (current) {
+        CustomDataEntry* next = current->next;
+        free(current->key);
+        free(current);
+        current = next;
+    }
+    element->custom_data = NULL;
 }
 
 // === IMPROVED UPDATE FUNCTION ===
@@ -1592,6 +1633,16 @@ TTF_Font* atomic_get_default_font(void) {
 void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*)) {
     if (!element) return;
     element->events.on_focus = handler;
+}
+
+// === DESTRUCTION FUNCTIONS ===
+
+// 🆕 FONCTION MANQUANTE: atomic_destroy (version simple)
+void atomic_destroy(AtomicElement* element) {
+    if (!element) return;
+    
+    // Utiliser la version sécurisée existante
+    atomic_destroy_safe(element);
 }
 
 // === END OF IMPLEMENTATIONS ===

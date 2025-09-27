@@ -35,4 +35,17 @@ UILinkData* ui_link_get_data(UINode* link);
 // 🆕 Fonction helper pour éviter les dépendances circulaires
 const char* ui_link_get_target_scene_id_from_data(void* data);
 
+// 🔧 FIX: Ajouter les macros manquantes
+#ifndef ALIGN_SELF_X
+#define ALIGN_SELF_X(element) atomic_set_align_self_center_x((element)->element)
+#endif
+
+#ifndef ALIGN_SELF_Y
+#define ALIGN_SELF_Y(element) atomic_set_align_self_center_y((element)->element)
+#endif
+
+#ifndef ALIGN_SELF_BOTH
+#define ALIGN_SELF_BOTH(element) atomic_set_align_self_center_both((element)->element)
+#endif
+
 #endif // UI_LINK_H

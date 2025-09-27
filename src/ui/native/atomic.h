@@ -9,6 +9,15 @@
 // Forward declaration for TTF_Font
 typedef struct _TTF_Font TTF_Font;
 
+// 🔧 FIX: Déplacer le typedef AVANT la structure AtomicElement
+typedef struct CustomDataEntry CustomDataEntry;
+
+struct CustomDataEntry {
+    char* key;
+    void* value;
+    struct CustomDataEntry* next;
+};
+
 // 🔧 FIX: Ajouter les types manquants
 typedef struct AtomicContext {
     SDL_Renderer* renderer;
@@ -270,6 +279,9 @@ typedef struct AtomicElement {
     
     // 🆕 TEXTURE REFERENCE
     AtomicTextureRef* texture_ref;      // Référence vers la texture partagée
+
+    // 🔧 FIX: Ajouter le champ custom_data manquant
+    CustomDataEntry* custom_data;       // Données personnalisées
 } AtomicElement;
 
 // === ERROR HANDLING FUNCTIONS ===
@@ -306,7 +318,7 @@ void atomic_apply_flex_shrink(AtomicElement* container);
 
 // Fonctions de création et destruction
 AtomicElement* atomic_create(const char* id);
-void atomic_destroy(AtomicElement* element);
+void atomic_destroy(AtomicElement* element);  // 🔧 FIX: S'assurer que cette déclaration existe
 
 // Fonctions de style
 void atomic_set_position(AtomicElement* element, int x, int y);
@@ -448,5 +460,10 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer);
 
 // Dessiner les hitboxes de tous les éléments enregistrés dans l'EventManager
 void atomic_render_all_hitboxes(EventManager* manager, SDL_Renderer* renderer);
+
+// 🆕 FONCTIONS pour gérer les données personnalisées
+void atomic_set_custom_data(AtomicElement* element, const char* key, void* value);
+void* atomic_get_custom_data(AtomicElement* element, const char* key);
+void atomic_cleanup_custom_data(AtomicElement* element);
 
 #endif // ATOMIC_H
