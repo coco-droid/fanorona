@@ -15,11 +15,9 @@
 
 // === VARIABLES GLOBALES ===
 
-// 🔧 TEMPORAIRE: Variables désactivées pour debugging
-/*
+// 🔧 RÉACTIVER: Variables pour la console séparée
 static FILE* log_pipe = NULL;
 static pid_t log_console_pid = -1;
-*/
 static bool log_console_enabled = false;
 static bool mouse_tracking_enabled = false;
 static bool iteration_logging_enabled = true; // 🆕 Contrôler les logs d'itération
@@ -56,23 +54,11 @@ static const char* get_event_name(int event_type) {
 // === FONCTIONS PUBLIQUES ===
 
 bool log_console_init(void) {
-    // 🔧 TEMPORAIRE: Version simplifiée avec printf seulement
-    printf("🖥️ [LOG_CONSOLE] Initialisation simplifiée (printf seulement)...\n");
-    
-    log_console_enabled = true;
-    mouse_tracking_enabled = true; // Activer par défaut
-    
-    printf("✅ [LOG_CONSOLE] Console de logs initialisée (mode printf)\n");
-    printf("🎯 [LOG_CONSOLE] Les logs apparaîtront dans cette console\n");
-    
-    return true;
-    
-    /* 🔧 ANCIEN CODE COMPLEXE MIS EN COMMENTAIRE TEMPORAIREMENT
     if (log_console_enabled) {
         return true; // Déjà initialisé
     }
     
-    printf("🖥️ Initialisation de la console de logs séparée...\n");
+    printf("🖥️ Initialisation de la console d'événements dédiée...\n");
     
     // Ignorer SIGPIPE pour éviter que le processus parent crash si la console se ferme
     signal(SIGPIPE, SIG_IGN);
@@ -80,7 +66,7 @@ bool log_console_init(void) {
     // Créer un pipe pour communiquer avec la console
     int pipefd[2];
     if (pipe(pipefd) == -1) {
-        printf("❌ Erreur: Impossible de créer le pipe pour la console de logs\n");
+        printf("❌ Erreur: Impossible de créer le pipe pour la console d'événements\n");
         return false;
     }
     
@@ -92,14 +78,14 @@ bool log_console_init(void) {
     log_console_pid = fork();
     
     if (log_console_pid == -1) {
-        printf("❌ Erreur: Impossible de créer le processus de console de logs\n");
+        printf("❌ Erreur: Impossible de créer le processus de console d'événements\n");
         close(pipefd[0]);
         close(pipefd[1]);
         return false;
     }
     
     if (log_console_pid == 0) {
-        // Processus enfant - console de logs
+        // Processus enfant - console d'événements
         close(pipefd[1]); // Fermer l'écriture
         
         // Rediriger stdin vers le pipe
@@ -110,14 +96,15 @@ bool log_console_init(void) {
         setsid();
         
         // Essayer différents terminaux disponibles
-        // D'abord gnome-terminal
+        // D'abord gnome-terminal avec titre spécifique
         execlp("gnome-terminal", "gnome-terminal", 
-               "--title=Fanorona - Console de Logs", 
-               "--geometry=80x30+1000+100",  // Position à droite pour éviter la superposition
+               "--title=🎯 Fanorona - Console d'Événements UI", 
+               "--geometry=100x40+50+100",  // Plus large pour les logs d'événements
                "--", "bash", "-c", 
-               "echo '=== CONSOLE DE LOGS FANORONA ==='; "
-               "echo 'Événements UI et souris en temps réel'; "
-               "echo 'Cette fenêtre peut être fermée sans affecter le jeu'; "
+               "echo '=== 🎯 CONSOLE D\\'ÉVÉNEMENTS FANORONA ==='; "
+               "echo '🖱️  Événements souris, clavier et UI en temps réel'; "
+               "echo '🔍 Debugging interactif des interactions utilisateur'; "
+               "echo '🎮 Cette console est indépendante de la fenêtre de jeu'; "
                "echo '====================================='; "
                "echo ''; "
                "while IFS= read -r line; do "
@@ -125,18 +112,19 @@ bool log_console_init(void) {
                "    echo \"$line\"; "
                "  fi; "
                "done; "
-               "echo 'Console de logs fermée'; "
-               "sleep 2", 
+               "echo '🔚 Console d\\'événements fermée'; "
+               "sleep 3", 
                NULL);
         
         // Si gnome-terminal échoue, essayer xterm
         execlp("xterm", "xterm", 
-               "-title", "Fanorona - Console de Logs",
-               "-geometry", "80x30+1000+100",
+               "-title", "🎯 Fanorona - Events Console",
+               "-geometry", "100x40+50+100",
+               "-fg", "white", "-bg", "black",  // Couleurs pour bien voir les événements
                "-e", "bash", "-c",
-               "echo '=== CONSOLE DE LOGS FANORONA ==='; "
-               "echo 'Événements UI et souris en temps réel'; "
-               "echo 'Cette fenêtre peut être fermée sans affecter le jeu'; "
+               "echo '=== 🎯 CONSOLE D\\'ÉVÉNEMENTS FANORONA ==='; "
+               "echo '🖱️ Événements UI en temps réel'; "
+               "echo '🔍 Debugging des interactions'; "
                "echo '====================================='; "
                "echo ''; "
                "while IFS= read -r line; do "
@@ -144,33 +132,40 @@ bool log_console_init(void) {
                "    echo \"$line\"; "
                "  fi; "
                "done; "
-               "echo 'Console de logs fermée'; "
-               "sleep 2",
+               "echo '🔚 Console fermée'; "
+               "sleep 3",
                NULL);
         
-        // Si les deux échouent, utiliser x-terminal-emulator (fallback Ubuntu/Debian)
+        // Fallback: x-terminal-emulator
         execlp("x-terminal-emulator", "x-terminal-emulator",
-               "-T", "Fanorona - Console de Logs",
+               "-T", "🎯 Fanorona - Events Console",
+               "-geometry", "100x40",
                "-e", "bash", "-c",
-               "echo '=== CONSOLE DE LOGS FANORONA ==='; "
-               "echo 'Événements UI et souris en temps réel'; "
+               "echo '=== 🎯 CONSOLE D\\'ÉVÉNEMENTS ==='; "
+               "echo '🖱️ Événements UI en temps réel'; "
                "echo '====================================='; "
                "echo ''; "
-               "while IFS= read -r line; do echo \"$line\"; done",
+               "while IFS= read -r line; do echo \"$line\"; done; sleep 2",
                NULL);
         
         // Dernière option : xfce4-terminal
         execlp("xfce4-terminal", "xfce4-terminal",
-               "--title=Fanorona - Console de Logs",
-               "--geometry=80x30",
-               "-e", "bash -c 'echo \"=== CONSOLE DE LOGS ===\"; while read line; do echo \"$line\"; done'",
+               "--title=🎯 Fanorona - Events Console",
+               "--geometry=100x40",
+               "-e", "bash -c 'echo \"=== 🎯 CONSOLE D\\'ÉVÉNEMENTS ===\"; while read line; do echo \"$line\"; done; sleep 2'",
                NULL);
         
-        // Si tout échoue, se contenter de cat
+        // Si tout échoue, utiliser konsole (KDE)
+        execlp("konsole", "konsole",
+               "--title", "🎯 Fanorona - Events Console",
+               "-e", "bash", "-c", "echo '=== CONSOLE D\\'ÉVÉNEMENTS ==='; while read line; do echo \"$line\"; done",
+               NULL);
+        
+        // Fallback final : cat
         execlp("cat", "cat", NULL);
         
         // Si même cat échoue, sortir proprement
-        printf("❌ Impossible de lancer un terminal pour les logs\n");
+        printf("❌ Impossible de lancer un terminal pour les événements\n");
         exit(1);
     }
     
@@ -191,39 +186,29 @@ bool log_console_init(void) {
     log_console_enabled = true;
     mouse_tracking_enabled = true; // Activer par défaut
     
-    // ✅ FIX: usleep maintenant correctement disponible avec _GNU_SOURCE
-    usleep(200000); // 200ms - maintenant correctement déclaré
+    // Attendre que la console soit prête
+    usleep(300000); // 300ms
     
-    // Envoyer un message de bienvenue
-    log_console_write("LogConsole", "Init", "system", "Console de logs initialisée avec succès");
-    log_console_write("LogConsole", "Info", "system", "La fenêtre du jeu reste indépendante de cette console");
+    // Envoyer un message de bienvenue spécialisé
+    log_console_write("EventConsole", "Init", "system", "🎯 Console d'événements initialisée - Prête pour le debugging UI");
+    log_console_write("EventConsole", "Info", "system", "🖱️ Tracking souris activé - bougez la souris dans la fenêtre de jeu");
+    log_console_write("EventConsole", "Info", "system", "🎮 Cliquez sur les boutons pour voir les événements en temps réel");
+    log_console_write("EventConsole", "Separator", "system", "==========================================");
     
-    printf("✅ Console de logs séparée créée (PID: %d)\n", log_console_pid);
-    printf("🖥️ La console de logs s'ouvre dans une fenêtre séparée\n");
-    printf("🎮 La fenêtre de jeu reste indépendante et fonctionnelle\n");
+    printf("✅ Console d'événements créée (PID: %d)\n", log_console_pid);
+    printf("🎯 Une fenêtre séparée s'est ouverte pour les événements UI\n");
+    printf("🖱️ Les interactions seront loggées en temps réel dans cette console\n");
     
     return true;
-    */
 }
 
 void log_console_cleanup(void) {
-    // 🔧 TEMPORAIRE: Version simplifiée
     if (!log_console_enabled) return;
     
-    printf("🧹 [LOG_CONSOLE] Fermeture de la console de logs (mode printf)...\n");
-    
-    log_console_enabled = false;
-    mouse_tracking_enabled = false;
-    
-    printf("✅ [LOG_CONSOLE] Console de logs fermée\n");
-    
-    /* 🔧 ANCIEN CODE COMPLEXE MIS EN COMMENTAIRE TEMPORAIREMENT
-    if (!log_console_enabled) return;
-    
-    printf("🧹 Fermeture de la console de logs...\n");
+    printf("🧹 Fermeture de la console d'événements...\n");
     
     if (log_pipe) {
-        log_console_write("LogConsole", "Cleanup", "system", "Fermeture de la console de logs");
+        log_console_write("EventConsole", "Cleanup", "system", "🔚 Fermeture de la console d'événements - Merci d'avoir debuggé !");
         fflush(log_pipe);
         fclose(log_pipe);
         log_pipe = NULL;
@@ -252,49 +237,67 @@ void log_console_cleanup(void) {
     log_console_enabled = false;
     mouse_tracking_enabled = false;
     
-    printf("✅ Console de logs fermée\n");
-    */
+    printf("✅ Console d'événements fermée\n");
 }
 
 void log_console_write(const char* source, const char* event_type, const char* element_id, const char* message) {
-    // 🔧 TEMPORAIRE: Remplacer par printf simple
-    if (!log_console_enabled) return;
+    if (!log_console_enabled || !log_pipe) {
+        // Fallback : afficher dans la console principale si la console dédiée n'est pas disponible
+        char timestamp[32];
+        get_timestamp(timestamp, sizeof(timestamp));
+        printf("🔍 [%s] [%s] [%s] [%s] : %s\n", 
+               timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
+               element_id ? element_id : "NoID", message ? message : "No message");
+        fflush(stdout);
+        return;
+    }
     
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
     
-    // 🎯 PRINTF SIMPLE POUR DEBUGGING
-    printf("🔍 [%s] [%s] [%s] [%s] : %s\n", 
-           timestamp,
-           source ? source : "Unknown",
-           event_type ? event_type : "Unknown", 
-           element_id ? element_id : "NoID",
-           message ? message : "No message");
+    // 🎯 FORMAT COLORÉ POUR LA CONSOLE D'ÉVÉNEMENTS
+    if (fprintf(log_pipe, "🔍 [%s] [%s] [%s] [%s] : %s\n", 
+                timestamp,
+                source ? source : "Unknown",
+                event_type ? event_type : "Unknown", 
+                element_id ? element_id : "NoID",
+                message ? message : "No message") < 0) {
+        // Si l'écriture échoue, la console a peut-être été fermée
+        // Fallback vers printf
+        printf("🔍 [%s] [%s] [%s] [%s] : %s\n", 
+               timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
+               element_id ? element_id : "NoID", message ? message : "No message");
+    }
     
-    // Forcer l'affichage immédiat
-    fflush(stdout);
+    fflush(log_pipe);
 }
 
 // 🆕 Nouvelle fonction spécialisée pour les événements avec code
 void log_console_write_event(const char* source, const char* event_type, const char* element_id, const char* message, int event_code) {
-    if (!log_console_enabled) return;
+    if (!log_console_enabled || !log_pipe) return;
     
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
     
     const char* event_name = get_event_name(event_code);
     
-    // 🎯 FORMAT AMÉLIORÉ avec nom d'événement
-    printf("🔍 [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
-           timestamp,
-           source ? source : "Unknown",
-           event_type ? event_type : "Unknown", 
-           element_id ? element_id : "NoID",
-           message ? message : "No message",
-           event_code,
-           event_name);
+    // 🎯 FORMAT SPÉCIAL pour les événements SDL avec codes
+    if (fprintf(log_pipe, "⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
+                timestamp,
+                source ? source : "Unknown",
+                event_type ? event_type : "Unknown", 
+                element_id ? element_id : "NoID",
+                message ? message : "No message",
+                event_code,
+                event_name) < 0) {
+        // Fallback si échec
+        printf("⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
+               timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
+               element_id ? element_id : "NoID", message ? message : "No message",
+               event_code, event_name);
+    }
     
-    fflush(stdout);
+    fflush(log_pipe);
 }
 
 void log_console_set_enabled(bool enabled) {

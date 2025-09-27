@@ -60,14 +60,24 @@ static void quit_button_clicked(void* element, SDL_Event* event) {
 
 // 🔧 FIX: Callbacks avec gestion sécurisée de la taille
 static void button_hovered(void* element, SDL_Event* event) {
-    AtomicElement* atomic_element = (AtomicElement*)element;
-    printf("⚠️ Taille corrompue détectée, restauration à 150x40\n");
+    // 🔧 FIX: Supprimer la variable inutilisée
+    // AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🆕 DEBUG: Simple log sans modification pour éviter les erreurs de taille
+    printf("🔍 [HOVER_DEBUG] Button hovered (no size modification for safety)\n");
+    
+    (void)element; // Éviter le warning unused parameter
     (void)event;
 }
 
 static void button_unhovered(void* element, SDL_Event* event) {
-    AtomicElement* atomic_element = (AtomicElement*)element;
-    printf("⚠️ Taille corrompue après unhover, restauration à 150x40\n");
+    // 🔧 FIX: Supprimer la variable inutilisée
+    // AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // 🆕 DEBUG: Simple log sans modification pour éviter les erreurs de taille
+    printf("🔍 [UNHOVER_DEBUG] Button unhovered (no size modification for safety)\n");
+    
+    (void)element; // Éviter le warning unused parameter
     (void)event;
 }
 
@@ -75,7 +85,11 @@ static void button_unhovered(void* element, SDL_Event* event) {
 static void style_link_like_button(UINode* link) {
     if (!link || !link->element) return;
     
-    SET_SIZE(link, 150, 40);
+    // 🔧 FIX: Forcer la taille AVANT et APRÈS
+    atomic_set_size(link->element, 150, 40);
+    
+    // 🔧 FIX: Désactiver le shrink pour ce bouton spécifiquement
+    atomic_set_flex_shrink(link->element, 0);
     
     // Configuration visuelle identique au bouton
     ui_button_set_background_image(link, "home_bg_btn.png");
@@ -84,34 +98,68 @@ static void style_link_like_button(UINode* link) {
     ui_set_text_color(link, "rgb(255, 255, 255)");
     atomic_set_padding(link->element, 10, 15, 10, 15);
     atomic_set_text_align(link->element, TEXT_ALIGN_CENTER);
+    
+    // 🔧 FIX: Re-forcer la taille après configuration
+    atomic_set_size(link->element, 150, 40);
+    
+    printf("🔧 [STYLE_LINK] Taille forcée à 150x40, shrink=0\n");
 }
 
-// 🆕 NOUVEAU: Callback de debug pour vérifier les tailles
+// 🆕 NOUVEAU: Callback de debug pour vérifier les tailles AVEC PLUS DE DÉTAILS
 static void debug_element_size(AtomicElement* element, const char* context) {
     if (!element) return;
     
-    printf("🔍 [%s] Element '%s': size=%dx%d, pos=(%d,%d)\n", 
+    printf("🔍 [%s] Element '%s':\n", 
            context,
-           element->id ? element->id : "NoID",
-           element->style.width, element->style.height,
-           element->style.x, element->style.y);
+           element->id ? element->id : "NoID");
+    printf("   📐 Style size: %dx%d\n", element->style.width, element->style.height);
+    printf("   📍 Style pos: (%d,%d)\n", element->style.x, element->style.y);
+    
+    // Obtenir les différents rectangles
+    SDL_Rect render_rect = atomic_get_render_rect(element);
+    SDL_Rect final_rect = atomic_get_final_render_rect(element);
+    SDL_Rect content_rect = atomic_get_content_rect(element);
+    
+    printf("   🎨 Render rect: (%d,%d,%dx%d)\n", 
+           render_rect.x, render_rect.y, render_rect.w, render_rect.h);
+    printf("   🎯 Final rect: (%d,%d,%dx%d)\n", 
+           final_rect.x, final_rect.y, final_rect.w, final_rect.h);
+    printf("   📦 Content rect: (%d,%d,%dx%d)\n", 
+           content_rect.x, content_rect.y, content_rect.w, content_rect.h);
            
     // Vérifier si les tailles sont valides
     if (element->style.width <= 0 || element->style.height <= 0) {
         printf("❌ TAILLE INVALIDE DÉTECTÉE!\n");
     }
+    
+    // Vérifier si les rectangles diffèrent
+    if (render_rect.w != final_rect.w || render_rect.h != final_rect.h) {
+        printf("⚠️ DIFFÉRENCE entre render_rect et final_rect détectée!\n");
+    }
+    
+    printf("\n");
 }
 
 // Initialisation de la scène home
 static void home_scene_init(Scene* scene) {
     printf("🏠 Initialisation de la scène Home avec UI DOM-like\n");
     
+    // 🆕 ACTIVER AUTOMATIQUEMENT la console d'événements dédiée
+    #ifdef ENABLE_LOG_CONSOLE
+    if (!log_console_is_enabled()) {
+        log_console_init();
+        printf("🎯 Console d'événements dédiée activée automatiquement\n");
+    }
+    #endif
+    
     // Activer les logs d'événements pour debugging
     ui_set_event_logging(true);
     
-    // 🆕 ACTIVER LA VISUALISATION DES HITBOXES
+    // Activer la visualisation des hitboxes (seulement pour home)
     ui_set_hitbox_visualization(true);
-    printf("🎯 Visualisation des hitboxes activée (rectangles rouges transparents avec bordure bleue)\n");
+    printf("🎯 Visualisation des hitboxes activée pour la scène HOME\n");
+    printf("   📱 Rectangles rouges transparents avec bordure bleue 4px\n");
+    printf("   📊 Logs détaillés des dimensions dans la console d'événements\n");
     
     HomeSceneData* data = (HomeSceneData*)malloc(sizeof(HomeSceneData));
     if (!data) {
@@ -201,41 +249,59 @@ static void home_scene_init(Scene* scene) {
         }
     }
     
-    // Container pour les boutons
+    // Container pour les boutons - 🔧 FIX: Augmenter la taille pour éviter le shrink
     UINode* button_container = UI_DIV(data->ui_tree, "button-container");
     if (!button_container) {
         printf("❌ Erreur: Impossible de créer le container de boutons\n");
         return;
     }
     
+    // 🔧 FIX: Donner une taille suffisante au container pour éviter le flex shrink
+    SET_SIZE(button_container, 300, 150); // Hauteur suffisante pour 2 boutons + gap
+    
     ui_set_display_flex(button_container);
     FLEX_COLUMN(button_container);
     ui_set_justify_content(button_container, "center");
     ui_set_align_items(button_container, "center");
-    ui_set_flex_gap(button_container, 50); // Gap plus petit entre les boutons
+    ui_set_flex_gap(button_container, 20); // 🔧 FIX: Réduire le gap pour éviter l'overflow
     
-    // 🆕 REMPLACER LE BOUTON PLAY PAR UN UI LINK
+    // 🆕 REMPLACER LE BOUTON PLAY PAR UN UI LINK AVEC DEBUG DÉTAILLÉ
     UINode* play_link = ui_create_link(data->ui_tree, "play-link", "JOUER", "menu", SCENE_TRANSITION_REPLACE);
     data->play_button = play_link; // On garde la référence dans play_button pour les callbacks
     
     if (play_link) {
+        // 🆕 DEBUG AVANT STYLE: Dimensions initiales
+        printf("🔍 [PLAY_LINK_DEBUG] AVANT style:\n");
+        debug_element_size(play_link->element, "PLAY_LINK_INITIAL");
+        
         // Appliquer le même style que le bouton précédent
         style_link_like_button(play_link);
+        
+        // 🆕 DEBUG APRÈS STYLE: Vérifier que les dimensions sont correctes
+        printf("🔍 [PLAY_LINK_DEBUG] APRÈS style_link_like_button():\n");
+        debug_element_size(play_link->element, "PLAY_LINK_STYLED");
         
         // Connecter les mêmes événements de hover/unhover pour l'effet visuel
         atomic_set_hover_handler(play_link->element, button_hovered);
         atomic_set_unhover_handler(play_link->element, button_unhovered);
         
+        // 🆕 DEBUG FINAL: État final avant ajout à la hiérarchie
+        printf("🔍 [PLAY_LINK_DEBUG] FINAL avant hiérarchie:\n");
+        debug_element_size(play_link->element, "PLAY_LINK_FINAL");
+        
         ui_log_event("UIComponent", "LinkSetup", play_link->id, "Hover and unhover handlers attached");
         printf("✅ Lien UI 'Play' créé avec apparence de bouton et événements visuels connectés\n");
     }
     
-    // Bouton Quit - avec vérifications
+    // Bouton Quit - avec vérifications ET désactivation du shrink
     UINode* quit_button = ui_button(data->ui_tree, "quit-button", "QUITTER", NULL, NULL);
     data->quit_button = quit_button;
     if (quit_button) {
         // 🔧 FORCER la taille AVANT les autres configurations
         atomic_set_size(quit_button->element, 150, 40);
+        
+        // 🔧 FIX: Désactiver le shrink pour ce bouton
+        atomic_set_flex_shrink(quit_button->element, 0);
         
         // 🆕 DEBUG: Vérifier la taille après création
         debug_element_size(quit_button->element, "AFTER_CREATION");
@@ -246,6 +312,9 @@ static void home_scene_init(Scene* scene) {
         SET_BG_REPEAT(quit_button, "no-repeat");
         ui_set_text_color(quit_button, "rgb(255, 255, 255)");
         ui_button_fix_text_rendering(quit_button);
+        
+        // 🔧 FIX: Re-forcer la taille après configuration
+        atomic_set_size(quit_button->element, 150, 40);
         
         // 🆕 DEBUG: Vérifier la taille après configuration
         debug_element_size(quit_button->element, "AFTER_CONFIG");
@@ -258,7 +327,7 @@ static void home_scene_init(Scene* scene) {
         // 🆕 DEBUG: Vérifier la taille après événements
         debug_element_size(quit_button->element, "AFTER_EVENTS");
         
-        printf("✅ Bouton Quit créé avec vérifications de taille\n");
+        printf("✅ Bouton Quit créé avec shrink=0 et taille forcée\n");
     }
     
     // Construire la hiérarchie de manière sécurisée
@@ -279,13 +348,20 @@ static void home_scene_init(Scene* scene) {
         return;
     }
     
-    printf("✅ Interface Home créée avec :\n");
-    printf("   🖼️  Logo Fanorona centré (taille réduite)\n");
-    printf("   🔗  Lien UI 'Play' vers menu (avec style de bouton)\n");
-    printf("   🚪  Bouton Quit (avec PNG background)\n");
-    printf("   📊  Z-index calculés automatiquement\n");
-    printf("   🔍  Logs d'événements activés\n");
-    printf("   🎯  Hitboxes visualisées en rouge transparent avec bordure bleue\n");
+    // 🆕 DEBUG: Vérifications finales APRÈS construction de la hiérarchie
+    if (play_link) {
+        printf("🔍 [FINAL_DEBUG] Lien Play APRÈS hiérarchie:\n");
+        debug_element_size(play_link->element, "PLAY_LINK_IN_HIERARCHY");
+        
+        // Force un update pour voir si ça change quelque chose
+        if (data->ui_tree) {
+            ui_tree_update(data->ui_tree, 0.0f);
+            printf("🔍 [FINAL_DEBUG] Lien Play APRÈS ui_tree_update:\n");
+            debug_element_size(play_link->element, "PLAY_LINK_POST_UPDATE");
+        }
+    }
+    
+    printf("✅ Interface Home créée avec debug détaillé du bouton Play\n");
     
     scene->data = data;
 }

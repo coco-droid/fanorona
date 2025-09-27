@@ -34,7 +34,11 @@ static void wiki_clicked(UINode* node, void* user_data) {
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
     printf("📋 Initialisation de la scène Menu avec container automatique\n");
-    ui_set_hitbox_visualization(true);
+    
+    // 🔧 DÉSACTIVER la visualisation des hitboxes pour la scène menu
+    ui_set_hitbox_visualization(false);
+    printf("🚫 Visualisation des hitboxes DÉSACTIVÉE pour la scène menu\n");
+    
     MenuSceneData* data = (MenuSceneData*)malloc(sizeof(MenuSceneData));
     if (!data) {
         printf("❌ Erreur: Impossible d'allouer la mémoire pour MenuSceneData\n");
@@ -104,11 +108,26 @@ static void menu_scene_init(Scene* scene) {
         
         // === VRAIS NEON BUTTONS (maintenant que neon_btn.c est compilé) ===
         
-        // 1. Bouton Multijoueur avec neon
+        // 1. Bouton Multijoueur avec neon - DEBUG DES DIMENSIONS
         UINode* multiplayer_btn = ui_neon_button(data->ui_tree, "multiplayer-btn", "JOUER EN MULTIJOUEUR", multiplayer_clicked, NULL);
         if (multiplayer_btn) {
             SET_SIZE(multiplayer_btn, 280, 45);
             ui_set_text_align(multiplayer_btn, "center");
+            
+            // 🆕 DEBUG DÉTAILLÉ: Vérifier les dimensions du bouton "play"
+            printf("🔍 [BUTTON_DEBUG] Bouton Multijoueur créé:\n");
+            printf("   📐 Taille demandée: 280x45\n");
+            printf("   📐 Taille réelle dans style: %dx%d\n", 
+                   multiplayer_btn->element->style.width, 
+                   multiplayer_btn->element->style.height);
+            printf("   📍 Position: (%d, %d)\n",
+                   multiplayer_btn->element->style.x,
+                   multiplayer_btn->element->style.y);
+            
+            // Vérifier le rectangle de rendu final
+            SDL_Rect render_rect = atomic_get_final_render_rect(multiplayer_btn->element);
+            printf("   🎯 Rectangle de rendu final: (%d,%d,%dx%d)\n",
+                   render_rect.x, render_rect.y, render_rect.w, render_rect.h);
             
             // Configuration spécifique neon
             ui_neon_button_set_glow_color(multiplayer_btn, 0, 255, 127); // Vert neon

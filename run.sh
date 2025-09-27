@@ -164,10 +164,21 @@ if [ $? -eq 0 ]; then
         echo "=== Lancement de $PROJECT_NAME ==="
         
         if [ "$ENABLE_LOG_CONSOLE" = true ]; then
-            echo "🖥️ Ouverture de la console de logs..."
+            echo "🖥️ Ouverture de la console d'événements..."
+            echo "🎯 DEUX fenêtres vont s'ouvrir :"
+            echo "   1. 🎮 Fenêtre de jeu (Fanorona)"
+            echo "   2. 🔍 Console d'événements UI (debugging)"
+            echo ""
+            echo "💡 Dans la console d'événements vous verrez :"
+            echo "   • 🖱️ Mouvements de souris en temps réel"
+            echo "   • 👆 Clics sur les boutons"
+            echo "   • 🎯 Tests de collision (hit testing)"
+            echo "   • 🔄 Événements de hover/unhover"
+            echo "   • 📊 Debugging complet des interactions"
+            echo ""
             # Vérifier que nous avons un serveur X
             if [ -z "$DISPLAY" ]; then
-                echo "⚠️ Attention: Variable DISPLAY non définie, la console de logs pourrait ne pas s'ouvrir"
+                echo "⚠️ Attention: Variable DISPLAY non définie, la console d'événements pourrait ne pas s'ouvrir"
             fi
         fi
         
@@ -177,7 +188,8 @@ if [ $? -eq 0 ]; then
         if [ "$ENABLE_LOG_CONSOLE" = true ]; then
             echo "🧹 Nettoyage des processus de logs..."
             # Tuer les processus de terminal qui pourraient rester
-            pkill -f "Fanorona - Console de Logs" 2>/dev/null || true
+            pkill -f "Fanorona.*Console.*Événements" 2>/dev/null || true
+            pkill -f "Events Console" 2>/dev/null || true
         fi
     fi
 else

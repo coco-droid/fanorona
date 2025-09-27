@@ -44,11 +44,29 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer) {
         return;
     }
     
-    // 🆕 DEBUG: Log détaillé pour les petites hauteurs suspectes
+    // 🆕 DEBUG DÉTAILLÉ: Log des dimensions pour chaque hitbox rendue
+    printf("🎯 [HITBOX_DEBUG] Element '%s':\n", element->id ? element->id : "NoID");
+    printf("   📐 Dimensions: %dx%d pixels\n", hitbox_rect.w, hitbox_rect.h);
+    printf("   📍 Position: (%d, %d)\n", hitbox_rect.x, hitbox_rect.y);
+    printf("   🔲 Bounds: x=%d→%d, y=%d→%d\n", 
+           hitbox_rect.x, hitbox_rect.x + hitbox_rect.w,
+           hitbox_rect.y, hitbox_rect.y + hitbox_rect.h);
+    
+    // 🆕 DEBUG: Vérifiui_set_hitbox_visualization(true);cations spécifiques
     if (hitbox_rect.h < 10) {
         printf("🚨 [HITBOX_WARNING] Element '%s' has suspiciously small height: %d\n",
                element->id ? element->id : "NoID", hitbox_rect.h);
     }
+    
+    if (hitbox_rect.w < 50) {
+        printf("🚨 [HITBOX_WARNING] Element '%s' has suspiciously small width: %d\n",
+               element->id ? element->id : "NoID", hitbox_rect.w);
+    }
+    
+    // 🆕 DEBUG: Comparaison avec le style original
+    printf("   🔧 Style original: %dx%d à (%d,%d)\n",
+           element->style.width, element->style.height,
+           element->style.x, element->style.y);
     
     // Sauvegarder l'état du renderer
     SDL_BlendMode old_blend_mode;
@@ -59,15 +77,15 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer) {
     // Activer le blending pour la transparence
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     
-    // 🔴 FOND ROUGE TRANSPARENT (alpha: 60 pour être plus visible)
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 60);
+    // 🔴 FOND ROUGE TRANSPARENT (alpha: 80 pour être plus visible)
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 80);
     SDL_RenderFillRect(renderer, &hitbox_rect);
     
-    // 🔵 BORDURE BLEUE OPAQUE (3 pixels d'épaisseur pour être plus visible)
+    // 🔵 BORDURE BLEUE OPAQUE (4 pixels d'épaisseur pour être plus visible)
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
     
-    // Dessiner 3 rectangles pour faire une bordure de 3px
-    for (int i = 0; i < 3; i++) {
+    // Dessiner 4 rectangles pour faire une bordure de 4px
+    for (int i = 0; i < 4; i++) {
         SDL_Rect border_rect = {
             hitbox_rect.x - i,
             hitbox_rect.y - i,
@@ -77,13 +95,7 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer) {
         SDL_RenderDrawRect(renderer, &border_rect);
     }
     
-    // 🆕 AFFICHAGE DES DIMENSIONS DANS LA CONSOLE
-    static int debug_counter = 0;
-    if (debug_counter++ % 60 == 0) { // Log toutes les 60 frames
-        printf("🎯 [HITBOX] '%s': (%d,%d,%dx%d)\n",
-               element->id ? element->id : "NoID",
-               hitbox_rect.x, hitbox_rect.y, hitbox_rect.w, hitbox_rect.h);
-    }
+    printf("   ✅ Hitbox rendue avec bordure bleue 4px\n\n");
     
     // Restaurer l'état du renderer
     SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
@@ -1039,8 +1051,8 @@ AtomicElement* atomic_create(const char* id) {
     element->style.overflow = OVERFLOW_VISIBLE;
     element->style.alignment.align_self = ALIGN_SELF_AUTO;
     
-    // Initialiser flexbox avec nouvelles propriétés
-    element->style.flex.shrink = 1;  // Valeur par défaut
+    // 🔧 FIX: Désactiver le shrink par défaut pour éviter les problèmes
+    element->style.flex.shrink = 0;  // 🆕 Changé de 1 à 0 pour éviter le shrink automatique
     element->style.flex.wrap = false; // Pas de wrap par défaut
     
     element->content.children_capacity = 4;
