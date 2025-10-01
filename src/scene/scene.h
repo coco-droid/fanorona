@@ -106,5 +106,6 @@ Scene* create_menu_scene(void);  // 🆕 Ajout de la déclaration pour la nouvel
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
 void menu_scene_connect_events(Scene* scene, GameCore* core);  // 🔧 AJOUTÉ: Déclaration pour menu_scene
+void game_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 AJOUTÉ: Déclaration pour game_scene
 
 #endif // SCENE_H

@@ -5,6 +5,7 @@
 #include "src/core/core.h"
 #include "src/window/window.h"
 #include "src/utils/log_console.h"
+#include "src/scene/scene_registry.h"  // 🆕 AJOUT: Include du registre de scènes
 
 // Gestionnaire de signal pour un nettoyage propre
 void signal_handler(int sig) {
@@ -15,55 +16,29 @@ void signal_handler(int sig) {
     exit(sig);
 }
 
-// Dans une fonction d'initialisation ou après la création du core
-bool initialize_scenes(GameCore* core) {
-    // 🔧 FIX: Test rapide pour vérifier que cnt_ui.c est compilé
-    printf("🔧 Test de compilation des composants UI...\n");
+// 🔧 SIMPLIFICATION MAJEURE: Remplacement de initialize_scenes par le registre
+bool initialize_scenes_with_registry(GameCore* core) {
+    printf("🎭 Initialisation des scènes via le registre automatique...\n");
     
-    // Créer la scène menu
-    Scene* menu_scene = create_menu_scene();
-    if (!menu_scene) {
-        printf("❌ Erreur: Impossible de créer la scène menu\n");
+    SceneManager* scene_manager = game_core_get_scene_manager(core);
+    if (!scene_manager) {
+        printf("❌ SceneManager NULL - impossible d'enregistrer les scènes\n");
         return false;
     }
     
-    printf("✅ Scène menu créée avec ID: '%s'\n", menu_scene->id);
-    
-    // Enregistrer la scène menu dans le SceneManager
-    SceneManager* scene_manager = game_core_get_scene_manager(core);
-    if (scene_manager) {
-        bool registered = scene_manager_register_scene(scene_manager, menu_scene);
-        if (registered) {
-            printf("✅ Scène menu enregistrée dans le SceneManager\n");
-            
-            // Vérification
-            Scene* found_scene = scene_manager_get_scene_by_id(scene_manager, "menu");
-            if (found_scene) {
-                printf("✅ VÉRIFICATION: Scène 'menu' trouvée par ID\n");
-                
-                // 🔧 FIX: Initialiser et connecter la scène menu IMMÉDIATEMENT
-                printf("🔧 Pré-initialisation de la scène menu...\n");
-                if (!menu_scene->initialized) {
-                    if (menu_scene->init) {
-                        menu_scene->init(menu_scene);
-                        menu_scene->initialized = true;
-                    }
-                }
-                
-                // Connecter les événements de la scène menu
-                menu_scene_connect_events(menu_scene, core);
-                printf("✅ Scène menu pré-initialisée et connectée\n");
-                
-            } else {
-                printf("❌ ERREUR: Scène 'menu' non trouvable après enregistrement!\n");
-            }
-        } else {
-            printf("❌ Échec de l'enregistrement de la scène menu\n");
-        }
-    } else {
-        printf("❌ SceneManager NULL - impossible d'enregistrer les scènes\n");
+    // 🆕 ENREGISTREMENT AUTOMATIQUE via le registre
+    if (!scene_registry_register_all(scene_manager)) {
+        printf("❌ Impossible d'enregistrer les scènes via scene_registry\n");
+        return false;
     }
     
+    // 🆕 CONNEXION AUTOMATIQUE des événements pour toutes les scènes
+    if (!scene_registry_connect_all_events(scene_manager, core)) {
+        printf("❌ Impossible de connecter les événements via scene_registry\n");
+        return false;
+    }
+    
+    printf("✅ Toutes les scènes initialisées et connectées via le registre\n");
     return true;
 }
 
@@ -149,9 +124,9 @@ int main(int argc, char* argv[]) {
     }
     printf("✅ Core du jeu créé\n");
     
-    // Initialiser les scènes
+    // Initialiser les scènes VIA LE REGISTRE
     printf("🎭 Initialisation des scènes...\n");
-    if (!initialize_scenes(core)) {
+    if (!initialize_scenes_with_registry(core)) {
         printf("❌ Erreur: Échec de l'initialisation des scènes\n");
         window_cleanup_global_windows();
         game_core_destroy(core);

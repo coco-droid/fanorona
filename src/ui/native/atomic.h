@@ -331,6 +331,7 @@ void atomic_set_z_index(AtomicElement* element, int z_index);
 void atomic_set_display(AtomicElement* element, DisplayType display);
 void atomic_set_visibility(AtomicElement* element, bool visible);
 void atomic_set_opacity(AtomicElement* element, Uint8 opacity);
+void atomic_set_border_radius(AtomicElement* element, int radius); // Ajout de la déclaration manquante
 
 // Fonctions d'images de fond
 void atomic_set_background_image(AtomicElement* element, SDL_Texture* texture);

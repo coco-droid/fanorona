@@ -46,17 +46,33 @@ SceneManager* scene_manager_create(void) {
 void scene_manager_destroy(SceneManager* manager) {
     if (!manager) return;
     
-    // Nettoyer les scènes en cours et suivantes
-    if (manager->current_scene) {
-        manager->current_scene->cleanup(manager->current_scene);
+    printf("🧹 Destruction du SceneManager...\n");
+    
+    // 🆕 Nettoyer toutes les scènes enregistrées
+    for (int i = 0; i < manager->scene_count; i++) {
+        if (manager->scenes[i]) {
+            printf("🧹 Nettoyage de la scène '%s'...\n", 
+                   manager->scenes[i]->name ? manager->scenes[i]->name : "sans nom");
+            
+            if (manager->scenes[i]->cleanup) {
+                manager->scenes[i]->cleanup(manager->scenes[i]);
+            }
+            
+            scene_destroy(manager->scenes[i]);
+            manager->scenes[i] = NULL;
+        }
     }
-    if (manager->next_scene) {
-        manager->next_scene->cleanup(manager->next_scene);
-    }
+    
+    // 🔧 FIX: Ne plus nettoyer current_scene et next_scene séparément 
+    // car elles sont déjà nettoyées dans la boucle ci-dessus
+    manager->current_scene = NULL;
+    manager->next_scene = NULL;
     
     // Libérer la mémoire des transitions
     free(manager->transitions);
     free(manager);
+    
+    printf("✅ SceneManager détruit proprement\n");
 }
 
 // Définir la scène actuelle
@@ -68,13 +84,15 @@ bool scene_manager_set_scene(SceneManager* manager, Scene* scene) {
     
     printf("🔧 Définition de la scène '%s' comme scène courante...\n", scene->name ? scene->name : "sans nom");
     
-    // Nettoyer la scène précédente si elle existe
+    // 🔧 FIX CRITIQUE: Ne pas libérer la mémoire des scènes enregistrées !
+    // Les scènes enregistrées sont gérées par le SceneManager, pas par cette fonction
     if (manager->current_scene && manager->current_scene != scene) {
-        printf("🧹 Nettoyage de la scène précédente...\n");
+        printf("🧹 Désactivation de la scène précédente...\n");
         if (manager->current_scene->cleanup) {
             manager->current_scene->cleanup(manager->current_scene);
         }
-        free(manager->current_scene);
+        // 🔧 NE PAS FAIRE free() ici - les scènes sont dans le registre !
+        manager->current_scene->active = false;
     }
     
     manager->current_scene = scene;

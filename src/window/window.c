@@ -153,12 +153,20 @@ SDL_Renderer* window_get_renderer(GameWindow* window) {
 
 // Créer la mini fenêtre
 GameWindow* create_mini_window(void) {
-    return window_create("Fanorona - Mini Window", DEFAULT_MINI_WINDOW_WIDTH, DEFAULT_MINI_WINDOW_HEIGHT);
+    GameWindow* window = window_create("Fanorona - Mini Window", 700, 500);  // Menu scenes
+    if (window) {
+        printf("🖼️ Mini window créée: 700x500 (pour home_scene et menu_scene)\n");
+    }
+    return window;
 }
 
 // Créer la large fenêtre
 GameWindow* create_large_window(void) {
-    return window_create("Fanorona - Game Window", DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT);
+    GameWindow* window = window_create("Fanorona - Game Window", 800, 600);  // Game scene
+    if (window) {
+        printf("🖼️ Main window créée: 800x600 (pour game_scene avec sidebar)\n");
+    }
+    return window;
 }
 
 // Initialiser les fenêtres globales

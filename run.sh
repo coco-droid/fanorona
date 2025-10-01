@@ -76,6 +76,8 @@ SOURCES=(
     "$SRC_DIR/scene/scene_manager.c"  # Nouveau gestionnaire de scènes
     "$SRC_DIR/scene/home_scene.c"
     "$SRC_DIR/scene/menu_scene.c"     # 🔧 AJOUTÉ: menu_scene.c pour la compilation
+    "$SRC_DIR/scene/game_scene.c"     # 🆕 AJOUTÉ: game_scene.c pour la compilation
+    "$SRC_DIR/scene/scene_registry.c" # Ajouté: nouveau registre de scènes
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
     "$SRC_DIR/ui/native/atomic.c"
@@ -83,6 +85,8 @@ SOURCES=(
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
     "$SRC_DIR/ui/cnt_ui.c"            # 🔧 FIX: Ajouter cnt_ui.c pour les fonctions container
+    "$SRC_DIR/ui/sidebar.c"           # 🆕 AJOUTÉ: sidebar.c pour les composants sidebar
+    "$SRC_DIR/ui/cnt_playable.c"      # 🆕 AJOUTÉ: cnt_playable.c pour la zone de jeu
     "$SRC_DIR/ui/neon_btn.c"          # 🔧 ACTIVÉ: Décommenter neon_btn.c pour les boutons avec effet neon
     "$SRC_DIR/ui/components/ui_link.c"  # UI Link pour les transitions
 )

@@ -1645,4 +1645,15 @@ void atomic_destroy(AtomicElement* element) {
     atomic_destroy_safe(element);
 }
 
-// === END OF IMPLEMENTATIONS ===
+// Fonction pour définir le border-radius (ajout de l'implémentation manquante)
+void atomic_set_border_radius(AtomicElement* element, int radius) {
+    if (!element) return;
+    
+    // Pour l'instant, stocker dans un champ border_width comme approximation
+    // TODO: Ajouter un vrai champ border_radius dans AtomicStyle si nécessaire
+    element->style.border_width = radius;
+    
+    // Log pour debug
+    printf("🔧 [atomic_set_border_radius] Radius %d défini pour élément '%s'\n", 
+           radius, element->id ? element->id : "no-id");
+}

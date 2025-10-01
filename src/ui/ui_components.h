@@ -271,4 +271,31 @@ void ui_button_remove_all_effects(UINode* button);
 // Macro de debugging
 #define DEBUG_TEXT(node) ui_debug_text_rendering(node, #node)
 
+// === SIDEBAR COMPONENT ===
+
+// Créer une sidebar complète avec titre, joueurs et boutons
+UINode* ui_sidebar(UITree* tree, const char* id);
+
+// Fonctions helper pour les sections de la sidebar
+void ui_sidebar_add_player_containers(UINode* sidebar);
+UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, const char* name, int captures, const char* time);
+void ui_sidebar_add_control_buttons(UINode* sidebar);
+UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const char* icon, const char* text, bool is_prominent);
+
+// === CNT_PLAYABLE COMPONENT ===
+
+// Créer une zone de jeu (2/3 de l'écran)
+UINode* ui_cnt_playable(UITree* tree, const char* id);
+
+// Ajouter la zone de jeu centrale
+void ui_cnt_playable_add_game_area(UINode* playable_container);
+
+// Container de jeu avec taille spécifiée
+UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height);
+
+// === MACROS POUR LES NOUVEAUX COMPOSANTS ===
+
+#define UI_SIDEBAR(tree, id) ui_sidebar(tree, id)
+#define UI_CNT_PLAYABLE(tree, id) ui_cnt_playable(tree, id)
+
 #endif // UI_COMPONENTS_H

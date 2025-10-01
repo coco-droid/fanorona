@@ -18,8 +18,10 @@ SOURCES = main.c \
           $(SRC_DIR)/window/window.c \
           $(SRC_DIR)/scene/scene.c \
           $(SRC_DIR)/scene/scene_manager.c \
+          $(SRC_DIR)/scene/scene_registry.c \
           $(SRC_DIR)/scene/home_scene.c \
           $(SRC_DIR)/scene/menu_scene.c \
+          $(SRC_DIR)/scene/game_scene.c \
           $(SRC_DIR)/utils/asset_manager.c \
           $(SRC_DIR)/utils/log_console.c \
           $(SRC_DIR)/ui/native/atomic.c \
@@ -27,6 +29,8 @@ SOURCES = main.c \
           $(SRC_DIR)/ui/ui_tree.c \
           $(SRC_DIR)/ui/ui_components.c \
           $(SRC_DIR)/ui/cnt_ui.c \
+          $(SRC_DIR)/ui/sidebar.c \
+          $(SRC_DIR)/ui/cnt_playable.c \
           $(SRC_DIR)/ui/neon_btn.c \
           $(SRC_DIR)/ui/components/ui_link.c
 

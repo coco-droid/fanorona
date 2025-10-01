@@ -1,8 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "scene.h"
 #include "../ui/ui_components.h"
+#include "../ui/components/ui_link.h"  // 🆕 AJOUT: Import pour ui_create_link
 #include "../utils/log_console.h"
-#include "../utils/asset_manager.h"  // 🔧 FIX: Ajouter l'include manquant
+#include "../utils/asset_manager.h"
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -13,6 +14,7 @@ typedef struct MenuSceneData {
     bool initialized;
     UITree* ui_tree;
     GameCore* core;
+    UINode* ai_link;  // 🆕 AJOUT: Référence au lien IA pour la connexion
 } MenuSceneData;
 
 // Callbacks pour les neon buttons
@@ -21,19 +23,55 @@ static void multiplayer_clicked(UINode* node, void* user_data) {
     (void)node; (void)user_data;
 }
 
-static void ai_clicked(UINode* node, void* user_data) {
-    printf("🤖 Jeu contre IA sélectionné\n");
-    (void)node; (void)user_data;
-}
-
 static void wiki_clicked(UINode* node, void* user_data) {
     printf("📚 Wiki ouvert\n");
     (void)node; (void)user_data;
 }
 
+// 🆕 Fonction pour styliser le lien comme un neon button
+static void style_link_as_neon_button(UINode* link, int r, int g, int b) {
+    if (!link || !link->element) return;
+    
+    // Appliquer le style de base d'un neon button
+    SET_SIZE(link, 280, 45);
+    ui_set_text_align(link, "center");
+    
+    // Style neon simulé avec couleur de base
+    atomic_set_background_color(link->element, r/4, g/4, b/4, 200); // Couleur de base sombre
+    atomic_set_border(link->element, 2, r, g, b, 255); // Bordure colorée pour effet neon
+    atomic_set_text_color_rgba(link->element, 255, 255, 255, 255); // Texte blanc
+    atomic_set_padding(link->element, 10, 15, 10, 15);
+    
+    printf("✨ UI Link stylisé comme neon button avec couleur (%d,%d,%d)\n", r, g, b);
+}
+
+// 🆕 Callback hover pour effet neon sur le lien
+static void ai_link_hovered(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // Intensifier l'effet neon au survol
+    atomic_set_background_color(atomic_element, 255/2, 0/2, 255/2, 255); // Violet plus intense
+    atomic_set_border(atomic_element, 3, 255, 100, 255, 255); // Bordure plus épaisse et plus claire
+    
+    printf("🔮 Effet neon intensifié sur le lien IA\n");
+    (void)event;
+}
+
+// 🆕 Callback unhover pour retour normal
+static void ai_link_unhovered(void* element, SDL_Event* event) {
+    AtomicElement* atomic_element = (AtomicElement*)element;
+    
+    // Retour à l'état normal
+    atomic_set_background_color(atomic_element, 255/4, 0/4, 255/4, 200); // Violet de base
+    atomic_set_border(atomic_element, 2, 255, 0, 255, 255); // Bordure normale
+    
+    printf("🔮 Effet neon normal restauré sur le lien IA\n");
+    (void)event;
+}
+
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
-    printf("📋 Initialisation de la scène Menu avec container automatique\n");
+    printf("📋 Initialisation de la scène Menu avec UI Link vers game_scene\n");
     
     // 🔧 DÉSACTIVER la visualisation des hitboxes pour la scène menu
     ui_set_hitbox_visualization(false);
@@ -47,6 +85,7 @@ static void menu_scene_init(Scene* scene) {
     
     data->initialized = true;
     data->core = NULL;
+    data->ai_link = NULL;  // 🆕 Initialiser la référence
     
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -137,21 +176,27 @@ static void menu_scene_init(Scene* scene) {
             printf("✨ Neon Button 'Multijoueur' créé avec lueur verte\n");
         }
         
-        // 2. Bouton IA avec neon
-        UINode* ai_btn = ui_neon_button(data->ui_tree, "ai-btn", "JOUER CONTRE L'IA", ai_clicked, NULL);
-        if (ai_btn) {
-            SET_SIZE(ai_btn, 280, 45);
-            ui_set_text_align(ai_btn, "center");
+        // 🆕 2. UI LINK pour IA avec transition de fenêtre (MINI → MAIN)
+        data->ai_link = ui_create_link(data->ui_tree, "ai-link", "JOUER CONTRE L'IA", "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
+        if (data->ai_link) {
+            // Styliser comme un neon button violet
+            style_link_as_neon_button(data->ai_link, 255, 0, 255); // Violet neon
             
-            // Configuration spécifique neon
-            ui_neon_button_set_glow_color(ai_btn, 255, 0, 255); // Violet neon
-            ui_neon_button_set_animation_speed(ai_btn, 1.2f);
+            // Ajouter les effets hover/unhover pour l'effet neon
+            atomic_set_hover_handler(data->ai_link->element, ai_link_hovered);
+            atomic_set_unhover_handler(data->ai_link->element, ai_link_unhovered);
             
-            APPEND(buttons_container, ai_btn);
-            printf("✨ Neon Button 'IA' créé avec lueur violette\n");
+            // 🆕 CONFIGURER LA FENÊTRE CIBLE (MAIN WINDOW)
+            ui_link_set_target_window(data->ai_link, WINDOW_TYPE_MAIN);
+            
+            APPEND(buttons_container, data->ai_link);
+            printf("🔗✨ UI Link 'IA' créé avec transition MINI → MAIN WINDOW\n");
+            printf("   🎯 Cible: game_scene dans MAIN WINDOW (800x600)\n");
+            printf("   🔄 Transition: SCENE_TRANSITION_CLOSE_AND_OPEN\n");
+            printf("   🎨 Style: Neon button violet avec effets hover\n");
         }
         
-        // 3. Bouton Wiki avec neon
+        // 3. Bouton Wiki avec neon (inchangé)
         UINode* wiki_btn = ui_neon_button(data->ui_tree, "wiki-btn", "WIKI", wiki_clicked, NULL);
         if (wiki_btn) {
             SET_SIZE(wiki_btn, 280, 45);
@@ -186,11 +231,10 @@ static void menu_scene_init(Scene* scene) {
     printf("✅ Interface Menu créée avec :\n");
     printf("   🖼️  Background identique à home\n");
     printf("   📦  Container modal avec logo et sous-titre AUTOMATIQUES\n");
-    printf("   🎯  Logo : 10px du haut (dans content_rect), align-self center-x\n");
-    printf("   📝  Sous-titre : 98px du haut (logo + 8px), align-self center-x\n");
-    printf("   🎮  Boutons : CENTRÉS verticalement ET horizontalement avec align-self\n");
-    printf("   ✨  NEON BUTTONS avec animations de lueur personnalisées\n");
-    printf("   🌈  Couleurs : Multijoueur=Vert, IA=Violet, Wiki=Bleu ciel\n");
+    printf("   🎮  Bouton Multijoueur : Neon button classique\n");
+    printf("   🔗  Bouton IA : UI LINK avec transition MINI→MAIN vers game_scene\n");
+    printf("   📚  Bouton Wiki : Neon button classique\n");
+    printf("   🌟  NOUVELLE FONCTIONNALITÉ : Clic sur IA = Ouverture game en main window !\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;
@@ -316,4 +360,22 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
     scene->active = true;
     
     printf("✅ Scène menu prête avec son propre système d'événements\n");
+    
+    // 🆕 CONNECTER SPÉCIFIQUEMENT LE LIEN IA AU SCENEMANAGER
+    if (data->ai_link) {
+        // Obtenir le SceneManager du Core
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(core);
+        
+        if (scene_manager) {
+            // Connecter le lien UI au SceneManager pour les vraies transitions
+            ui_link_connect_to_manager(data->ai_link, scene_manager);
+            printf("🔗 UI Link 'IA' connecté au SceneManager pour transition MINI→MAIN\n");
+            printf("   🎯 Lors du clic : mini_window se fermera, main_window s'ouvrira avec game_scene\n");
+            printf("   📏 Dimensions : 700x500 → 800x600\n");
+            printf("   🎮 Layout : menu simple → sidebar + zone de jeu\n");
+        } else {
+            printf("❌ SceneManager non disponible pour le lien IA\n");
+        }
+    }
 }
