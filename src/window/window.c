@@ -49,6 +49,20 @@ void window_quit_sdl(void) {
 
 // Créer une fenêtre générique (AVEC VSYNC FORCÉ)
 GameWindow* window_create(const char* title, int width, int height) {
+    // 🔧 FIX: Vérifier si SDL est déjà initialisé
+    if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+        printf("⚠️ SDL n'est pas initialisé, initialisation tardive en cours...\n");
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+            printf("❌ Erreur d'initialisation SDL tardive: %s\n", SDL_GetError());
+            return NULL;
+        }
+    }
+    
+    // 🔧 FIX: Définir des hints SDL pour éviter les problèmes d'événements X11
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+    SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+    SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
+    
     GameWindow* game_window = (GameWindow*)malloc(sizeof(GameWindow));
     if (!game_window) {
         printf("Erreur: Impossible d'allouer la mémoire pour la fenêtre\n");
@@ -58,8 +72,8 @@ GameWindow* window_create(const char* title, int width, int height) {
     // Créer la fenêtre SDL
     game_window->window = SDL_CreateWindow(
         title,
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_UNDEFINED,  // 🔧 FIX: Utiliser UNDEFINED au lieu de CENTERED
+        SDL_WINDOWPOS_UNDEFINED,  // pour éviter les problèmes de positionnement X11
         width,
         height,
         SDL_WINDOW_SHOWN
@@ -70,6 +84,15 @@ GameWindow* window_create(const char* title, int width, int height) {
         free(game_window);
         return NULL;
     }
+    
+    // 🔧 FIX: Traiter immédiatement tous les événements en attente
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        // Vider simplement la file d'attente des événements
+    }
+    
+    // 🔧 FIX: Permettre au système de fenêtrage de traiter les événements
+    SDL_PumpEvents();
     
     // 🆕 Récupérer l'ID unique de la fenêtre
     game_window->window_id = SDL_GetWindowID(game_window->window);
@@ -611,4 +634,75 @@ WindowDimensions window_get_dimensions_for_type(WindowType type) {
     }
     
     return dims;
+}
+
+// 🆕 Fonction sécurisée pour transition entre fenêtres
+// Ouvre d'abord la destination avant de fermer la source
+void window_transition_safely(WindowType from_type, WindowType to_type) {
+    if (from_type == to_type) {
+        return; // Rien à faire si même type
+    }
+    
+    printf("🚀 TRANSITION SÉCURISÉE: %s → %s\n",
+           from_type == WINDOW_TYPE_MINI ? "MINI" : "MAIN",
+           to_type == WINDOW_TYPE_MINI ? "MINI" : "MAIN");
+    
+    // 1. D'ABORD créer la fenêtre de destination si elle n'existe pas
+    if (to_type == WINDOW_TYPE_MAIN && !g_main_window) {
+        printf("🔍 ÉTAPE 1: Création de la fenêtre principale...\n");
+        use_main_window();
+        if (g_main_window) {
+            printf("✅ Fenêtre principale créée avec succès (%dx%d)\n", 
+                   g_main_window->width, g_main_window->height);
+        } else {
+            printf("❌ Échec de la création de la fenêtre principale\n");
+            return;
+        }
+    } else if (to_type == WINDOW_TYPE_MINI && !g_mini_window) {
+        printf("🔍 ÉTAPE 1: Création de la mini fenêtre...\n");
+        use_mini_window();
+        if (g_mini_window) {
+            printf("✅ Mini fenêtre créée avec succès (%dx%d)\n", 
+                   g_mini_window->width, g_mini_window->height);
+        } else {
+            printf("❌ Échec de la création de la mini fenêtre\n");
+            return;
+        }
+    }
+    
+    // 2. Mettre temporairement les deux fenêtres comme actives
+    WindowType old_type = g_active_window_type;
+    g_active_window_type = WINDOW_TYPE_BOTH;
+    printf("🔍 ÉTAPE 2: Les deux fenêtres sont temporairement actives\n");
+    
+    // 3. Actualiser l'état du rendu pour la nouvelle fenêtre
+    printf("🔍 ÉTAPE 3: Mise à jour du contexte de rendu...\n");
+    if (to_type == WINDOW_TYPE_MAIN && g_main_window) {
+        SDL_SetRenderDrawColor(g_main_window->renderer, 0, 0, 0, 255);
+        SDL_RenderClear(g_main_window->renderer);
+        SDL_RenderPresent(g_main_window->renderer);
+        printf("✅ Contexte de rendu de la fenêtre principale initialisé\n");
+    } else if (to_type == WINDOW_TYPE_MINI && g_mini_window) {
+        SDL_SetRenderDrawColor(g_mini_window->renderer, 0, 0, 0, 255);
+        SDL_RenderClear(g_mini_window->renderer);
+        SDL_RenderPresent(g_mini_window->renderer);
+        printf("✅ Contexte de rendu de la mini fenêtre initialisé\n");
+    }
+    
+    // 4. SEULEMENT MAINTENANT fermer l'ancienne fenêtre
+    printf("🔍 ÉTAPE 4: Fermeture de l'ancienne fenêtre...\n");
+    if (from_type == WINDOW_TYPE_MAIN && g_main_window) {
+        printf("👋 Fermeture de la fenêtre principale\n");
+        window_destroy(g_main_window);
+        g_main_window = NULL;
+    } else if (from_type == WINDOW_TYPE_MINI && g_mini_window) {
+        printf("👋 Fermeture de la mini fenêtre\n");
+        window_destroy(g_mini_window);
+        g_mini_window = NULL;
+    }
+    
+    // 5. Définir le type final
+    g_active_window_type = to_type;
+    printf("✅ TRANSITION TERMINÉE: Fenêtre active = %s\n", 
+           to_type == WINDOW_TYPE_MINI ? "MINI" : "MAIN");
 }

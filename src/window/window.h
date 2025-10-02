@@ -43,6 +43,9 @@ SDL_Renderer* window_get_renderer(GameWindow* window);
 GameWindow* create_mini_window(void);
 GameWindow* create_large_window(void);
 
+// 🆕 Fonction sécurisée pour transition entre fenêtres
+void window_transition_safely(WindowType from_type, WindowType to_type);
+
 // Système de fenêtres globales pour les scènes
 void window_initialize_global_windows(void);
 void window_cleanup_global_windows(void);

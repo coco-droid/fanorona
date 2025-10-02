@@ -355,15 +355,37 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             break;
             
         case SCENE_TRANSITION_CLOSE_AND_OPEN:
-            // Fermer la fenêtre de la scène active actuelle
-            if (manager->current_scene) {
-                manager->current_scene->active = false;
+            // 🔧 FIX CRITIQUE: Utiliser la nouvelle fonction de transition sécurisée
+            printf("🔄 TRANSITION SÉCURISÉE: Initialisation de la scène cible avant fermeture\n");
+            
+            // 1. Définir la nouvelle scène comme courante
+            manager->current_scene = target_scene;
+            
+            // 2. Assigner la scène à sa fenêtre cible
+            printf("🔍 VÉRIFICATION: Assignation de '%s' à la fenêtre %d\n", 
+                   target_scene->name, target_window);
+            scene_manager_set_scene_for_window(manager, target_scene, target_window);
+            
+            // 3. S'assurer que la scène est initialisée
+            if (!target_scene->initialized && target_scene->init) {
+                printf("🔍 INITIALISATION de la scène '%s'\n", target_scene->name);
+                target_scene->init(target_scene);
+                target_scene->initialized = true;
             }
             
-            // Ouvrir la nouvelle scène dans sa fenêtre cible
-            manager->current_scene = target_scene;
-            scene_manager_set_scene_for_window(manager, target_scene, target_window);
-            window_set_active_window(target_window);
+            // 4. Désactiver l'ancienne scène
+            if (old_scene) {
+                printf("🔍 DÉSACTIVATION de l'ancienne scène '%s'\n", old_scene->name);
+                old_scene->active = false;
+            }
+            
+            // 5. Activer la nouvelle scène
+            target_scene->active = true;
+            printf("🔍 ACTIVATION de la nouvelle scène '%s'\n", target_scene->name);
+            
+            // 6. Effectuer la transition sécurisée des fenêtres
+            extern void window_transition_safely(WindowType from_type, WindowType to_type);
+            window_transition_safely(source_window_type, target_window);
             break;
             
         case SCENE_TRANSITION_SWAP_WINDOWS:

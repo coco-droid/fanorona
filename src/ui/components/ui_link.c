@@ -56,13 +56,24 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         log_console_write("LinkTransition", "BeforeTransition", "ui_link.c", 
                          "[ui_link.c] Attempting scene transition");
         
-        // 🔧 DIAGNOSTIC AVANT TRANSITION
+        // 🔍 POINT DE VÉRIFICATION: Diagnostiquer l'état AVANT transition
         Scene* current = scene_manager_get_current_scene(link_data->manager);
         printf("🔍 Scène courante avant transition: '%s'\n", 
                current ? (current->name ? current->name : "unnamed") : "NULL");
         
-        // 🆕 OBTENIR LE TYPE DE FENÊTRE SOURCE POUR BIEN ASSOCIER LA NOUVELLE SCÈNE
-        WindowType source_window_type = current ? current->target_window : WINDOW_TYPE_MAIN;
+        // 🔍 VÉRIFIER la fenêtre source et destination
+        WindowType source_window_type = current ? current->target_window : WINDOW_TYPE_MINI;
+        WindowType target_window_type = link_data->target_window;
+        printf("🔍 Transition de fenêtre: %s (%d) → %s (%d)\n",
+               source_window_type == WINDOW_TYPE_MINI ? "MINI" : "MAIN", source_window_type,
+               target_window_type == WINDOW_TYPE_MINI ? "MINI" : "MAIN", target_window_type);
+        
+        // 🔍 VÉRIFIER la scène cible AVANT transition
+        Scene* target_scene = scene_manager_get_scene_by_id(link_data->manager, link_data->target_scene_id);
+        printf("🔍 Scène cible: %s (ID: %s) - Initialisée: %s\n", 
+               target_scene ? (target_scene->name ? target_scene->name : "unnamed") : "NULL",
+               link_data->target_scene_id ? link_data->target_scene_id : "NULL",
+               target_scene && target_scene->initialized ? "OUI" : "NON");
         
         // Faire la transition avec l'option spécifiée
         bool success = scene_manager_transition_to_scene(link_data->manager, 
@@ -72,16 +83,21 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         if (success) {
             printf("✅ Transition réussie vers '%s' !\n", link_data->target_scene_id);
             
+            // 🔍 POINT DE VÉRIFICATION: Diagnostiquer l'état APRÈS transition
+            Scene* new_current = scene_manager_get_current_scene(link_data->manager);
+            WindowType new_active_window = window_get_active_window();
+            printf("🔍 APRÈS TRANSITION: Scène courante = '%s', Fenêtre active = %s (%d)\n",
+                   new_current ? (new_current->name ? new_current->name : "unnamed") : "NULL",
+                   new_active_window == WINDOW_TYPE_MINI ? "MINI" : 
+                   new_active_window == WINDOW_TYPE_MAIN ? "MAIN" : "LES DEUX",
+                   new_active_window);
+            
             // 🆕 LOG DE TRANSITION RÉUSSIE
             log_console_write("LinkTransition", "Success", "ui_link.c", 
                              "[ui_link.c] Scene transition successful");
             
             // 🔧 VÉRIFICATION APRÈS TRANSITION
             Scene* new_scene = scene_manager_get_scene_by_id(link_data->manager, link_data->target_scene_id);
-            Scene* new_current = scene_manager_get_current_scene(link_data->manager);
-            
-            printf("🔍 Nouvelle scène courante: '%s'\n", 
-                   new_current ? (new_current->name ? new_current->name : "unnamed") : "NULL");
             
             // 🆕 ASSOCIER EXPLICITEMENT LA NOUVELLE SCÈNE À LA FENÊTRE SOURCE
             if (new_scene) {

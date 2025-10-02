@@ -191,6 +191,12 @@ void game_scene_connect_events(Scene* scene, GameCore* core) {
         return;
     }
     
+    // 🔧 FIX: Vérifier que la scène est initialisée
+    if (!scene->initialized || !data->ui_tree) {
+        printf("❌ Scène game non initialisée correctement\n");
+        return;
+    }
+    
     // Créer un EventManager dédié à la scène
     if (!scene->event_manager) {
         printf("🔧 Création d'un EventManager dédié pour la scène de jeu\n");
@@ -201,25 +207,19 @@ void game_scene_connect_events(Scene* scene, GameCore* core) {
         }
     }
     
-    // Connecter l'EventManager à l'UITree
-    if (data->ui_tree) {
-        data->ui_tree->event_manager = scene->event_manager;
-        
-        // Enregistrer tous les éléments UI
-        ui_tree_register_all_events(data->ui_tree);
-        
-        // Stocker l'UITree dans la scène
-        scene->ui_tree = data->ui_tree;
-        
-        printf("🔗 EventManager dédié connecté à la scène de jeu\n");
-    }
+    // 🔧 FIX CRITIQUE: Connecter l'EventManager à l'UITree AVANT l'enregistrement
+    data->ui_tree->event_manager = scene->event_manager;
+    
+    // 🔧 FIX: Enregistrer tous les éléments UI avec l'EventManager de la scène
+    printf("🔧 Enregistrement des éléments UI avec l'EventManager...\n");
+    ui_tree_register_all_events(data->ui_tree);
+    printf("✅ Éléments UI enregistrés\n");
+    
+    // Stocker l'UITree dans la scène
+    scene->ui_tree = data->ui_tree;
     
     // Stocker la référence du core
     data->core = core;
     
-    // Marquer comme initialisé et actif
-    scene->initialized = true;
-    scene->active = true;
-    
-    printf("✅ Scène de jeu prête avec son propre système d'événements\n");
+    printf("✅ Scène de jeu prête avec éléments connectés\n");
 }

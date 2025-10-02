@@ -60,8 +60,11 @@ bool log_console_init(void) {
     
     printf("🖥️ Initialisation de la console d'événements dédiée...\n");
     
-    // Ignorer SIGPIPE pour éviter que le processus parent crash si la console se ferme
-    signal(SIGPIPE, SIG_IGN);
+    // Ignorer SIGPIPE de manière plus robuste pour éviter les crashes
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sa, NULL);
     
     // Créer un pipe pour communiquer avec la console
     int pipefd[2];
@@ -240,64 +243,130 @@ void log_console_cleanup(void) {
     printf("✅ Console d'événements fermée\n");
 }
 
+// New pipe validity checking function
+static bool is_pipe_valid() {
+    if (!log_pipe || !log_console_enabled) {
+        return false;
+    }
+    
+    // Check if the process is still running
+    if (log_console_pid > 0) {
+        int status;
+        pid_t result = waitpid(log_console_pid, &status, WNOHANG);
+        if (result == log_console_pid || result == -1) {
+            // Console process has terminated or there was an error
+            if (log_pipe) {
+                fclose(log_pipe);
+                log_pipe = NULL;
+            }
+            log_console_enabled = false;
+            log_console_pid = -1;
+            return false;
+        }
+    }
+    
+    // Check if the pipe has errors
+    if (ferror(log_pipe)) {
+        fclose(log_pipe);
+        log_pipe = NULL;
+        log_console_enabled = false;
+        return false;
+    }
+    
+    return true;
+}
+
+// Modified log_console_write with improved error handling
 void log_console_write(const char* source, const char* event_type, const char* element_id, const char* message) {
-    if (!log_console_enabled || !log_pipe) {
-        // Fallback : afficher dans la console principale si la console dédiée n'est pas disponible
+    // First check if pipe is valid without trying to write
+    if (!is_pipe_valid()) {
+        // Fallback: print to standard console instead
         char timestamp[32];
         get_timestamp(timestamp, sizeof(timestamp));
         printf("🔍 [%s] [%s] [%s] [%s] : %s\n", 
                timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
                element_id ? element_id : "NoID", message ? message : "No message");
-        fflush(stdout);
         return;
     }
     
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
     
-    // 🎯 FORMAT COLORÉ POUR LA CONSOLE D'ÉVÉNEMENTS
-    if (fprintf(log_pipe, "🔍 [%s] [%s] [%s] [%s] : %s\n", 
+    // Use a safer fprintf approach with error checking
+    int result = fprintf(log_pipe, "🔍 [%s] [%s] [%s] [%s] : %s\n", 
                 timestamp,
                 source ? source : "Unknown",
                 event_type ? event_type : "Unknown", 
                 element_id ? element_id : "NoID",
-                message ? message : "No message") < 0) {
-        // Si l'écriture échoue, la console a peut-être été fermée
-        // Fallback vers printf
+                message ? message : "No message");
+    
+    if (result < 0) {
+        // Write failed - cleanup and fallback to stdout
+        if (log_pipe) {
+            fclose(log_pipe);
+            log_pipe = NULL;
+        }
+        log_console_enabled = false;
+        
+        // Fallback to standard output
         printf("🔍 [%s] [%s] [%s] [%s] : %s\n", 
                timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
                element_id ? element_id : "NoID", message ? message : "No message");
+        return;
     }
     
-    fflush(log_pipe);
+    // Only flush if the pipe is still valid
+    if (log_pipe) {
+        fflush(log_pipe);
+    }
 }
 
-// 🆕 Nouvelle fonction spécialisée pour les événements avec code
+// Similarly update log_console_write_event with the same improved error handling
 void log_console_write_event(const char* source, const char* event_type, const char* element_id, const char* message, int event_code) {
-    if (!log_console_enabled || !log_pipe) return;
+    if (!is_pipe_valid()) {
+        // Fallback to standard output
+        char timestamp[32];
+        get_timestamp(timestamp, sizeof(timestamp));
+        const char* event_name = get_event_name(event_code);
+        printf("⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
+               timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
+               element_id ? element_id : "NoID", message ? message : "No message",
+               event_code, event_name);
+        return;
+    }
     
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
     
     const char* event_name = get_event_name(event_code);
     
-    // 🎯 FORMAT SPÉCIAL pour les événements SDL avec codes
-    if (fprintf(log_pipe, "⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
+    int result = fprintf(log_pipe, "⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
                 timestamp,
                 source ? source : "Unknown",
                 event_type ? event_type : "Unknown", 
                 element_id ? element_id : "NoID",
                 message ? message : "No message",
                 event_code,
-                event_name) < 0) {
-        // Fallback si échec
+                event_name);
+    
+    if (result < 0) {
+        // Write failed - cleanup and fallback to stdout
+        if (log_pipe) {
+            fclose(log_pipe);
+            log_pipe = NULL;
+        }
+        log_console_enabled = false;
+        
         printf("⚡ [%s] [%s] [%s] [%s] : %s (code=%d=%s)\n", 
                timestamp, source ? source : "Unknown", event_type ? event_type : "Unknown", 
                element_id ? element_id : "NoID", message ? message : "No message",
                event_code, event_name);
+        return;
     }
     
-    fflush(log_pipe);
+    if (log_pipe) {
+        fflush(log_pipe);
+    }
 }
 
 void log_console_set_enabled(bool enabled) {
@@ -346,7 +415,7 @@ bool log_console_is_iteration_logging_enabled(void) {
 // === LOGS SPÉCIALISÉS ===
 
 void log_console_mouse_event(const char* event_type, int x, int y, const char* element_id) {
-    if (!mouse_tracking_enabled || !log_console_enabled) return;
+    if (!mouse_tracking_enabled || !is_pipe_valid()) return;
     
     char message[256];
     snprintf(message, sizeof(message), "Mouse at (%d, %d)", x, y);

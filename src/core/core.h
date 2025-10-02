@@ -61,4 +61,11 @@ void game_core_switch_to_mini_window(GameCore* core);
 void game_core_open_both_windows(GameCore* core);
 WindowType game_core_get_active_window_type(GameCore* core);
 
+// 🆕 Fonction de debug pour diagnostiquer l'état du système
+void debug_current_state(GameCore* core);
+
+// 🆕 AJOUTER: Fonctions de debug supplémentaires
+void game_core_debug_event_system(GameCore* core);
+void game_core_force_scene_event_registration(GameCore* core);
+
 #endif // CORE_H
