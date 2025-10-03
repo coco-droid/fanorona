@@ -1669,3 +1669,9 @@ void atomic_set_text_alpha(AtomicElement* element, Uint8 alpha) {
     printf("🔍 [TEXT_ALPHA] Alpha du texte pour élément '%s' défini à %d\n", 
            element->id ? element->id : "NoID", alpha);
 }
+
+// 🆕 CUSTOM RENDER FUNCTION IMPLEMENTATION
+void atomic_set_custom_render(AtomicElement* element, void (*custom_render)(AtomicElement*, SDL_Renderer*)) {
+    if (!element) return;
+    element->custom_render = custom_render;
+}

@@ -39,6 +39,22 @@ void optimum_sync_all_hitboxes_post_layout(UITree* tree);
 // Parcourir récursivement l'arbre et synchroniser les positions avec l'EventManager
 void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager);
 
+// === SUPPORT POUR RENDU PERSONNALISÉ ===
+
+/**
+ * Vérifier si un élément a un rendu personnalisé défini
+ * @param element L'élément à vérifier
+ * @return true si un rendu personnalisé est défini
+ */
+bool optimum_has_custom_render(AtomicElement* element);
+
+/**
+ * Exécuter le rendu personnalisé d'un élément
+ * @param element L'élément avec rendu personnalisé
+ * @param renderer Le renderer SDL2
+ */
+void optimum_execute_custom_render(AtomicElement* element, SDL_Renderer* renderer);
+
 // === FONCTIONS DE DEBUG ===
 
 /**

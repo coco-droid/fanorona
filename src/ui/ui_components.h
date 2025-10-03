@@ -241,16 +241,6 @@ void ui_button_remove_all_effects(UINode* button);
 #define UI_CONTAINER(tree, id) ui_container(tree, id)
 #define UI_CONTAINER_CENTERED(tree, id, w, h) ui_container_centered(tree, id, w, h)
 
-#define SET_POS(node, x, y) ui_set_position(node, x, y)
-#define SET_SIZE(node, w, h) ui_set_size(node, w, h)
-#define SET_BG(node, color) ui_set_background(node, color)
-#define SET_BG_IMG(node, path) ui_set_background_image(node, path)
-#define SET_BG_SIZE(node, size) ui_set_background_size(node, size)
-#define SET_BG_REPEAT(node, repeat) ui_set_background_repeat(node, repeat)
-#define CENTER(node) ui_center(node)
-#define CENTER_X(node) ui_center_x(node)
-#define CENTER_Y(node) ui_center_y(node)
-
 // 🔧 FIX: Ajouter les macros manquantes
 #define FLEX_ROW(node) ui_set_flex_direction(node, "row")
 #define FLEX_COLUMN(node) ui_set_flex_direction(node, "column")
@@ -293,9 +283,45 @@ void ui_cnt_playable_add_game_area(UINode* playable_container);
 // Container de jeu avec taille spécifiée
 UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height);
 
+// === PLATEAU COMPONENT ===
+
+// Forward declaration pour Board
+typedef struct Board Board;
+
+// Créer un container de plateau avec damier Fanorona
+UINode* ui_plateau_container(UITree* tree, const char* id);
+
+// Plateau avec taille personnalisée
+UINode* ui_plateau_container_with_size(UITree* tree, const char* id, int width, int height);
+
+// Configuration d'affichage
+void ui_plateau_set_show_intersections(UINode* plateau, bool show);
+void ui_plateau_set_show_coordinates(UINode* plateau, bool show);
+
+// Accès aux données du plateau
+Board* ui_plateau_get_board(UINode* plateau);
+void ui_plateau_update_from_board(UINode* plateau, Board* new_board);
+
+// Nettoyage des ressources
+void ui_plateau_cleanup(UINode* plateau);
+
 // === MACROS POUR LES NOUVEAUX COMPOSANTS ===
 
 #define UI_SIDEBAR(tree, id) ui_sidebar(tree, id)
 #define UI_CNT_PLAYABLE(tree, id) ui_cnt_playable(tree, id)
+#define UI_PLATEAU(tree, id) ui_plateau_container(tree, id)
+#define UI_PLATEAU_SIZED(tree, id, w, h) ui_plateau_container_with_size(tree, id, w, h)
+
+// === MACROS MANQUANTES ===
+
+#define SET_POS(node, x, y) ui_set_position(node, x, y)
+#define SET_SIZE(node, w, h) ui_set_size(node, w, h)
+#define SET_BG(node, color) ui_set_background(node, color)
+#define SET_BG_IMG(node, path) ui_set_background_image(node, path)
+#define SET_BG_SIZE(node, size) ui_set_background_size(node, size)
+#define SET_BG_REPEAT(node, repeat) ui_set_background_repeat(node, repeat)
+#define CENTER(node) ui_center(node)
+#define CENTER_X(node) ui_center_x(node)
+#define CENTER_Y(node) ui_center_y(node)
 
 #endif // UI_COMPONENTS_H

@@ -469,4 +469,7 @@ void atomic_set_custom_data(AtomicElement* element, const char* key, void* value
 void* atomic_get_custom_data(AtomicElement* element, const char* key);
 void atomic_cleanup_custom_data(AtomicElement* element);
 
+// 🆕 CUSTOM RENDER FUNCTION
+void atomic_set_custom_render(AtomicElement* element, void (*custom_render)(AtomicElement*, SDL_Renderer*));
+
 #endif // ATOMIC_H

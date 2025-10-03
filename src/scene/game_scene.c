@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // Données pour la scène de jeu
 typedef struct GameSceneData {
@@ -157,8 +158,19 @@ Scene* create_game_scene(void) {
         return NULL;
     }
     
-    scene->id = "game";
-    scene->name = "Jeu Fanorona";
+    // 🔧 FIX: Use strdup() instead of string literals
+    scene->id = strdup("game");
+    scene->name = strdup("Jeu Fanorona");
+    
+    // 🔧 FIX: Check if strdup() succeeded
+    if (!scene->id || !scene->name) {
+        printf("❌ Erreur: Impossible d'allouer la mémoire pour les chaînes de la scène de jeu\n");
+        if (scene->id) free(scene->id);
+        if (scene->name) free(scene->name);
+        free(scene);
+        return NULL;
+    }
+    
     scene->target_window = WINDOW_TYPE_MAIN; // ✅ CONFIRMÉ: Utilise la main window (800x600)
     scene->event_manager = NULL;
     scene->ui_tree = NULL;
@@ -171,7 +183,7 @@ Scene* create_game_scene(void) {
     scene->cleanup = game_scene_cleanup;
     scene->data = NULL;
     
-    printf("🎮 Game scene configurée pour MAIN WINDOW (800x600)\n");
+    printf("🎮 Game scene created with proper memory allocation\n");
     printf("   📏 Layout: sidebar (266px) + zone de jeu (534px)\n");
     printf("   🎯 Prête pour transition depuis menu_scene\n");
     

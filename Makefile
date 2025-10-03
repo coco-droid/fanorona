@@ -24,6 +24,7 @@ SOURCES = main.c \
           $(SRC_DIR)/scene/game_scene.c \
           $(SRC_DIR)/utils/asset_manager.c \
           $(SRC_DIR)/utils/log_console.c \
+          $(SRC_DIR)/plateau/plateau.c \
           $(SRC_DIR)/ui/native/atomic.c \
           $(SRC_DIR)/ui/native/optimum.c \
           $(SRC_DIR)/ui/ui_tree.c \
@@ -31,6 +32,7 @@ SOURCES = main.c \
           $(SRC_DIR)/ui/cnt_ui.c \
           $(SRC_DIR)/ui/sidebar.c \
           $(SRC_DIR)/ui/cnt_playable.c \
+          $(SRC_DIR)/ui/plateau_cnt.c \
           $(SRC_DIR)/ui/neon_btn.c \
           $(SRC_DIR)/ui/components/ui_link.c
 

@@ -1,6 +1,7 @@
 #include "scene.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // === EXEMPLES DE SCÈNES ===
 
@@ -46,7 +47,24 @@ Scene* create_main_menu_scene(void) {
     Scene* scene = (Scene*)malloc(sizeof(Scene));
     if (!scene) return NULL;
     
-    scene->name = "Menu Principal";
+    // 🔧 FIX: Use strdup() instead of string literals
+    scene->id = strdup("main_menu");
+    scene->name = strdup("Menu Principal");
+    
+    // 🔧 FIX: Check if strdup() succeeded
+    if (!scene->id || !scene->name) {
+        if (scene->id) free(scene->id);
+        if (scene->name) free(scene->name);
+        free(scene);
+        return NULL;
+    }
+    
+    scene->target_window = WINDOW_TYPE_MAIN;
+    scene->event_manager = NULL;
+    scene->ui_tree = NULL;
+    scene->initialized = false;
+    scene->active = false;
+    
     scene->init = main_menu_init;
     scene->update = main_menu_update;
     scene->render = main_menu_render;

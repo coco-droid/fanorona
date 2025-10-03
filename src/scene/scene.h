@@ -22,8 +22,8 @@ typedef enum SceneTransitionOption {
 
 // Structure pour une scène
 struct Scene {
-    const char* id;                     // Identifiant unique de la scène
-    const char* name;                   // Nom d'affichage de la scène
+    char* id;                           // 🔧 FIX: Changed from const char* to char*
+    char* name;                         // 🔧 FIX: Changed from const char* to char*
     WindowType target_window;           // Type de fenêtre cible
     EventManager* event_manager;        // Gestionnaire d'événements propre à la scène
     UITree* ui_tree;                    // Arbre UI propre à la scène

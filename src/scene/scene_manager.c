@@ -467,8 +467,9 @@ void scene_destroy(Scene* scene) {
         scene->cleanup(scene);
     }
     
-    if (scene->id) free((void*)scene->id);
-    if (scene->name) free((void*)scene->name);
+    // 🔧 FIX: No need to cast since id and name are now char* (non-const)
+    if (scene->id) free(scene->id);
+    if (scene->name) free(scene->name);
     
     free(scene);
 }

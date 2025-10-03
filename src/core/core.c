@@ -254,6 +254,18 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
+    // 🆕 Validate that scene has valid strings
+    if (!home_scene->id || !home_scene->name) {
+        printf("❌ Erreur: Scène home créée avec des chaînes invalides\n");
+        if (home_scene->cleanup) home_scene->cleanup(home_scene);
+        scene_destroy(home_scene);
+        event_loop_destroy(core->event_loop);
+        scene_manager_destroy(core->scene_manager);
+        event_manager_destroy(core->event_manager);
+        free(core);
+        return NULL;
+    }
+    
     printf("🔧 Définition de la scène home comme scène courante...\n");
     if (!scene_manager_set_scene(core->scene_manager, home_scene)) {
         printf("❌ Erreur: Impossible de définir la scène home\n");

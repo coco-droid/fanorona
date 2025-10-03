@@ -53,44 +53,36 @@ void ui_cnt_playable_add_game_area(UINode* playable_container) {
     if (!game_area) return;
     
     // Taille de la zone de jeu (plateau Fanorona typique)
-    SET_SIZE(game_area, 400, 400);
+    SET_SIZE(game_area, 500, 350);
     
     // Style de la zone de jeu : plateau avec bordure
     atomic_set_background_color(game_area->element, 139, 69, 19, 255); // Bois marron
     atomic_set_border(game_area->element, 3, 101, 67, 33, 255); // Bordure bois foncé
     atomic_set_border_radius(game_area->element, 8);
+    atomic_set_padding(game_area->element, 10, 10, 10, 10);
     
     // Configuration pour le plateau de jeu
     ui_set_display_flex(game_area);
     ui_set_justify_content(game_area, "center");
     ui_set_align_items(game_area, "center");
     
-    // === GRILLE DE JEU (pour l'instant, juste un indicateur) ===
-    UINode* game_grid = ui_div(playable_container->tree, "game-grid");
-    if (game_grid) {
-        SET_SIZE(game_grid, 360, 360);
-        atomic_set_background_color(game_grid->element, 160, 82, 45, 255); // Bois plus clair
-        atomic_set_border_radius(game_grid->element, 4);
+    // === PLATEAU FANORONA RÉEL ===
+    UINode* plateau = UI_PLATEAU_SIZED(playable_container->tree, "fanorona-plateau", 480, 320);
+    if (plateau) {
+        // Le plateau sera automatiquement centré dans game_area grâce au flexbox
+        APPEND(game_area, plateau);
         
-        // Texte temporaire pour indiquer la zone de jeu
-        UINode* placeholder_text = ui_text(playable_container->tree, "game-placeholder", "PLATEAU FANORONA\n(Zone de jeu)");
-        if (placeholder_text) {
-            ui_set_text_color(placeholder_text, "rgb(255, 255, 255)");
-            ui_set_text_size(placeholder_text, 18);
-            ui_set_text_align(placeholder_text, "center");
-            ui_set_text_style(placeholder_text, true, false);
-            CENTER(placeholder_text);
-            APPEND(game_grid, placeholder_text);
-        }
-        
-        APPEND(game_area, game_grid);
+        printf("   🎯 Plateau Fanorona intégré (480x320) avec :\n");
+        printf("      • Damier 5x9 intersections\n");
+        printf("      • Connexions diagonales aux intersections fortes\n");
+        printf("      • Disposition initiale des pions\n");
+        printf("      • Rendu personnalisé avec fond mat\n");
     }
     
     APPEND(playable_container, game_area);
     
-    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with grid added");
-    printf("   🏁 Zone de jeu 400x400 avec plateau bois\n");
-    printf("   📋 Grille de jeu 360x360 prête pour le gameplay\n");
+    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with Fanorona plateau added");
+    printf("   🏁 Zone de jeu 500x350 avec plateau Fanorona intégré\n");
 }
 
 UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height) {
