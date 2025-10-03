@@ -671,7 +671,6 @@ void window_transition_safely(WindowType from_type, WindowType to_type) {
     }
     
     // 2. Mettre temporairement les deux fenêtres comme actives
-    WindowType old_type = g_active_window_type;
     g_active_window_type = WINDOW_TYPE_BOTH;
     printf("🔍 ÉTAPE 2: Les deux fenêtres sont temporairement actives\n");
     

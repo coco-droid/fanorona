@@ -369,6 +369,8 @@ void atomic_set_font_ttf(AtomicElement* element, TTF_Font* font);
 void atomic_set_text_color(AtomicElement* element, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 void atomic_set_text_align(AtomicElement* element, TextAlign align);
 void atomic_set_text_style(AtomicElement* element, bool bold, bool italic);
+// 🆕 Fonction pour définir la transparence du texte
+void atomic_set_text_alpha(AtomicElement* element, Uint8 alpha);
 
 // Fonctions de contenu
 void atomic_set_text(AtomicElement* element, const char* text);

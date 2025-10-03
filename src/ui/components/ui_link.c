@@ -36,12 +36,42 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         return;
     }
     
+    // 🆕 Vérifier si le lien est prêt avant de permettre la transition
+    if (!link_data->is_ready) {
+        printf("⏳ Clic sur lien '%s' ignoré - pas encore prêt (délai de sécurité actif)\n", 
+              node->id ? node->id : "NoID");
+        // Effet visuel différent pour indiquer que ce n'est pas prêt
+        atomic_set_background_color(atomic_element, 150, 150, 150, 200);
+        return;
+    }
+    
     printf("🎯 CLIC SUR LE LIEN UI '%s' → Cible: '%s'\n", 
            node->id ? node->id : "NoID", 
            link_data->target_scene_id ? link_data->target_scene_id : "NULL");
     
     // Effet visuel de clic
     atomic_set_background_color(atomic_element, 100, 150, 255, 200);
+    
+    // 🆕 DIAGNOSTIC AVANCÉ: Afficher toutes les infos cruciales
+    printf("🔍 DIAGNOSTIC TRANSITION: link->id=%s, target=%s, manager=%p\n",
+           node->id ? node->id : "NULL", 
+           link_data->target_scene_id ? link_data->target_scene_id : "NULL",
+           (void*)link_data->manager);
+    
+    if (link_data->manager) {
+        Scene* current = scene_manager_get_current_scene(link_data->manager);
+        printf("🔍 Scène courante: %s\n", 
+              current ? (current->id ? current->id : "no-id") : "NULL");
+              
+        // 🆕 Lister toutes les scènes enregistrées
+        printf("🔍 SCÈNES DISPONIBLES:\n");
+        for (int i = 0; i < link_data->manager->scene_count; i++) {
+            Scene* s = link_data->manager->scenes[i];
+            printf("   [%d] ID:'%s' Name:'%s'\n", i, 
+                   s ? (s->id ? s->id : "no-id") : "NULL",
+                   s ? (s->name ? s->name : "no-name") : "NULL");
+        }
+    }
     
     // Exécuter le callback personnalisé s'il existe
     if (link_data->on_click) {
@@ -146,8 +176,13 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
             printf("   → Cause: target_scene_id est NULL\n");
         }
         
-        // Fallback: appeler l'adapteur existant
-        scene_manager_transition_to_scene_from_element(node);
+        // 🆕 ATTENTION PARTICULIÈRE: NE PAS UTILISER LE FALLBACK, AFFICHER UN AVERTISSEMENT
+        printf("❌ ERREUR CRITIQUE: Transition impossible sans SceneManager ou target_scene_id\n");
+        printf("❌ Ce clic a été ignoré pour éviter une transition incorrecte\n");
+        printf("📋 Solution: Assurez-vous d'appeler ui_link_connect_to_manager() ET d'avoir un target_scene_id valide\n");
+        
+        // 🔧 NE PAS APPELER LE FALLBACK qui cause des problèmes
+        // scene_manager_transition_to_scene_from_element(node);
     }
     
     (void)event; // Éviter l'avertissement de compilation
@@ -199,6 +234,9 @@ UINode* ui_create_link(UITree* tree, const char* id, const char* text,
     link_data->target_window = WINDOW_TYPE_MAIN; // Par défaut
     link_data->on_click = NULL;
     link_data->manager = NULL; // 🆕 initialisation
+    link_data->is_ready = false; // 🆕 Commencer comme non prêt
+    link_data->activation_delay = 0.5f; // 🆕 Délai par défaut de 500ms
+    link_data->time_since_creation = 0.0f; // 🆕 Timer à 0
     
     // Associer les données au nœud
     link->component_data = link_data;
@@ -210,6 +248,10 @@ UINode* ui_create_link(UITree* tree, const char* id, const char* text,
     atomic_set_padding(link->element, 5, 10, 5, 10);
     atomic_set_margin(link->element, 2, 2, 2, 2);
     
+    // 🆕 Effet visuel initial pour indiquer que ce n'est pas prêt
+    atomic_set_background_color(link->element, 150, 150, 150, 100);
+    atomic_set_text_alpha(link->element, 180); // Semi-transparent
+    
     // SÉCURITÉ : s'assurer que le callback peut retrouver le UINode même avant connection au SceneManager
     link->element->user_data = link;
     
@@ -217,6 +259,9 @@ UINode* ui_create_link(UITree* tree, const char* id, const char* text,
     atomic_set_click_handler(link->element, ui_link_click_handler);
     atomic_set_hover_handler(link->element, ui_link_hover_handler);
     atomic_set_unhover_handler(link->element, ui_link_unhover_handler);
+    
+    printf("🔗 Lien UI '%s' créé avec cible '%s' - actif après un délai de %.1fs\n", 
+           id ? id : "NoID", target_scene_id ? target_scene_id : "NULL", link_data->activation_delay);
     
     return link;
 }
@@ -265,6 +310,46 @@ void ui_link_set_click_handler(UINode* link, void (*on_click)(UINode* link)) {
     }
 }
 
+// 🆕 Configurer le délai d'activation du lien
+void ui_link_set_activation_delay(UINode* link, float seconds) {
+    if (!link) return;
+    
+    UILinkData* link_data = (UILinkData*)link->component_data;
+    if (link_data) {
+        link_data->activation_delay = seconds;
+        link_data->is_ready = (seconds <= 0.0f); // Activer immédiatement si délai <= 0
+        
+        printf("⏱️ Délai d'activation du lien '%s' configuré à %.1f secondes\n", 
+               link->id ? link->id : "NoID", seconds);
+    }
+}
+
+// 🆕 Mettre à jour le lien (gestion des délais)
+void ui_link_update(UINode* link, float delta_time) {
+    if (!link) return;
+    
+    UILinkData* link_data = (UILinkData*)link->component_data;
+    if (!link_data) return;
+    
+    // Si déjà prêt, rien à faire
+    if (link_data->is_ready) return;
+    
+    // Mettre à jour le timer
+    link_data->time_since_creation += delta_time;
+    
+    // Vérifier si le délai est écoulé
+    if (link_data->time_since_creation >= link_data->activation_delay) {
+        link_data->is_ready = true;
+        
+        // Effet visuel pour montrer que c'est prêt
+        atomic_set_background_color(link->element, 0, 0, 0, 0); // Transparent
+        atomic_set_text_alpha(link->element, 255); // Opaque
+        
+        printf("✅ Lien UI '%s' maintenant actif après %.1f secondes\n", 
+               link->id ? link->id : "NoID", link_data->time_since_creation);
+    }
+}
+
 // Connecter le lien au gestionnaire de scènes - VERSION SÉCURISÉE ET AMÉLIORÉE
 void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
     if (!link || !manager || !link->element) {
@@ -276,6 +361,25 @@ void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
     UILinkData* link_data = (UILinkData*)link->component_data;
     if (link_data) {
         link_data->manager = manager; // 🆕 stocker la référence
+        
+        // 🆕 Vérifier immédiatement si la cible est valide
+        if (link_data->target_scene_id) {
+            Scene* target_scene = scene_manager_get_scene_by_id(manager, link_data->target_scene_id);
+            if (!target_scene) {
+                printf("⚠️ ATTENTION: La cible '%s' du lien '%s' n'existe pas dans le SceneManager!\n",
+                       link_data->target_scene_id, link->id ? link->id : "NoID");
+                printf("📋 Scènes disponibles:\n");
+                for (int i = 0; i < manager->scene_count; i++) {
+                    Scene* s = manager->scenes[i];
+                    printf("   [%d] ID:'%s' Name:'%s'\n", i, 
+                          s ? (s->id ? s->id : "no-id") : "NULL",
+                          s ? (s->name ? s->name : "no-name") : "NULL");
+                }
+            } else {
+                printf("✅ Cible '%s' du lien '%s' validée\n", 
+                      link_data->target_scene_id, link->id ? link->id : "NoID");
+            }
+        }
     }
     
     // 🆕 CRITIQUE: CONFIGURER USER_DATA POUR CALLBACK

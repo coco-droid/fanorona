@@ -1657,3 +1657,15 @@ void atomic_set_border_radius(AtomicElement* element, int radius) {
     printf("🔧 [atomic_set_border_radius] Radius %d défini pour élément '%s'\n", 
            radius, element->id ? element->id : "no-id");
 }
+
+// 🆕 Fonction pour définir la transparence du texte
+void atomic_set_text_alpha(AtomicElement* element, Uint8 alpha) {
+    if (!element) return;
+    
+    // Conserver les composantes R, G, B actuelles mais modifier alpha
+    element->style.text.color.a = alpha;
+    
+    // Log pour debugging
+    printf("🔍 [TEXT_ALPHA] Alpha du texte pour élément '%s' défini à %d\n", 
+           element->id ? element->id : "NoID", alpha);
+}

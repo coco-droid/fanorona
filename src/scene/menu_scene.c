@@ -252,6 +252,11 @@ static void menu_scene_update(Scene* scene, float delta_time) {
         
         // Mettre à jour spécifiquement les animations neon
         ui_neon_button_update_all(data->ui_tree, delta_time);
+        
+        // 🆕 Mettre à jour le lien IA
+        if (data->ai_link) {
+            ui_link_update(data->ai_link, delta_time);
+        }
     }
 }
 
@@ -370,10 +375,15 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
         if (scene_manager) {
             // Connecter le lien UI au SceneManager pour les vraies transitions
             ui_link_connect_to_manager(data->ai_link, scene_manager);
+            
+            // 🆕 Configurer un délai de sécurité (0.5 seconde)
+            ui_link_set_activation_delay(data->ai_link, 0.5f);
+            
             printf("🔗 UI Link 'IA' connecté au SceneManager pour transition MINI→MAIN\n");
             printf("   🎯 Lors du clic : mini_window se fermera, main_window s'ouvrira avec game_scene\n");
             printf("   📏 Dimensions : 700x500 → 800x600\n");
             printf("   🎮 Layout : menu simple → sidebar + zone de jeu\n");
+            printf("   ⏱️ Délai de sécurité de 0.5s configuré pour le lien 'IA'\n");
         } else {
             printf("❌ SceneManager non disponible pour le lien IA\n");
         }

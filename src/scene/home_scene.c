@@ -377,6 +377,11 @@ static void home_scene_update(Scene* scene, float delta_time) {
         ui_tree_update(data->ui_tree, delta_time);
     }
     
+    // 🆕 Mettre à jour spécifiquement le bouton play (qui est un lien)
+    if (data->play_button) {
+        ui_link_update(data->play_button, delta_time);
+    }
+    
     // NOTE: Les événements SDL sont maintenant gérés dans la boucle principale
     // Ne pas faire SDL_PollEvent ici pour éviter les conflits
 }
@@ -506,6 +511,10 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
             // Connecter le lien UI au SceneManager pour les vraies transitions
             ui_link_connect_to_manager(data->play_button, scene_manager);
             printf("🔗 UI Link 'Play' connecté au SceneManager pour les transitions réelles\n");
+            
+            // 🆕 Configurer un délai de sécurité (1 seconde)
+            ui_link_set_activation_delay(data->play_button, 1.0f);
+            printf("⏱️ Délai de sécurité de 1s configuré pour le lien 'Play'\n");
         } else {
             printf("❌ SceneManager non disponible pour le lien UI\n");
         }

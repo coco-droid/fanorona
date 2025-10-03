@@ -140,5 +140,29 @@ UINode* link = ui_create_link(tree, "my-link", "Aller au menu", "menu", SCENE_TR
 // Connecter au SceneManager (OBLIGATOIRE)
 ui_link_connect_to_manager(link, scene_manager);
 
-// Le clic déclenchera automatiquement la transition
+// NOUVEAUTÉ: Ajouter un délai de sécurité pour éviter les clics prématurés
+ui_link_set_activation_delay(link, 0.5f);  // 500ms avant activation
+
+// Mettre à jour le lien dans la boucle de jeu
+ui_link_update(link, delta_time);
+
+// Le clic déclenchera automatiquement la transition après le délai
+```
+
+### Résolution de problèmes avec UI Links
+
+Si vos transitions entre scènes fonctionnent de manière erratique:
+
+1. **Délais de sécurité**: Utilisez `ui_link_set_activation_delay()` pour éviter les clics prématurés
+2. **Vérifiez les IDs**: Assurez-vous que les IDs de scène correspondent exactement
+3. **Connectez avant utilisation**: Appelez toujours `ui_link_connect_to_manager()`
+4. **Mise à jour**: N'oubliez pas d'appeler `ui_link_update()` dans votre fonction `update()`
+
+Pour déboguer les transitions:
+```c
+// Affichez toutes les scènes disponibles
+for (int i = 0; i < manager->scene_count; i++) {
+    Scene* s = manager->scenes[i];
+    printf("[%d] ID:'%s' Name:'%s'\n", i, s->id, s->name);
+}
 ```

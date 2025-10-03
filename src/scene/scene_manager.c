@@ -254,12 +254,16 @@ void scene_manager_transition_to_scene_from_element(UINode* element) {
         return;
     }
     
-    printf("🔄 Transition vers la scène '%s' demandée depuis l'élément UI '%s'\n", 
+    printf("🔄 FALLBACK: Transition vers la scène '%s' demandée depuis l'élément UI '%s'\n", 
            target_scene_id, element->id ? element->id : "unknown");
     
-    // 🔧 FIX: Cette fonction sera appelée SEULEMENT en fallback
-    printf("⚠️ FALLBACK: Transition simulée - utilisez ui_link_connect_to_manager() pour de vraies transitions\n");
-    printf("🔧 Pour activer les transitions : connectez le lien au SceneManager via ui_link_connect_to_manager()\n");
+    // 🆕 AVERTISSEMENT CRITIQUE POUR INDIQUER QUE LE FALLBACK EST DÉCONSEILLÉ
+    printf("⚠️ ATTENTION CRITIQUE: Cette méthode de transition est dépréciée et peut causer des comportements incorrects\n");
+    printf("📋 Solution: Utilisez ui_link_connect_to_manager() pour configurer correctement les transitions\n");
+    
+    // 🆕 NE PAS FAIRE DE TRANSITION AUTOMATIQUE AU GAME_SCENE!
+    // Ne rien faire d'autre, simplement afficher l'avertissement.
+    printf("❌ Transition annulée pour éviter des comportements incorrects\n");
 }
 
 // Nouvelles fonctions pour l'API étendue

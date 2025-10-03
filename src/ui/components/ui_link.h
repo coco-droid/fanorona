@@ -14,6 +14,9 @@ struct UILinkData {
     WindowType target_window;            // Fenêtre cible (si applicable)
     void (*on_click)(UINode* link);      // Callback personnalisé lors du clic
     SceneManager* manager;               // 🆕 Référence au SceneManager pour les transitions
+    bool is_ready;                       // 🆕 Flag pour indiquer si le lien est prêt à être utilisé
+    float activation_delay;              // 🆕 Délai avant activation (secondes)
+    float time_since_creation;           // 🆕 Temps écoulé depuis la création
 };
 
 // Créer un lien de navigation vers une scène
@@ -34,6 +37,12 @@ UILinkData* ui_link_get_data(UINode* link);
 
 // 🆕 Fonction helper pour éviter les dépendances circulaires
 const char* ui_link_get_target_scene_id_from_data(void* data);
+
+// 🆕 Configurer le délai d'activation du lien
+void ui_link_set_activation_delay(UINode* link, float seconds);
+
+// 🆕 Mettre à jour le lien (gestion des délais)
+void ui_link_update(UINode* link, float delta_time);
 
 // 🔧 FIX: Ajouter les macros manquantes
 #ifndef ALIGN_SELF_X
