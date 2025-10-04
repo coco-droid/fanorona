@@ -4,6 +4,9 @@
 #include "ui_tree.h"
 #include <SDL2/SDL_ttf.h>
 
+// Forward declarations
+typedef struct GamePlayer GamePlayer;
+
 // === FONCTIONS DE CRÉATION DE COMPOSANTS ===
 
 // Syntaxe simplifiée pour créer des composants
@@ -288,8 +291,9 @@ UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int h
 // Forward declaration pour Board
 typedef struct Board Board;
 
-// Créer un container de plateau avec damier Fanorona
+// Créer un container de plateau avec damier Fanorona et joueurs
 UINode* ui_plateau_container(UITree* tree, const char* id);
+UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlayer* player1, GamePlayer* player2);
 
 // Plateau avec taille personnalisée
 UINode* ui_plateau_container_with_size(UITree* tree, const char* id, int width, int height);
@@ -301,6 +305,11 @@ void ui_plateau_set_show_coordinates(UINode* plateau, bool show);
 // Accès aux données du plateau
 Board* ui_plateau_get_board(UINode* plateau);
 void ui_plateau_update_from_board(UINode* plateau, Board* new_board);
+
+// 🆕 NOUVELLES FONCTIONS pour les joueurs
+void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* player2);
+GamePlayer* ui_plateau_get_player1(UINode* plateau);
+GamePlayer* ui_plateau_get_player2(UINode* plateau);
 
 // Nettoyage des ressources
 void ui_plateau_cleanup(UINode* plateau);

@@ -80,6 +80,9 @@ SOURCES=(
     "$SRC_DIR/scene/scene_registry.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
+    "$SRC_DIR/config.c"
+    "$SRC_DIR/logic/mode.c"
+    "$SRC_DIR/logic/rules.c"
     "$SRC_DIR/plateau/plateau.c"
     "$SRC_DIR/ui/native/atomic.c"
     "$SRC_DIR/ui/native/optimum.c"
@@ -91,6 +94,7 @@ SOURCES=(
     "$SRC_DIR/ui/plateau_cnt.c"
     "$SRC_DIR/ui/neon_btn.c"
     "$SRC_DIR/ui/components/ui_link.c"
+    "$SRC_DIR/pions/pions.c"
 )
 
 # Vérification préliminaire de l'existence des fichiers

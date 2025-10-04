@@ -24,7 +24,11 @@ SOURCES = main.c \
           $(SRC_DIR)/scene/game_scene.c \
           $(SRC_DIR)/utils/asset_manager.c \
           $(SRC_DIR)/utils/log_console.c \
+          $(SRC_DIR)/config.c \
+          $(SRC_DIR)/logic/mode.c \
+          $(SRC_DIR)/logic/rules.c \
           $(SRC_DIR)/plateau/plateau.c \
+          $(SRC_DIR)/pions/pions.c \
           $(SRC_DIR)/ui/native/atomic.c \
           $(SRC_DIR)/ui/native/optimum.c \
           $(SRC_DIR)/ui/ui_tree.c \
@@ -63,8 +67,11 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/window
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/scene
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/utils
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/logic
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/plateau
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/pions
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/native
-	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/components
 
 # Nettoyage
 clean:

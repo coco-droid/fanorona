@@ -157,6 +157,7 @@ void apply_move(Board *b, const Move *mv) {
 
 // Small helper to print a single move for debug
 void print_move(Board *b, const Move *m) {
+    (void)b; // Suppress unused parameter warning
     int fr,fc,tr,tc;
     rc_from_id(m->from_id, &fr, &fc);
     rc_from_id(m->to_id, &tr, &tc);

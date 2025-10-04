@@ -66,23 +66,26 @@ void ui_cnt_playable_add_game_area(UINode* playable_container) {
     ui_set_justify_content(game_area, "center");
     ui_set_align_items(game_area, "center");
     
-    // === PLATEAU FANORONA RÉEL ===
-    UINode* plateau = UI_PLATEAU_SIZED(playable_container->tree, "fanorona-plateau", 480, 320);
+    // === PLATEAU FANORONA AVEC JOUEURS ===
+    UINode* plateau = ui_plateau_container_with_players(playable_container->tree, "fanorona-plateau", NULL, NULL);
     if (plateau) {
+        SET_SIZE(plateau, 480, 320);
+        
         // Le plateau sera automatiquement centré dans game_area grâce au flexbox
         APPEND(game_area, plateau);
         
         printf("   🎯 Plateau Fanorona intégré (480x320) avec :\n");
         printf("      • Damier 5x9 intersections\n");
-        printf("      • Connexions diagonales aux intersections fortes\n");
+        printf("      • Joueurs de test avec textures\n");
+        printf("      • piece_black.png et piece_brun.png\n");
         printf("      • Disposition initiale des pions\n");
         printf("      • Rendu personnalisé avec fond mat\n");
     }
     
     APPEND(playable_container, game_area);
     
-    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with Fanorona plateau added");
-    printf("   🏁 Zone de jeu 500x350 avec plateau Fanorona intégré\n");
+    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with textured Fanorona plateau added");
+    printf("   🏁 Zone de jeu 500x350 avec plateau Fanorona et textures\n");
 }
 
 UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height) {
