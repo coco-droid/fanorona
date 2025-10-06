@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    // 🆕 Finaliser l'initialisation (connecter événements + démarrer boucle)
+    // 🆕 Finaliser l'initialisation (connecter événements)
     printf("🔧 Finalisation de l'initialisation...\n");
     if (!game_core_finalize_init(core)) {
         printf("❌ Erreur lors de la finalisation du core\n");
@@ -156,35 +156,25 @@ int main(int argc, char* argv[]) {
     log_console_ui_event("Main", "Start", "game", "Fanorona démarré avec console de logs");
     printf("🖥️ Console de logs active dans fenêtre séparée\n");
     printf("🖱️ Les événements souris seront trackés dès l'entrée dans la fenêtre de jeu\n");
-    printf("⚡ Boucle d'événements dédiée active en arrière-plan\n");
 #endif
     
-    printf("🎮 Boucle principale démarrée (60 FPS) - Thread d'événements indépendant\n");
-    printf("   📦 Événements capturés en continu dans un thread séparé\n");
-    printf("   🔄 Traitement des événements depuis le buffer à chaque frame\n");
-    printf("   🖼️ Rendu et logique du jeu dans la boucle principale\n\n");
+    printf("🎮 Boucle principale démarrée (60 FPS) - Approche classique mono-thread\n");
+    printf("   🔄 Événements traités directement dans la boucle principale\n");
+    printf("   🖼️ SDL utilisé de manière standard et stable\n\n");
     
-    // 🆕 BOUCLE PRINCIPALE SIMPLIFIÉE ET OPTIMISÉE
-    Uint32 target_frame_time = 16; // 16ms = ~60 FPS
-    Uint32 frame_start;
-    
+    // 🔧 BOUCLE PRINCIPALE ULTRA-SIMPLE (mono-thread classique)
     while (game_core_is_running(core)) {
-        frame_start = SDL_GetTicks();
-        
-        // 🆕 Traiter les événements depuis le buffer (thread-safe)
+        // 1. 🔧 Traiter les événements (mono-thread, simple)
         game_core_handle_events(core);
         
-        // Mettre à jour le jeu
+        // 2. Mettre à jour le jeu
         game_core_update(core);
         
-        // Rendre le jeu
+        // 3. Rendre le jeu
         game_core_render(core);
         
-        // 🆕 Contrôle de framerate plus précis
-        Uint32 frame_time = SDL_GetTicks() - frame_start;
-        if (frame_time < target_frame_time) {
-            SDL_Delay(target_frame_time - frame_time);
-        }
+        // 4. 🔧 Contrôle de framerate simple
+        SDL_Delay(16); // ~60 FPS
     }
     
     // Nettoyage

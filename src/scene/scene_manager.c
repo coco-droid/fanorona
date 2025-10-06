@@ -54,10 +54,7 @@ void scene_manager_destroy(SceneManager* manager) {
             printf("🧹 Nettoyage de la scène '%s'...\n", 
                    manager->scenes[i]->name ? manager->scenes[i]->name : "sans nom");
             
-            if (manager->scenes[i]->cleanup) {
-                manager->scenes[i]->cleanup(manager->scenes[i]);
-            }
-            
+            // 🔧 FIX: Remove redundant cleanup call - scene_destroy() already calls cleanup()
             scene_destroy(manager->scenes[i]);
             manager->scenes[i] = NULL;
         }

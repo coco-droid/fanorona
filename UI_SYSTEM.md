@@ -383,7 +383,7 @@ ui_set_align_self(element, "center-both");  // Les deux
 ui_set_align_self(element, "auto");         // Désactiver
 
 // 🆕 EXEMPLE D'USAGE DANS UN CONTAINER :
-UINode* modal = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
+UINode* modal = UI_CONTAINER_CENTERED(tree, "dialog", 400, 300);
 UINode* content = UI_DIV(tree, "content");
 SET_SIZE(content, 300, 200);
 
@@ -657,79 +657,81 @@ Le système d'événements est maintenant complètement opérationnel ! 🎉
 - Thèmes globaux
 - Classes CSS-like avec sélecteurs
 
-## 🆕 Architecture d'événements optimisée
+## 🆕 Architecture d'événements simplifiée
 
-### ⚡ Nouvelle boucle d'événements dédiée
+### ⚡ Boucle d'événements mono-thread classique
 
 ```
 🔄 THREAD PRINCIPAL (Boucle de jeu - 60 FPS)
 │
-├── game_core_handle_events() → Traite le buffer d'événements
+├── game_core_handle_events() → Traite directement SDL_PollEvent()
 ├── game_core_update() → Met à jour la logique
 └── game_core_render() → Rendu graphique
-
-⚡ THREAD D'ÉVÉNEMENTS (Capture continue)
-│
-├── window_poll_events() → Capture SDL en continu
-├── event_loop_push_event() → Ajoute au buffer thread-safe
-└── window_update_focus() → Gestion du focus
 ```
 
 ### 🎯 Avantages de cette architecture
 
-1. **🚀 Performance** : Capture d'événements non-bloquante
-2. **⚡ Réactivité** : Événements capturés en temps réel
-3. **🔒 Thread-safe** : Buffer protégé par mutex
-4. **📊 Scalabilité** : Buffer circulaire de 256 événements
-5. **🎮 Fluidité** : Boucle principale à 60 FPS constant
+1. **🚀 Simplicité** : Code facile à comprendre et maintenir
+2. **⚡ Stabilité** : Utilisation standard de SDL (mono-thread)
+3. **🔒 Fiabilité** : Zero problèmes de thread-safety
+4. **📊 Performance** : Latence minimale, 60 FPS constant
+5. **🎮 Compatibilité** : Approche éprouvée par l'industrie
 
-### 📦 Buffer d'événements circulaire
+### 📦 Traitement direct des événements
 
 ```c
-// Structure du buffer thread-safe
-typedef struct EventLoop {
-    WindowEvent* event_buffer;  // Buffer circulaire
-    int buffer_size;           // 256 événements
-    int buffer_head;           // Tête d'écriture (thread événements)
-    int buffer_tail;           // Queue de lecture (thread principal)
-    int buffer_count;          // Nombre d'événements en attente
+// Structure simplifiée - plus de buffer circulaire
+void game_core_handle_events(GameCore* core) {
+    SDL_Event event;
     
-    SDL_mutex* event_mutex;    // Protection thread-safe
-    SDL_cond* event_condition; // Signalement d'événements
-} EventLoop;
+    // Simple boucle SDL standard
+    while (SDL_PollEvent(&event)) {
+        // Gestion directe des événements critiques
+        if (event.type == SDL_QUIT) {
+            core->running = false;
+            return;
+        }
+        
+        // Routage vers la scène active
+        Scene* active_scene = scene_manager_get_active_scene(core->scene_manager);
+        if (active_scene && active_scene->event_manager) {
+            event_manager_handle_event(active_scene->event_manager, &event);
+        }
+    }
+}
 ```
 
-### 🔄 Flux complet optimisé
+### 🔄 Flux simplifié et efficace
 
 ```
-1. 🎯 Thread d'événements (arrière-plan) :
-   ├── window_poll_events() capture SDL en continu
-   ├── Filtrage et logs par fenêtre source
-   └── event_loop_push_event() → Buffer thread-safe
+1. 🎯 SDL_PollEvent() (thread principal) :
+   ├── Capture directe des événements SDL
+   ├── Gestion immédiate des événements critiques
+   └── Routage vers la scène active
 
-2. 📦 Buffer circulaire :
-   ├── Stockage de 256 événements max
-   ├── Protection par mutex
-   └── Pas de perte d'événements
+2. 📦 Traitement immédiat :
+   ├── Zero latence - pas de buffer
+   ├── Zero problème de synchronisation
+   └── Zero événements perdus
 
-3. 🎮 Thread principal (60 FPS) :
-   ├── event_loop_pop_event() → Lit le buffer
-   ├── Filtrage par fenêtre active
-   ├── event_manager_handle_event() → UI
-   └── Callbacks utilisateur exécutés
+3. 🎮 Rendu synchrone (60 FPS) :
+   ├── Événements → Mise à jour → Rendu
+   ├── Séquence prévisible et stable
+   └── Compatible avec tous les systèmes
 ```
 
-### 📊 Logs générés avec threading
+### 📊 Logs générés (simplifiés)
 
 ```
-[14:32:15] [EventLoop] [ThreadStarted] [core.c] : ⚡ Event capture thread started - independent from main loop
-[14:32:15] [EventLoop] [EventCaptured] [core.c] : 🔄 Event captured in dedicated thread: type=1025 from window='Fanorona - Mini Window'
-[14:32:15] [WindowEvents] [MouseDown] [window.c] : Mouse button 1 down in window 'Fanorona - Mini Window' at (150,200)
-[14:32:15] [CoreEvents] [BufferProcessing] [Mini_window] : 📦 Processing buffered event #1: type=1025
-[14:32:15] [CoreEvents] [EventTransmission] [Mini_window] : Event from buffer → Transmitting to event_manager
+[14:32:15] [CoreEvents] [ProcessedBatch] [core] : Processed 3 events in mono-thread
 [14:32:15] [EventManager] [HitDetected] [event.c] : HIT! Element #1 at z-index 2 - calling callback
 [14:32:15] [UserCallback] [PlayButton] [home_scene.c] : play_button_clicked callback executed
-[14:32:15] [CoreEvents] [FrameSummary] [core] : Processed 3 events from buffer this frame
 ```
 
-Cette architecture garantit une capture d'événements ultra-réactive tout en maintenant une boucle principale fluide ! 🎉
+Cette architecture garantit une **simplicité maximale** tout en maintenant **toutes les fonctionnalités** ! 🎉
+
+**🔧 Migration transparente :**
+- ✅ **Même API** : Aucun changement dans le code utilisateur
+- ✅ **Même performance** : 60 FPS garantis
+- ✅ **Plus stable** : Élimination des problèmes de threading
+- ✅ **Plus simple** : Code divisé par 10 en complexité

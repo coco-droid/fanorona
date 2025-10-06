@@ -7,53 +7,25 @@
 #include "../scene/scene.h"
 #include "../window/window.h"
 
-// 🆕 Structure pour la boucle d'événements dédiée
-typedef struct EventLoop {
-    bool running;
-    bool processing_events;
-    SDL_Thread* event_thread;
-    SDL_mutex* event_mutex;
-    SDL_cond* event_condition;
-    
-    // Buffer circulaire pour les événements
-    WindowEvent* event_buffer;
-    int buffer_size;
-    int buffer_head;
-    int buffer_tail;
-    int buffer_count;
-    
-    EventManager* event_manager;
-} EventLoop;
-
-// Structure principale du jeu
+// Structure principale du jeu (SIMPLIFIÉE)
 typedef struct GameCore {
     EventManager* event_manager;
     SceneManager* scene_manager;
-    EventLoop* event_loop;  // 🆕 Boucle d'événements dédiée
     Uint32 last_time;
     bool running;
 } GameCore;
 
-// Fonctions du core
+// Fonctions du core (SIMPLIFIÉES)
 GameCore* game_core_create(void);
 void game_core_destroy(GameCore* core);
-bool game_core_finalize_init(GameCore* core); // 🆕 AJOUT
-void game_core_handle_events(GameCore* core);  // 🆕 Maintenant traite le buffer
+bool game_core_finalize_init(GameCore* core);
+void game_core_handle_events(GameCore* core);  // 🔧 Maintenant mono-thread simple
 void game_core_update(GameCore* core);
 void game_core_render(GameCore* core);
 bool game_core_is_running(GameCore* core);
 void game_core_set_running(GameCore* core, bool running);
 EventManager* game_core_get_event_manager(GameCore* core);
-SceneManager* game_core_get_scene_manager(GameCore* core);  // 🆕 Ajout de la fonction
-
-// 🆕 Fonctions de la boucle d'événements
-EventLoop* event_loop_create(EventManager* event_manager);
-void event_loop_destroy(EventLoop* loop);
-bool event_loop_start(EventLoop* loop);
-void event_loop_stop(EventLoop* loop);
-int event_loop_thread_function(void* data);
-bool event_loop_push_event(EventLoop* loop, WindowEvent* event);
-bool event_loop_pop_event(EventLoop* loop, WindowEvent* event);
+SceneManager* game_core_get_scene_manager(GameCore* core);
 
 // Fonctions de gestion des fenêtres
 void game_core_switch_to_main_window(GameCore* core);
@@ -61,10 +33,8 @@ void game_core_switch_to_mini_window(GameCore* core);
 void game_core_open_both_windows(GameCore* core);
 WindowType game_core_get_active_window_type(GameCore* core);
 
-// 🆕 Fonction de debug pour diagnostiquer l'état du système
+// Fonctions de debug
 void debug_current_state(GameCore* core);
-
-// 🆕 AJOUTER: Fonctions de debug supplémentaires
 void game_core_debug_event_system(GameCore* core);
 void game_core_force_scene_event_registration(GameCore* core);
 

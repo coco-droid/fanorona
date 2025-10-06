@@ -3,215 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// === FONCTIONS DE LA BOUCLE D'ÉVÉNEMENTS ===
-
-EventLoop* event_loop_create(EventManager* event_manager) {
-    EventLoop* loop = (EventLoop*)calloc(1, sizeof(EventLoop));
-    if (!loop) {
-        printf("❌ Impossible d'allouer la mémoire pour EventLoop\n");
-        return NULL;
-    }
-    
-    // Initialiser le buffer circulaire
-    loop->buffer_size = 256; // Buffer pour 256 événements
-    loop->event_buffer = (WindowEvent*)calloc(loop->buffer_size, sizeof(WindowEvent));
-    if (!loop->event_buffer) {
-        free(loop);
-        return NULL;
-    }
-    
-    // Créer les primitives de synchronisation
-    loop->event_mutex = SDL_CreateMutex();
-    loop->event_condition = SDL_CreateCond();
-    
-    if (!loop->event_mutex || !loop->event_condition) {
-        if (loop->event_mutex) SDL_DestroyMutex(loop->event_mutex);
-        if (loop->event_condition) SDL_DestroyCond(loop->event_condition);
-        free(loop->event_buffer);
-        free(loop);
-        return NULL;
-    }
-    
-    loop->event_manager = event_manager;
-    loop->running = false;
-    loop->processing_events = false;
-    
-    log_console_write("EventLoop", "Created", "core.c", 
-                     "[core.c] Event loop created with 256-event buffer");
-    
-    return loop;
-}
-
-void event_loop_destroy(EventLoop* loop) {
-    if (!loop) return;
-    
-    // Arrêter la boucle si elle tourne
-    event_loop_stop(loop);
-    
-    // Libérer les ressources
-    if (loop->event_mutex) SDL_DestroyMutex(loop->event_mutex);
-    if (loop->event_condition) SDL_DestroyCond(loop->event_condition);
-    free(loop->event_buffer);
-    free(loop);
-    
-    log_console_write("EventLoop", "Destroyed", "core.c", 
-                     "[core.c] Event loop destroyed");
-}
-
-bool event_loop_start(EventLoop* loop) {
-    if (!loop || loop->running) return false;
-    
-    loop->running = true;
-    loop->processing_events = true;
-    
-    // Créer le thread d'événements
-    loop->event_thread = SDL_CreateThread(event_loop_thread_function, "EventLoop", loop);
-    
-    if (!loop->event_thread) {
-        printf("❌ Impossible de créer le thread d'événements: %s\n", SDL_GetError());
-        loop->running = false;
-        loop->processing_events = false;
-        return false;
-    }
-    
-    log_console_write("EventLoop", "Started", "core.c", 
-                     "[core.c] Event loop thread started - dedicated event processing");
-    
-    return true;
-}
-
-void event_loop_stop(EventLoop* loop) {
-    if (!loop || !loop->running) return;
-    
-    log_console_write("EventLoop", "Stopping", "core.c", 
-                     "[core.c] Stopping event loop thread...");
-    
-    // Signaler l'arrêt
-    SDL_LockMutex(loop->event_mutex);
-    loop->running = false;
-    loop->processing_events = false;
-    SDL_CondSignal(loop->event_condition);
-    SDL_UnlockMutex(loop->event_mutex);
-    
-    // Attendre la fin du thread
-    if (loop->event_thread) {
-        int thread_result;
-        SDL_WaitThread(loop->event_thread, &thread_result);
-        loop->event_thread = NULL;
-        
-        log_console_write("EventLoop", "Stopped", "core.c", 
-                         "[core.c] Event loop thread stopped cleanly");
-    }
-}
-
-// 🆕 THREAD DÉDIÉ POUR LA CAPTURE D'ÉVÉNEMENTS (CORRIGÉ)
-int event_loop_thread_function(void* data) {
-    EventLoop* loop = (EventLoop*)data;
-    
-    log_console_write("EventLoop", "ThreadStarted", "core.c", 
-                     "[core.c] Event capture thread started");
-    
-    while (loop->running) {
-        WindowEvent window_event;
-        
-        if (window_poll_events(&window_event)) {
-            if (window_event.is_valid) {
-                
-                // 🔧 FIX: Classification correcte des événements
-                bool should_log = false;
-                
-                switch (window_event.sdl_event.type) {
-                    case SDL_MOUSEBUTTONDOWN: // 1024 - VRAI CLIC
-                        should_log = true;
-                        break;
-                    case SDL_MOUSEBUTTONUP: // 1025 - PAS UN CLIC, mais important pour UI
-                        should_log = false; // 🔧 Ne plus logger les mouseup comme critiques
-                        break;
-                    case SDL_WINDOWEVENT: // 512
-                        // Seulement logger les fermetures de fenêtre
-                        if (window_event.sdl_event.window.event == SDL_WINDOWEVENT_CLOSE) {
-                            should_log = true;
-                        }
-                        break;
-                    case SDL_QUIT: // 256
-                        should_log = true;
-                        break;
-                    case SDL_MOUSEMOTION: // 1026 - NE PAS LOGGER
-                        should_log = false;
-                        break;
-                    default: 
-                        should_log = false;
-                        break;
-                }
-                
-                // 🔧 LOG SEULEMENT SI CRITIQUE
-                if (should_log) {
-                    log_console_write_event("EventLoop", "EventCaptured", "core.c", 
-                                           "[core.c] Critical event captured", 
-                                           window_event.sdl_event.type);
-                }
-                
-                // Ajouter TOUS les événements au buffer
-                event_loop_push_event(loop, &window_event);
-            }
-        } else {
-            SDL_Delay(1);
-        }
-        
-        window_update_focus();
-    }
-    
-    log_console_write("EventLoop", "ThreadExiting", "core.c", 
-                     "[core.c] Event thread stopped");
-    
-    return 0;
-}
-
-// Buffer thread-safe pour les événements
-bool event_loop_push_event(EventLoop* loop, WindowEvent* event) {
-    if (!loop || !event) return false;
-    
-    SDL_LockMutex(loop->event_mutex);
-    
-    // Vérifier si le buffer est plein
-    if (loop->buffer_count >= loop->buffer_size) {
-        SDL_UnlockMutex(loop->event_mutex);
-        return false; // Buffer plein
-    }
-    
-    // Ajouter l'événement au buffer
-    loop->event_buffer[loop->buffer_head] = *event;
-    loop->buffer_head = (loop->buffer_head + 1) % loop->buffer_size;
-    loop->buffer_count++;
-    
-    // Signaler qu'un événement est disponible
-    SDL_CondSignal(loop->event_condition);
-    
-    SDL_UnlockMutex(loop->event_mutex);
-    return true;
-}
-
-bool event_loop_pop_event(EventLoop* loop, WindowEvent* event) {
-    if (!loop || !event) return false;
-    
-    SDL_LockMutex(loop->event_mutex);
-    
-    // Vérifier s'il y a des événements
-    if (loop->buffer_count == 0) {
-        SDL_UnlockMutex(loop->event_mutex);
-        return false; // Pas d'événement
-    }
-    
-    // Récupérer l'événement du buffer
-    *event = loop->event_buffer[loop->buffer_tail];
-    loop->buffer_tail = (loop->buffer_tail + 1) % loop->buffer_size;
-    loop->buffer_count--;
-    
-    SDL_UnlockMutex(loop->event_mutex);
-    return true;
-}
-
-// === FONCTIONS DU CORE MODIFIÉES ===
+// === FONCTIONS DU CORE SIMPLIFIÉES ===
 
 GameCore* game_core_create(void) {
     GameCore* core = (GameCore*)malloc(sizeof(GameCore));
@@ -233,21 +25,11 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
-    // 🆕 Créer la boucle d'événements MAIS ne pas la démarrer encore
-    core->event_loop = event_loop_create(core->event_manager);
-    if (!core->event_loop) {
-        scene_manager_destroy(core->scene_manager);
-        event_manager_destroy(core->event_manager);
-        free(core);
-        return NULL;
-    }
-    
     // 🔧 FIX: Créer et INITIALISER la scène home immédiatement avec vérifications
     printf("🏠 Création de la scène home...\n");
     Scene* home_scene = create_home_scene();
     if (!home_scene) {
         printf("❌ Erreur: Impossible de créer la scène home\n");
-        event_loop_destroy(core->event_loop);
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
@@ -259,7 +41,6 @@ GameCore* game_core_create(void) {
         printf("❌ Erreur: Scène home créée avec des chaînes invalides\n");
         if (home_scene->cleanup) home_scene->cleanup(home_scene);
         scene_destroy(home_scene);
-        event_loop_destroy(core->event_loop);
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
@@ -272,7 +53,6 @@ GameCore* game_core_create(void) {
         // Nettoyer la scène créée
         if (home_scene->cleanup) home_scene->cleanup(home_scene);
         free(home_scene);
-        event_loop_destroy(core->event_loop);
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
@@ -283,7 +63,6 @@ GameCore* game_core_create(void) {
     Scene* verification_scene = scene_manager_get_current_scene(core->scene_manager);
     if (!verification_scene) {
         printf("❌ Erreur: Scène non définie après scene_manager_set_scene\n");
-        event_loop_destroy(core->event_loop);
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
@@ -314,7 +93,7 @@ GameCore* game_core_create(void) {
     return core;
 }
 
-// 🆕 Nouvelle fonction pour finaliser l'initialisation
+// 🆕 Fonction pour finaliser l'initialisation (SIMPLIFIÉE)
 bool game_core_finalize_init(GameCore* core) {
     if (!core) {
         printf("❌ Core est NULL\n");
@@ -379,26 +158,15 @@ bool game_core_finalize_init(GameCore* core) {
     log_console_set_mouse_tracking(true);
     printf("🖱️ Tracking souris activé\n");
     
-    // Démarrer la boucle d'événements
-    if (!event_loop_start(core->event_loop)) {
-        printf("❌ Impossible de démarrer la boucle d'événements\n");
-        return false;
-    }
-    
     log_console_write("EventLoop", "SystemReady", "core.c", 
-                     "[core.c] Event system fully operational with per-scene routing");
+                     "[core.c] Event system ready with classic mono-thread approach");
     
-    printf("✅ Core complètement initialisé avec routage d'événements par scène\n");
+    printf("✅ Core complètement initialisé avec gestion d'événements mono-thread\n");
     return true;
 }
 
 void game_core_destroy(GameCore* core) {
     if (!core) return;
-    
-    // 🆕 Arrêter la boucle d'événements en premier
-    if (core->event_loop) {
-        event_loop_destroy(core->event_loop);
-    }
     
     if (core->scene_manager) {
         scene_manager_destroy(core->scene_manager);
@@ -411,85 +179,48 @@ void game_core_destroy(GameCore* core) {
     free(core);
 }
 
-// 🆕 NOUVELLE FONCTION : Traitement des événements depuis le buffer avec ROUTAGE par FENÊTRE AMÉLIORÉ
+// 🔧 NOUVELLE FONCTION : Traitement simple mono-thread des événements
 void game_core_handle_events(GameCore* core) {
-    if (!core || !core->event_loop) return;
+    if (!core) return;
     
-    WindowEvent window_event;
-    int critical_events = 0;
+    SDL_Event event;
+    int events_processed = 0;
     
-    while (event_loop_pop_event(core->event_loop, &window_event)) {
-        SDL_Event* event = &window_event.sdl_event;
+    // 🔧 SIMPLE : Traiter TOUS les événements disponibles en mono-thread
+    while (SDL_PollEvent(&event)) {
+        events_processed++;
         
-        // Classification correcte des événements
-        bool is_critical = false;
-        
-        switch (event->type) {
-            case SDL_MOUSEBUTTONDOWN:  // 1024 - Clic souris
-                is_critical = true;
-                break;
-            case SDL_QUIT:             // 256 - Fermeture app
-                is_critical = true;
-                core->running = false;
-                break;
-            case SDL_WINDOWEVENT:      // 512 - Événement fenêtre
-                if (event->window.event == SDL_WINDOWEVENT_CLOSE) {
-                    is_critical = true;
-                }
-                break;
-            default:
-                break;
+        // 🔧 GESTION DIRECTE des événements critiques
+        if (event.type == SDL_QUIT) {
+            log_console_write("CoreEvents", "Quit", "core.c", 
+                             "[core.c] SDL_QUIT received - shutting down");
+            core->running = false;
+            return;
         }
         
-        if (is_critical) {
-            critical_events++;
-            
-            // Log pour traçage
-            char event_info[256];
-            snprintf(event_info, sizeof(event_info), 
-                    "[core.c] Processing critical event (code=%d=%s)",
-                    event->type, 
-                    event->type == SDL_MOUSEBUTTONDOWN ? "SDL_MOUSEBUTTONDOWN" :
-                    event->type == SDL_QUIT ? "SDL_QUIT" : 
-                    event->type == SDL_WINDOWEVENT ? "SDL_WINDOWEVENT" : "UNKNOWN");
-            log_console_write("CoreEvents", "Processing", "core", event_info);
+        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
+            log_console_write("CoreEvents", "WindowClose", "core.c", 
+                             "[core.c] Window close detected - shutting down");
+            core->running = false;
+            return;
         }
         
-        // Déterminer la scène cible en fonction de la fenêtre source
-        GameWindow* source_window = window_event.source_window;
-        if (source_window) {
-            WindowType window_type = window_get_window_type(source_window);
-            Scene* active_scene = scene_manager_get_active_scene_for_window(core->scene_manager, window_type);
-            
-            if (active_scene && active_scene->event_manager) {
-                // Log pour indiquer le routage vers la scène spécifique
-                char routing_info[256];
-                snprintf(routing_info, sizeof(routing_info), 
-                        "[core.c] Routing event to scene '%s' ONLY (no global fallback)",
-                        active_scene->name ? active_scene->name : "unnamed");
-                log_console_write("EventRouting", "SceneOnly", "core.c", routing_info);
-                
-                // Transmettre l'événement à l'EventManager de la scène
-                event_manager_handle_event(active_scene->event_manager, event);
-            } else {
-                // Log si aucune scène active trouvée pour cette fenêtre
-                log_console_write("EventRouting", "NoScene", "core.c", 
-                                 "[core.c] No active scene or event manager for this window - event dropped");
-            }
-        } else {
-            // Log si aucune fenêtre source identifiée
-            log_console_write("EventRouting", "NoWindow", "core.c", 
-                             "[core.c] No source window identified for event - event dropped");
+        // 🔧 ROUTAGE SIMPLE par fenêtre active
+        WindowType active_type = window_get_active_window();
+        Scene* active_scene = scene_manager_get_active_scene_for_window(core->scene_manager, active_type);
+        
+        if (active_scene && active_scene->event_manager) {
+            // Transmettre directement à l'EventManager de la scène
+            event_manager_handle_event(active_scene->event_manager, &event);
         }
     }
     
-    // LOG RÉSUMÉ SEULEMENT SI ÉVÉNEMENTS CRITIQUES
-    if (critical_events > 0) {
+    // Log seulement si des événements ont été traités
+    if (events_processed > 0) {
         char summary[256];
         snprintf(summary, sizeof(summary), 
-                "[core.c] Processed %d critical events with scene-only routing", 
-                critical_events);
-        log_console_write("CoreEvents", "Summary", "core", summary);
+                "[core.c] Processed %d events in mono-thread", events_processed);
+        log_console_write("CoreEvents", "ProcessedBatch", "core", summary);
     }
 }
 
