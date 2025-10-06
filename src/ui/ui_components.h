@@ -221,6 +221,14 @@ void ui_button_add_glow_effect(UINode* button, const char* color);
 void ui_button_add_shadow_effect(UINode* button, int offset_x, int offset_y);
 void ui_button_remove_all_effects(UINode* button);
 
+// 🆕 Mouse event handlers for plateau
+void ui_plateau_set_mouse_handlers(UINode* plateau);
+void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);
+
+// 🆕 Game state integration
+void ui_plateau_set_game_logic(UINode* plateau, void* game_logic);
+void* ui_plateau_get_game_logic(UINode* plateau);
+
 // === MACROS POUR FEEDBACK VISUEL ===
 
 #define BUTTON_PRESSED(btn) ui_button_set_pressed_state(btn, true)

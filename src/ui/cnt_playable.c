@@ -66,20 +66,21 @@ void ui_cnt_playable_add_game_area(UINode* playable_container) {
     ui_set_justify_content(game_area, "center");
     ui_set_align_items(game_area, "center");
     
-    // === PLATEAU FANORONA AVEC JOUEURS ===
+    // === PLATEAU FANORONA AVEC JOUEURS ET ÉVÉNEMENTS ===
     UINode* plateau = ui_plateau_container_with_players(playable_container->tree, "fanorona-plateau", NULL, NULL);
     if (plateau) {
         SET_SIZE(plateau, 480, 320);
         
-        // Le plateau sera automatiquement centré dans game_area grâce au flexbox
+        // 🆕 Enable mouse interactions
+        ui_plateau_set_mouse_handlers(plateau);
+        
         APPEND(game_area, plateau);
         
-        printf("   🎯 Plateau Fanorona intégré (480x320) avec :\n");
-        printf("      • Damier 5x9 intersections\n");
-        printf("      • Joueurs de test avec textures\n");
-        printf("      • piece_black.png et piece_brun.png\n");
-        printf("      • Disposition initiale des pions\n");
-        printf("      • Rendu personnalisé avec fond mat\n");
+        printf("   🎯 Plateau Fanorona interactif intégré (480x320) avec :\n");
+        printf("      • Validation de coups en temps réel\n");
+        printf("      • Feedback visuel (hover, sélection, erreurs)\n");
+        printf("      • Intégration avec is_move_valide()\n");
+        printf("      • Animations et effets visuels\n");
     }
     
     APPEND(playable_container, game_area);

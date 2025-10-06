@@ -7,6 +7,7 @@
 #include "../utils/asset_manager.h"
 #include "../plateau/plateau.h"
 #include "../pions/pions.h"
+#include "../logic/rules.h"  // 🔧 FIX: Add missing include
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,6 +40,18 @@
 #define BLACK_PIECE_G 30
 #define BLACK_PIECE_B 30
 
+// 🆕 VISUAL FEEDBACK STRUCTURES
+typedef struct VisualFeedbackState {
+    int hovered_intersection;           // -1 if none
+    int selected_intersection;          // -1 if none
+    int* valid_destinations;            // Array of valid destinations (0/1)
+    int valid_count;
+    float animation_timer;              // 0.0 - 1.0
+    char error_message[128];
+    float error_display_timer;          // Seconds remaining
+    int error_type;                     // 0=capture required, 1=direction forbidden, 2=visited
+} VisualFeedbackState;
+
 typedef struct PlateauRenderData {
     Board* board;
     SDL_Renderer* renderer;
@@ -52,7 +65,18 @@ typedef struct PlateauRenderData {
     GamePlayer* player2;  // 🆕 Joueur 2
     SDL_Texture* texture_black;  // 🆕 Texture pions noirs
     SDL_Texture* texture_brown;  // 🆕 Texture pions bruns
+    VisualFeedbackState* visual_state;  // 🆕 Visual feedback
+    void* game_logic;                   // 🆕 Reference to GameLogic
 } PlateauRenderData;
+
+// 🆕 ERROR MESSAGES
+static const char* error_messages[] = {
+    [0] = "⚠️ Vous devez capturer quand c'est possible !",
+    [1] = "⚠️ Impossible de capturer 2x dans la même direction !",
+    [2] = "⚠️ Position déjà visitée pendant cette chaîne !",
+    [3] = "⚠️ Les cases doivent être adjacentes !",
+    [4] = "⚠️ Ce n'est pas votre pion !"
+};
 
 // === FONCTIONS UTILITAIRES ===
 
@@ -106,6 +130,21 @@ static void plateau_draw_intersection(PlateauRenderData* data, int r, int c, boo
     }
 }
 
+// 🆕 VISUAL FEEDBACK FUNCTIONS (moved before first use)
+static void plateau_init_visual_feedback(PlateauRenderData* data) {
+    data->visual_state = calloc(1, sizeof(VisualFeedbackState));
+    VisualFeedbackState* vf = data->visual_state;
+    
+    vf->hovered_intersection = -1;
+    vf->selected_intersection = -1;
+    vf->valid_destinations = calloc(NODES, sizeof(int));
+    vf->valid_count = 0;
+    vf->animation_timer = 0.0f;
+    vf->error_display_timer = 0.0f;
+    
+    printf("✅ Visual feedback system initialized\n");
+}
+
 // 🆕 Initialiser les joueurs de test
 static void plateau_init_test_players(PlateauRenderData* data) {
     // Créer joueur 1 (pions noirs)
@@ -121,6 +160,9 @@ static void plateau_init_test_players(PlateauRenderData* data) {
     printf("   👤 %s: %s (%s)\n", data->player2->name, 
            data->player2->logical_color == WHITE ? "Blanc" : "Noir",
            piece_color_to_string(data->player2->piece_color));
+    
+    // 🆕 Initialize visual feedback after players
+    plateau_init_visual_feedback(data);
 }
 
 // 🆕 Charger les textures des pions
@@ -259,7 +301,224 @@ static void plateau_draw_coordinates(PlateauRenderData* data) {
     SDL_RenderFillRect(data->renderer, &center_mark);
 }
 
-// 🔧 Modifier le rendu personnalisé pour charger les textures au premier rendu
+// 🆕 VISUAL FEEDBACK FUNCTIONS
+
+static int plateau_find_intersection_at_mouse(PlateauRenderData* data, int mouse_x, int mouse_y) {
+    for (int id = 0; id < NODES; id++) {
+        Intersection* intersection = &data->board->nodes[id];
+        int screen_x, screen_y;
+        plateau_logical_to_screen(data, intersection->r, intersection->c, &screen_x, &screen_y);
+        
+        int dx = mouse_x - screen_x;
+        int dy = mouse_y - screen_y;
+        int distance_squared = dx*dx + dy*dy;
+        int detection_radius = PIECE_RADIUS + 8; // Player-friendly detection
+        
+        if (distance_squared <= detection_radius * detection_radius) {
+            return id;
+        }
+    }
+    return -1;
+}
+
+static void plateau_calculate_valid_moves(PlateauRenderData* data, int from_id) {
+    VisualFeedbackState* vf = data->visual_state;
+    
+    vf->valid_count = 0;
+    memset(vf->valid_destinations, 0, NODES * sizeof(int));
+    
+    // Test all intersections as potential destinations
+    for (int to_id = 0; to_id < NODES; to_id++) {
+        if (to_id == from_id) continue;
+        if (data->board->nodes[to_id].piece) continue; // Must be empty
+        
+        // 🎯 Use your validator with minimal game state (simplified for now)
+        int is_valid = is_move_valide(
+            data->board,
+            from_id,
+            to_id,
+            data->player1->logical_color, // Current player (simplified)
+            NULL,  // No last direction for now
+            NULL,  // No visited positions for now
+            0,     // No visited count
+            0      // Not during capture chain
+        );
+        
+        if (is_valid) {
+            vf->valid_destinations[to_id] = 1;
+            vf->valid_count++;
+        }
+    }
+    
+    printf("✅ Found %d valid destinations for piece %d\n", vf->valid_count, from_id);
+}
+
+static void plateau_show_error_feedback(PlateauRenderData* data, int error_type) {
+    VisualFeedbackState* vf = data->visual_state;
+    
+    if (error_type >= 0 && error_type < 5) {
+        strncpy(vf->error_message, error_messages[error_type], 127);
+        vf->error_message[127] = '\0';
+        vf->error_display_timer = 2.5f; // Display for 2.5 seconds
+        vf->error_type = error_type;
+        
+        printf("❌ Error feedback: %s\n", vf->error_message);
+    }
+}
+
+static void plateau_render_hover_feedback(PlateauRenderData* data) {
+    VisualFeedbackState* vf = data->visual_state;
+    if (vf->hovered_intersection < 0) return;
+    
+    Intersection* intersection = &data->board->nodes[vf->hovered_intersection];
+    int x, y;
+    plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
+    
+    // Animated halo
+    float pulse = (sin(vf->animation_timer * 8.0f) + 1.0f) * 0.5f; // 0-1
+    int halo_radius = PIECE_RADIUS + 5 + (int)(pulse * 3);
+    int alpha = 80 + (int)(pulse * 80); // 80-160
+    
+    // Golden hover halo
+    SDL_SetRenderDrawColor(data->renderer, 255, 255, 100, alpha);
+    plateau_draw_filled_circle(data->renderer, x, y, halo_radius, 255, 255, 100, alpha);
+}
+
+static void plateau_render_selection_feedback(PlateauRenderData* data) {
+    VisualFeedbackState* vf = data->visual_state;
+    if (vf->selected_intersection < 0) return;
+    
+    Intersection* intersection = &data->board->nodes[vf->selected_intersection];
+    int x, y;
+    plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
+    
+    // Blue selection ring
+    SDL_SetRenderDrawColor(data->renderer, 100, 150, 255, 200);
+    plateau_draw_filled_circle(data->renderer, x, y, PIECE_RADIUS + 8, 100, 150, 255, 100);
+    SDL_SetRenderDrawColor(data->renderer, 100, 150, 255, 255);
+    for (int i = 0; i < 3; i++) {
+        // Draw ring outline
+        // Simplified ring drawing
+        plateau_draw_filled_circle(data->renderer, x, y, PIECE_RADIUS + 6 + i, 100, 150, 255, 50);
+    }
+}
+
+static void plateau_render_valid_destinations(PlateauRenderData* data) {
+    VisualFeedbackState* vf = data->visual_state;
+    if (vf->selected_intersection < 0) return;
+    
+    for (int id = 0; id < NODES; id++) {
+        if (!vf->valid_destinations[id]) continue;
+        
+        Intersection* intersection = &data->board->nodes[id];
+        int x, y;
+        plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
+        
+        // Green circles for valid destinations
+        float pulse = (sin(vf->animation_timer * 6.0f) + 1.0f) * 0.5f;
+        int alpha = 100 + (int)(pulse * 100);
+        
+        SDL_SetRenderDrawColor(data->renderer, 100, 255, 100, alpha);
+        plateau_draw_filled_circle(data->renderer, x, y, INTERSECTION_RADIUS + 2, 100, 255, 100, alpha);
+    }
+}
+
+static void plateau_render_error_feedback(PlateauRenderData* data) {
+    VisualFeedbackState* vf = data->visual_state;
+    if (vf->error_display_timer <= 0.0f) return;
+    
+    // Simple text rendering (for now, just console output)
+    // TODO: Integrate with TTF system for on-screen display
+    static float last_error_time = 0.0f;
+    if (vf->error_display_timer > last_error_time - 0.1f) {
+        printf("💬 [ERROR] %s\n", vf->error_message);
+        last_error_time = vf->error_display_timer;
+    }
+}
+
+static void plateau_update_visual_feedback(PlateauRenderData* data, float delta_time) {
+    VisualFeedbackState* vf = data->visual_state;
+    
+    vf->animation_timer += delta_time * 2.0f; // Animation speed
+    if (vf->animation_timer > 6.28f) vf->animation_timer = 0.0f; // Reset at 2π
+    
+    if (vf->error_display_timer > 0.0f) {
+        vf->error_display_timer -= delta_time;
+    }
+}
+
+static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
+    AtomicElement* atomic = (AtomicElement*)element;
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
+    if (!data) return;
+    
+    VisualFeedbackState* vf = data->visual_state;
+    // 🔧 FIX: Use render rect instead of missing functions
+    SDL_Rect rect = atomic_get_render_rect(atomic);
+    int mouse_x = event->button.x - rect.x;
+    int mouse_y = event->button.y - rect.y;
+    
+    int clicked_id = plateau_find_intersection_at_mouse(data, mouse_x, mouse_y);
+    
+    if (clicked_id >= 0) {
+        Intersection* clicked = &data->board->nodes[clicked_id];
+        
+        if (vf->selected_intersection < 0) {
+            // No piece selected - try to select this piece
+            if (clicked->piece && clicked->piece->owner == data->player1->logical_color) {
+                vf->selected_intersection = clicked_id;
+                plateau_calculate_valid_moves(data, clicked_id);
+                printf("🎯 Piece selected at intersection %d\n", clicked_id);
+            } else {
+                plateau_show_error_feedback(data, 4); // Wrong piece
+            }
+        } else {
+            // Piece already selected - try to move
+            if (clicked_id == vf->selected_intersection) {
+                // Deselect
+                vf->selected_intersection = -1;
+                vf->valid_count = 0;
+                printf("🔄 Piece deselected\n");
+            } else if (vf->valid_destinations[clicked_id]) {
+                // Valid move - execute it
+                printf("✅ Valid move from %d to %d\n", vf->selected_intersection, clicked_id);
+                // TODO: Execute move with rules.c
+                vf->selected_intersection = -1;
+                vf->valid_count = 0;
+            } else {
+                // Invalid move - show error
+                plateau_show_error_feedback(data, 3); // Not adjacent (simplified)
+            }
+        }
+    }
+}
+
+static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
+    AtomicElement* atomic = (AtomicElement*)element;
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
+    if (!data) return;
+    
+    VisualFeedbackState* vf = data->visual_state;
+    // 🔧 FIX: Use render rect instead of missing functions
+    SDL_Rect rect = atomic_get_render_rect(atomic);
+    int mouse_x = event->motion.x - rect.x;
+    int mouse_y = event->motion.y - rect.y;
+    
+    int new_hovered = plateau_find_intersection_at_mouse(data, mouse_x, mouse_y);
+    
+    if (new_hovered != vf->hovered_intersection) {
+        vf->hovered_intersection = new_hovered;
+        vf->animation_timer = 0.0f; // Reset animation
+    }
+}
+
+// 🔧 Remove duplicate plateau_init_visual_feedback function at line 290
+
+// 🔧 Remove duplicate plateau_init_test_players function (lines 517-535)
+
+// 🔧 Modifier les fonctions existantes
+
+// 🔧 Modifier plateau_custom_render pour inclure le retour visuel
 static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer) {
     if (!element || !renderer) return;
     
@@ -294,6 +553,15 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     plateau_draw_all_intersections(data);
     plateau_draw_all_pieces(data);
     plateau_draw_coordinates(data);
+    
+    // Update visual feedback
+    plateau_update_visual_feedback(data, 0.016f); // ~60 FPS
+    
+    // Render visual feedback layers
+    plateau_render_hover_feedback(data);
+    plateau_render_selection_feedback(data);
+    plateau_render_valid_destinations(data);
+    plateau_render_error_feedback(data);
     
     printf("🎨 Plateau rendered: %d intersections, %d pieces\n", NODES, data->board->piece_count);
 }
@@ -353,6 +621,11 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
             
             // Définir le rendu personnalisé
             atomic_set_custom_render(plateau_container->element, plateau_custom_render);
+            
+            // 🆕 Set up mouse event handlers
+            atomic_set_click_handler(plateau_container->element, plateau_handle_mouse_click);
+            // 🔧 FIX: Use proper handler name from atomic.h
+            atomic_set_hover_handler(plateau_container->element, plateau_handle_mouse_move);
             
             ui_log_event("UIComponent", "Create", id, "Plateau container created with players and textures");
             printf("✅ Plateau container '%s' créé avec joueurs :\n", id);
@@ -419,7 +692,7 @@ void ui_plateau_update_from_board(UINode* plateau, Board* new_board) {
     }
 }
 
-// 🆕 NOUVELLES FONCTIONS pour gérer les joueurs
+// 🆕 NOUVELLES FONCTIONS pour les joueurs
 void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* player2) {
     if (!plateau) return;
     
@@ -432,18 +705,46 @@ void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* pl
     }
 }
 
-GamePlayer* ui_plateau_get_player1(UINode* plateau) {
-    if (!plateau) return NULL;
+// 🆕 NEW: Set up mouse handlers for the plateau
+void ui_plateau_set_mouse_handlers(UINode* plateau) {
+    if (!plateau || !plateau->element) {
+        printf("❌ Invalid plateau for mouse handlers setup\n");
+        return;
+    }
     
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    return data ? data->player1 : NULL;
+    // Handlers are already set up in ui_plateau_container_with_players
+    // This function is mainly for external setup if needed
+    printf("🖱️ Mouse handlers already configured for plateau '%s'\n", 
+           plateau->id ? plateau->id : "NoID");
 }
 
-GamePlayer* ui_plateau_get_player2(UINode* plateau) {
+// 🆕 NEW: Update visual feedback (called from external systems)
+void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (data && data->visual_state) {
+        plateau_update_visual_feedback(data, delta_time);
+    }
+}
+
+// 🆕 NEW: Set game logic reference
+void ui_plateau_set_game_logic(UINode* plateau, void* game_logic) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (data) {
+        data->game_logic = game_logic;
+        printf("🧠 Game logic connected to plateau '%s'\n", plateau->id ? plateau->id : "NoID");
+    }
+}
+
+// 🆕 NEW: Get game logic reference
+void* ui_plateau_get_game_logic(UINode* plateau) {
     if (!plateau) return NULL;
     
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    return data ? data->player2 : NULL;
+    return data ? data->game_logic : NULL;
 }
 
 void ui_plateau_cleanup(UINode* plateau) {
@@ -470,6 +771,14 @@ void ui_plateau_cleanup(UINode* plateau) {
         // 🔧 FIX: Les textures sont gérées par le système de référence, pas besoin de les détruire ici
         data->texture_black = NULL;
         data->texture_brown = NULL;
+        
+        if (data->visual_state) {
+            if (data->visual_state->valid_destinations) {
+                free(data->visual_state->valid_destinations);
+            }
+            free(data->visual_state);
+            data->visual_state = NULL;
+        }
         
         printf("🗑️ [PLATEAU_CLEANUP] Libération PlateauRenderData\n");
         free(data);
