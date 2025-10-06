@@ -314,6 +314,9 @@ GamePlayer* ui_plateau_get_player2(UINode* plateau);
 // Nettoyage des ressources
 void ui_plateau_cleanup(UINode* plateau);
 
+// 🆕 NOUVELLE FONCTION: Destruction complète du container
+void ui_plateau_container_destroy(UINode* plateau_container);
+
 // === MACROS POUR LES NOUVEAUX COMPOSANTS ===
 
 #define UI_SIDEBAR(tree, id) ui_sidebar(tree, id)

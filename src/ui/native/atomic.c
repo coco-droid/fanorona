@@ -886,6 +886,9 @@ AtomicError atomic_destroy_safe(AtomicElement* element) {
     log_console_write("AtomicDestruction", "Starting", "atomic.c", 
                      "[atomic.c] Starting safe destruction");
     
+    // 🔧 FIX: Nettoyer les custom_data AVANT de détruire les enfants
+    atomic_cleanup_custom_data(element);
+    
     // Détruire récursivement tous les enfants
     for (int i = 0; i < element->content.children_count; i++) {
         AtomicElement* child = element->content.children[i];
@@ -923,7 +926,7 @@ AtomicError atomic_destroy_safe(AtomicElement* element) {
     free(element);
     
     log_console_write("AtomicDestruction", "Completed", "atomic.c", 
-                     "[atomic.c] Safe destruction completed");
+                     "[atomic.c] Safe destruction completed with custom_data cleanup");
     
     return ATOMIC_SUCCESS;
 }
@@ -1080,14 +1083,33 @@ AtomicElement* atomic_create(const char* id) {
 void atomic_set_custom_data(AtomicElement* element, const char* key, void* value) {
     if (!element || !key) return;
     
-    // Créer une nouvelle entrée
+    // 🔧 FIX: Vérifier si la clé existe déjà pour éviter les doublons
+    CustomDataEntry* current = element->custom_data;
+    while (current) {
+        if (strcmp(current->key, key) == 0) {
+            // Remplacer la valeur existante
+            current->value = value;
+            return;
+        }
+        current = current->next;
+    }
+    
+    // Créer une nouvelle entrée seulement si la clé n'existe pas
     CustomDataEntry* entry = malloc(sizeof(CustomDataEntry));
     if (!entry) return;
     
     entry->key = strdup(key);
+    if (!entry->key) {
+        free(entry);
+        return;
+    }
+    
     entry->value = value;
     entry->next = element->custom_data;
     element->custom_data = entry;
+    
+    printf("🔧 [CUSTOM_DATA] Clé '%s' ajoutée pour élément '%s'\n", 
+           key, element->id ? element->id : "NoID");
 }
 
 void* atomic_get_custom_data(AtomicElement* element, const char* key) {
@@ -1108,13 +1130,22 @@ void atomic_cleanup_custom_data(AtomicElement* element) {
     if (!element) return;
     
     CustomDataEntry* current = element->custom_data;
+    int cleaned_count = 0;
+    
     while (current) {
         CustomDataEntry* next = current->next;
         free(current->key);
+        // 🔧 NOTE: On ne free pas current->value car c'est géré par l'utilisateur
         free(current);
         current = next;
+        cleaned_count++;
     }
     element->custom_data = NULL;
+    
+    if (cleaned_count > 0) {
+        printf("🧹 [CUSTOM_DATA] %d entrées nettoyées pour élément '%s'\n", 
+               cleaned_count, element->id ? element->id : "NoID");
+    }
 }
 
 // === IMPROVED UPDATE FUNCTION ===

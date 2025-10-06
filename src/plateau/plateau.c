@@ -104,9 +104,41 @@ void board_print(Board *b) {
 
 // Release allocated pieces in board
 void board_free(Board *b) {
+    if (!b) return;
+    
+    printf("🧹 [BOARD_FREE] Nettoyage du plateau avec %d pièces\n", b->piece_count);
+    
+    // 🔧 FIX: Libérer toutes les pièces allouées, même celles marquées comme mortes
     for (int i = 0; i < b->piece_count; ++i) {
         Piece *p = b->pieces[i];
-        // some may already be freed by captures
-        if (p && p->alive) free(p);
+        if (p) {
+            printf("🗑️ [BOARD_FREE] Libération pièce %d (owner=%d, alive=%d)\n", 
+                   p->id, p->owner, p->alive);
+            free(p);
+            b->pieces[i] = NULL; // 🔧 Éviter les double-free
+        }
     }
+    
+    // 🔧 FIX: Nettoyer les références dans les intersections
+    for (int i = 0; i < NODES; i++) {
+        b->nodes[i].piece = NULL; // 🔧 Éviter les pointeurs pendants
+    }
+    
+    // 🔧 FIX: Réinitialiser le compteur
+    b->piece_count = 0;
+    
+    printf("✅ [BOARD_FREE] Plateau nettoyé complètement\n");
+}
+
+// 🆕 NOUVELLE FONCTION: Destruction complète du board
+void board_destroy(Board* board) {
+    if (!board) return;
+    
+    printf("🧹 [BOARD_DESTROY] Destruction complète du plateau\n");
+    
+    // Libérer toutes les pièces
+    board_free(board);
+    
+    // Le board lui-même sera libéré par l'appelant car il peut être alloué sur la pile ou le tas
+    printf("✅ [BOARD_DESTROY] Plateau détruit\n");
 }

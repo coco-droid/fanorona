@@ -54,6 +54,9 @@ UINode* ui_tree_get_by_id(UITree* tree, const char* id);
 UINode* ui_tree_query_selector(UITree* tree, const char* selector);
 UINode** ui_tree_query_selector_all(UITree* tree, const char* selector, int* count);
 
+// 🆕 NOUVELLE FONCTION: Recherche de nœud par ID
+UINode* ui_tree_find_node(UITree* tree, const char* id);
+
 // Manipulation de l'arbre
 void ui_tree_append_child(UINode* parent, UINode* child);
 void ui_tree_remove_child(UINode* parent, UINode* child);

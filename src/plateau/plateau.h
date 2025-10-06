@@ -32,5 +32,6 @@ void rc_from_id(int id, int *r, int *c);
 void board_init(Board *b);
 void board_print(Board *b);
 void board_free(Board *b);
+void board_destroy(Board* board);
 
 #endif

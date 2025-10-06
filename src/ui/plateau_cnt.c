@@ -449,24 +449,56 @@ GamePlayer* ui_plateau_get_player2(UINode* plateau) {
 void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
     
+    printf("🧹 [PLATEAU_CLEANUP] Début du nettoyage pour '%s'\n", plateau->id);
+    
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     Board* board = (Board*)atomic_get_custom_data(plateau->element, "board");
     
     if (data) {
-        // Nettoyer les joueurs de test si créés localement
+        // 🔧 FIX: Nettoyer les joueurs de test si créés localement
         if (data->player1) {
+            printf("🗑️ [PLATEAU_CLEANUP] Nettoyage player1: '%s'\n", data->player1->name);
             player_destroy(data->player1);
+            data->player1 = NULL;
         }
         if (data->player2) {
+            printf("🗑️ [PLATEAU_CLEANUP] Nettoyage player2: '%s'\n", data->player2->name);
             player_destroy(data->player2);
+            data->player2 = NULL;
         }
+        
+        // 🔧 FIX: Les textures sont gérées par le système de référence, pas besoin de les détruire ici
+        data->texture_black = NULL;
+        data->texture_brown = NULL;
+        
+        printf("🗑️ [PLATEAU_CLEANUP] Libération PlateauRenderData\n");
         free(data);
     }
     
     if (board) {
+        printf("🗑️ [PLATEAU_CLEANUP] Nettoyage du plateau logique\n");
         board_free(board);
         free(board);
     }
     
-    ui_log_event("UIComponent", "PlateauCleanup", plateau->id, "Plateau and players cleaned up");
+    // 🔧 FIX: Nettoyer les custom_data pour éviter les pointeurs pendants
+    atomic_set_custom_data(plateau->element, "plateau_data", NULL);
+    atomic_set_custom_data(plateau->element, "board", NULL);
+    
+    ui_log_event("UIComponent", "PlateauCleanup", plateau->id, "Plateau and players cleaned up completely");
+    printf("✅ [PLATEAU_CLEANUP] Nettoyage terminé pour '%s'\n", plateau->id);
+}
+
+// 🆕 NOUVELLE FONCTION: Destruction automatique du plateau
+void ui_plateau_container_destroy(UINode* plateau_container) {
+    if (!plateau_container) return;
+    
+    printf("🧹 [PLATEAU_DESTROY] Destruction du container de plateau '%s'\n", 
+           plateau_container->id ? plateau_container->id : "NoID");
+    
+    // Nettoyer les données spécifiques au plateau
+    ui_plateau_cleanup(plateau_container);
+    
+    // Le UINode lui-même sera détruit par le système UI
+    printf("✅ [PLATEAU_DESTROY] Container de plateau détruit\n");
 }

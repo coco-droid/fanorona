@@ -138,6 +138,17 @@ static void game_scene_cleanup(Scene* scene) {
     
     GameSceneData* data = (GameSceneData*)scene->data;
     
+    // 🔧 FIX: Nettoyer explicitement le plateau avant de détruire l'UI tree
+    if (data->playable_area) {
+        // Chercher le plateau dans la zone de jeu et le nettoyer
+        // Le plateau sera dans game-area -> fanorona-plateau
+        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
+        if (plateau) {
+            printf("🗑️ [GAME_CLEANUP] Nettoyage explicite du plateau\n");
+            ui_plateau_container_destroy(plateau);
+        }
+    }
+    
     // Nettoyer l'arbre UI
     if (data->ui_tree) {
         ui_tree_destroy(data->ui_tree);
@@ -147,7 +158,7 @@ static void game_scene_cleanup(Scene* scene) {
     free(data);
     scene->data = NULL;
     
-    printf("✅ Nettoyage de la scène de jeu terminé\n");
+    printf("✅ Nettoyage de la scène de jeu terminé avec nettoyage du plateau\n");
 }
 
 // Créer la scène de jeu

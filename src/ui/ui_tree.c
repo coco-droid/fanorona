@@ -165,6 +165,11 @@ UINode* ui_tree_get_by_id(UITree* tree, const char* id) {
     return NULL;
 }
 
+// 🆕 NOUVELLE FONCTION: Alias pour ui_tree_get_by_id pour compatibilité
+UINode* ui_tree_find_node(UITree* tree, const char* id) {
+    return ui_tree_get_by_id(tree, id);
+}
+
 UINode* ui_tree_query_selector(UITree* tree, const char* selector) {
     if (!tree || !selector) return NULL;
     
