@@ -7,7 +7,7 @@
 #include "../utils/asset_manager.h"
 #include "../plateau/plateau.h"
 #include "../pions/pions.h"
-#include "../logic/rules.h"  // 🔧 FIX: Add missing include
+#include "../logic/rules.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,15 +42,27 @@
 
 // 🆕 VISUAL FEEDBACK STRUCTURES
 typedef struct VisualFeedbackState {
-    int hovered_intersection;           // -1 if none
-    int selected_intersection;          // -1 if none
-    int* valid_destinations;            // Array of valid destinations (0/1)
+    int hovered_intersection;
+    int selected_intersection;
+    int* valid_destinations;
     int valid_count;
-    float animation_timer;              // 0.0 - 1.0
+    float animation_timer;
     char error_message[128];
-    float error_display_timer;          // Seconds remaining
-    int error_type;                     // 0=capture required, 1=direction forbidden, 2=visited
+    float error_display_timer;
+    int error_type;
 } VisualFeedbackState;
+
+// Forward declaration
+typedef struct PlateauRenderData PlateauRenderData;
+
+typedef struct IntersectionElement {
+    UINode* ui_node;
+    int intersection_id;
+    int screen_x, screen_y;
+    bool is_hovered;
+    bool is_selected;
+    PlateauRenderData* plateau_data;
+} IntersectionElement;
 
 typedef struct PlateauRenderData {
     Board* board;
@@ -61,12 +73,13 @@ typedef struct PlateauRenderData {
     int cell_height;
     bool show_intersections;
     bool show_coordinates;
-    GamePlayer* player1;  // 🆕 Joueur 1
-    GamePlayer* player2;  // 🆕 Joueur 2
-    SDL_Texture* texture_black;  // 🆕 Texture pions noirs
-    SDL_Texture* texture_brown;  // 🆕 Texture pions bruns
-    VisualFeedbackState* visual_state;  // 🆕 Visual feedback
-    void* game_logic;                   // 🆕 Reference to GameLogic
+    GamePlayer* player1;
+    GamePlayer* player2;
+    SDL_Texture* texture_black;
+    SDL_Texture* texture_brown;
+    VisualFeedbackState* visual_state;
+    void* game_logic;
+    IntersectionElement* intersection_elements[NODES];
 } PlateauRenderData;
 
 // 🆕 ERROR MESSAGES
@@ -303,24 +316,6 @@ static void plateau_draw_coordinates(PlateauRenderData* data) {
 
 // 🆕 VISUAL FEEDBACK FUNCTIONS
 
-static int plateau_find_intersection_at_mouse(PlateauRenderData* data, int mouse_x, int mouse_y) {
-    for (int id = 0; id < NODES; id++) {
-        Intersection* intersection = &data->board->nodes[id];
-        int screen_x, screen_y;
-        plateau_logical_to_screen(data, intersection->r, intersection->c, &screen_x, &screen_y);
-        
-        int dx = mouse_x - screen_x;
-        int dy = mouse_y - screen_y;
-        int distance_squared = dx*dx + dy*dy;
-        int detection_radius = PIECE_RADIUS + 8; // Player-friendly detection
-        
-        if (distance_squared <= detection_radius * detection_radius) {
-            return id;
-        }
-    }
-    return -1;
-}
-
 static void plateau_calculate_valid_moves(PlateauRenderData* data, int from_id) {
     VisualFeedbackState* vf = data->visual_state;
     
@@ -370,23 +365,43 @@ static void plateau_render_hover_feedback(PlateauRenderData* data) {
     VisualFeedbackState* vf = data->visual_state;
     if (vf->hovered_intersection < 0) return;
     
-    // 🆕 DEBUG
-    static int hover_debug_counter = 0;
-    if (hover_debug_counter++ % 60 == 0) { // Log toutes les 60 frames
-        printf("🌟 Rendering hover feedback for intersection %d\n", vf->hovered_intersection);
-    }
-    
     Intersection* intersection = &data->board->nodes[vf->hovered_intersection];
     int x, y;
     plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
     
-    // Animated halo
-    float pulse = (sin(vf->animation_timer * 8.0f) + 1.0f) * 0.5f; // 0-1
-    int halo_radius = PIECE_RADIUS + 5 + (int)(pulse * 3);
-    int alpha = 80 + (int)(pulse * 80); // 80-160
+    // 🔧 FIX: Vérifier si l'intersection contient un pion de l'utilisateur
+    bool is_user_piece = (intersection->piece != NULL && 
+                         intersection->piece->owner == data->player1->logical_color);
     
-    // Golden hover halo
-    plateau_draw_filled_circle(data->renderer, x, y, halo_radius, 255, 255, 100, alpha);
+    if (is_user_piece) {
+        // 🆕 DESIGN: Cercle jaune rond pour les pions utilisateur
+        float pulse = (sin(vf->animation_timer * 6.0f) + 1.0f) * 0.5f; // 0-1
+        int halo_radius = PIECE_RADIUS + 8 + (int)(pulse * 4);
+        int alpha = 120 + (int)(pulse * 100); // 120-220 pour bien visible
+        
+        // 🎯 Cercle jaune vif pour les pions utilisateur
+        plateau_draw_filled_circle(data->renderer, x, y, halo_radius, 255, 255, 0, alpha);
+        
+        // 🆕 Bordure dorée pour plus de visibilité
+        for (int i = 0; i < 3; i++) {
+            plateau_draw_filled_circle(data->renderer, x, y, halo_radius + i, 255, 215, 0, 80);
+        }
+        
+        // 🆕 DEBUG: Confirmer le rendu
+        static int render_debug_counter = 0;
+        if (render_debug_counter++ % 30 == 0) { // Log toutes les 30 frames
+            printf("🌟 Rendering YELLOW hover for user piece at (%d,%d) intersection %d\n", 
+                   intersection->r, intersection->c, vf->hovered_intersection);
+        }
+    } else {
+        // 🔧 Hover standard pour les intersections vides ou pions adverses
+        float pulse = (sin(vf->animation_timer * 4.0f) + 1.0f) * 0.5f;
+        int halo_radius = INTERSECTION_RADIUS + 3 + (int)(pulse * 2);
+        int alpha = 60 + (int)(pulse * 60);
+        
+        // Cercle blanc translucide pour les autres intersections
+        plateau_draw_filled_circle(data->renderer, x, y, halo_radius, 255, 255, 255, alpha);
+    }
 }
 
 static void plateau_render_selection_feedback(PlateauRenderData* data) {
@@ -444,121 +459,205 @@ static void plateau_render_error_feedback(PlateauRenderData* data) {
 static void plateau_update_visual_feedback(PlateauRenderData* data, float delta_time) {
     VisualFeedbackState* vf = data->visual_state;
     
-    vf->animation_timer += delta_time * 2.0f; // Animation speed
+    vf->animation_timer += delta_time * 3.0f; // 🔧 FIX: Augmenter la vitesse d'animation
     if (vf->animation_timer > 6.28f) vf->animation_timer = 0.0f; // Reset at 2π
     
     if (vf->error_display_timer > 0.0f) {
         vf->error_display_timer -= delta_time;
     }
+    
+    // 🆕 Force un re-rendu si on a un hover actif
+    if (vf->hovered_intersection >= 0) {
+        // Le rendu sera fait automatiquement par le système
+    }
 }
 
-static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
-    (void)event; // Éviter le warning unused parameter
+// 🆕 NOUVELLES FONCTIONS pour les intersections individuelles
+static void intersection_handle_hover(void* element, SDL_Event* event) {
+    (void)event;
     
     AtomicElement* atomic = (AtomicElement*)element;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
-    if (!data) return;
+    IntersectionElement* intersection_elem = (IntersectionElement*)atomic_get_custom_data(atomic, "intersection_data");
+    if (!intersection_elem) return;
     
-    VisualFeedbackState* vf = data->visual_state;
+    PlateauRenderData* data = intersection_elem->plateau_data;
+    int intersection_id = intersection_elem->intersection_id;
     
-    // 🔧 FIX: Obtenir les coordonnées de souris absolues
-    int mouse_x, mouse_y;
-    SDL_GetMouseState(&mouse_x, &mouse_y);
+    // Vérifier si c'est un pion utilisateur
+    Intersection* intersection = &data->board->nodes[intersection_id];
+    bool is_user_piece = (intersection->piece != NULL && 
+                         intersection->piece->owner == data->player1->logical_color);
     
-    // 🔧 FIX: Convertir en coordonnées relatives au plateau
-    SDL_Rect rect = atomic_get_render_rect(atomic);
-    int relative_mouse_x = mouse_x - rect.x;
-    int relative_mouse_y = mouse_y - rect.y;
-    
-    // 🆕 DEBUG: Afficher les coordonnées pour debug (réduit pour éviter le spam)
-    static int debug_counter = 0;
-    if (debug_counter++ % 60 == 0) { // Log toutes les 60 frames
-        printf("🐭 Plateau hover: abs(%d,%d) -> rel(%d,%d)\n", 
-               mouse_x, mouse_y, relative_mouse_x, relative_mouse_y);
-    }
-    
-    int new_hovered = plateau_find_intersection_at_mouse(data, relative_mouse_x, relative_mouse_y);
-    
-    if (new_hovered != vf->hovered_intersection) {
-        vf->hovered_intersection = new_hovered;
-        vf->animation_timer = 0.0f; // Reset animation
+    if (is_user_piece) {
+        // Marquer comme hovered seulement les pions utilisateur
+        intersection_elem->is_hovered = true;
+        data->visual_state->hovered_intersection = intersection_id;
+        data->visual_state->animation_timer = 0.0f; // Reset animation
         
-        // 🆕 DEBUG: Confirmer la détection avec effet de scale
-        if (new_hovered >= 0) {
-            printf("🎯 Intersection %d hovered with scale effect\n", new_hovered);
+        printf("🎯 User piece hovered at intersection %d (%d,%d)\n", 
+               intersection_id, intersection->r, intersection->c);
+    }
+}
+
+static void intersection_handle_unhover(void* element, SDL_Event* event) {
+    (void)event;
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    IntersectionElement* intersection_elem = (IntersectionElement*)atomic_get_custom_data(atomic, "intersection_data");
+    if (!intersection_elem) return;
+    
+    PlateauRenderData* data = intersection_elem->plateau_data;
+    int intersection_id = intersection_elem->intersection_id;
+    
+    if (intersection_elem->is_hovered) {
+        intersection_elem->is_hovered = false;
+        
+        // Reset hover state si c'était l'intersection hovered
+        if (data->visual_state->hovered_intersection == intersection_id) {
+            data->visual_state->hovered_intersection = -1;
         }
+        
+        printf("🚫 Intersection %d unhovered\n", intersection_id);
     }
 }
 
-static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
-    (void)event; // Éviter le warning unused parameter
+static void intersection_handle_click(void* element, SDL_Event* event) {
+    (void)event;
     
     AtomicElement* atomic = (AtomicElement*)element;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
-    if (!data) return;
+    IntersectionElement* intersection_elem = (IntersectionElement*)atomic_get_custom_data(atomic, "intersection_data");
+    if (!intersection_elem) return;
     
+    PlateauRenderData* data = intersection_elem->plateau_data;
+    int intersection_id = intersection_elem->intersection_id;
     VisualFeedbackState* vf = data->visual_state;
     
-    // 🔧 FIX: Même correction pour les clics
-    int mouse_x, mouse_y;
-    SDL_GetMouseState(&mouse_x, &mouse_y);
+    printf("🖱️ Intersection %d clicked\n", intersection_id);
     
-    SDL_Rect rect = atomic_get_render_rect(atomic);
-    int relative_mouse_x = mouse_x - rect.x;
-    int relative_mouse_y = mouse_y - rect.y;
+    Intersection* clicked = &data->board->nodes[intersection_id];
     
-    // 🆕 DEBUG: Confirmer les coordonnées de clic
-    printf("🖱️ Click: abs(%d,%d) -> rel(%d,%d)\n", 
-           mouse_x, mouse_y, relative_mouse_x, relative_mouse_y);
-    
-    int clicked_id = plateau_find_intersection_at_mouse(data, relative_mouse_x, relative_mouse_y);
-    
-    if (clicked_id >= 0) {
-        printf("🎯 Intersection %d clicked\n", clicked_id);
-        
-        Intersection* clicked = &data->board->nodes[clicked_id];
-        
-        if (vf->selected_intersection < 0) {
-            // No piece selected - try to select this piece
-            if (clicked->piece && clicked->piece->owner == data->player1->logical_color) {
-                vf->selected_intersection = clicked_id;
-                plateau_calculate_valid_moves(data, clicked_id);
-                printf("🎯 Piece selected at intersection %d\n", clicked_id);
-            } else {
-                plateau_show_error_feedback(data, 4); // Wrong piece
-                printf("❌ Cannot select intersection %d (no piece or wrong owner)\n", clicked_id);
-            }
+    if (vf->selected_intersection < 0) {
+        // No piece selected - try to select this piece
+        if (clicked->piece && clicked->piece->owner == data->player1->logical_color) {
+            vf->selected_intersection = intersection_id;
+            intersection_elem->is_selected = true;
+            plateau_calculate_valid_moves(data, intersection_id);
+            printf("🎯 Piece selected at intersection %d\n", intersection_id);
         } else {
-            // Piece already selected - try to move
-            if (clicked_id == vf->selected_intersection) {
-                // Deselect
-                vf->selected_intersection = -1;
-                vf->valid_count = 0;
-                printf("🔄 Piece deselected\n");
-            } else if (vf->valid_destinations[clicked_id]) {
-                // Valid move - execute it
-                printf("✅ Valid move from %d to %d\n", vf->selected_intersection, clicked_id);
-                // TODO: Execute move with rules.c
-                vf->selected_intersection = -1;
-                vf->valid_count = 0;
-            } else {
-                // Invalid move - show error
-                plateau_show_error_feedback(data, 3); // Not adjacent (simplified)
-                printf("❌ Invalid move to intersection %d\n", clicked_id);
-            }
+            plateau_show_error_feedback(data, 4); // Wrong piece
+            printf("❌ Cannot select intersection %d (no piece or wrong owner)\n", intersection_id);
         }
     } else {
-        printf("❌ No intersection found at click position\n");
+        // Piece already selected - try to move
+        if (intersection_id == vf->selected_intersection) {
+            // Deselect
+            vf->selected_intersection = -1;
+            intersection_elem->is_selected = false;
+            vf->valid_count = 0;
+            printf("🔄 Piece deselected\n");
+        } else if (vf->valid_destinations[intersection_id]) {
+            // Valid move - execute it
+            printf("✅ Valid move from %d to %d\n", vf->selected_intersection, intersection_id);
+            
+            // Reset selection states
+            if (data->intersection_elements[vf->selected_intersection]) {
+                data->intersection_elements[vf->selected_intersection]->is_selected = false;
+            }
+            vf->selected_intersection = -1;
+            vf->valid_count = 0;
+        } else {
+            // Invalid move - show error
+            plateau_show_error_feedback(data, 3); // Not adjacent (simplified)
+            printf("❌ Invalid move to intersection %d\n", intersection_id);
+        }
     }
 }
 
-// 🔧 Remove duplicate plateau_init_visual_feedback function at line 290
+// 🆕 FONCTION pour créer les éléments UI individuels des intersections
+static void plateau_create_intersection_elements(PlateauRenderData* data, UINode* plateau_container) {
+    if (!data || !plateau_container) return;
+    
+    printf("🔧 Creating individual UI elements for %d intersections\n", NODES);
+    
+    for (int id = 0; id < NODES; id++) {
+        Intersection* intersection = &data->board->nodes[id];
+        
+        // Créer un élément UI invisible pour chaque intersection
+        char element_id[32];
+        snprintf(element_id, sizeof(element_id), "intersection-%d", id);
+        
+        UINode* intersection_node = ui_div(plateau_container->tree, element_id);
+        if (!intersection_node) continue;
+        
+        // Calculer position et taille de l'élément
+        int screen_x = data->offset_x + intersection->c * data->cell_width;
+        int screen_y = data->offset_y + intersection->r * data->cell_height;
+        int size = PIECE_RADIUS * 2 + 8; // Zone de détection un peu plus grande
+        
+        // Positionner l'élément sur l'intersection
+        atomic_set_position(intersection_node->element, 
+                          screen_x - size/2, screen_y - size/2);
+        atomic_set_size(intersection_node->element, size, size);
+        
+        // Rendre l'élément invisible (transparent)
+        atomic_set_background_color(intersection_node->element, 0, 0, 0, 0);
+        atomic_set_z_index(intersection_node->element, 100); // Au-dessus du plateau
+        
+        // Créer les données d'intersection
+        IntersectionElement* intersection_elem = (IntersectionElement*)malloc(sizeof(IntersectionElement));
+        if (intersection_elem) {
+            intersection_elem->ui_node = intersection_node;
+            intersection_elem->intersection_id = id;
+            intersection_elem->screen_x = screen_x;
+            intersection_elem->screen_y = screen_y;
+            intersection_elem->is_hovered = false;
+            intersection_elem->is_selected = false;
+            intersection_elem->plateau_data = data;
+            
+            // Attacher les données à l'élément
+            atomic_set_custom_data(intersection_node->element, "intersection_data", intersection_elem);
+            
+            // Configurer les événements
+            atomic_set_hover_handler(intersection_node->element, intersection_handle_hover);
+            atomic_set_unhover_handler(intersection_node->element, intersection_handle_unhover);
+            atomic_set_click_handler(intersection_node->element, intersection_handle_click);
+            
+            // Stocker l'élément
+            data->intersection_elements[id] = intersection_elem;
+            
+            // Ajouter à la hiérarchie UI
+            ui_append(plateau_container, intersection_node);
+        }
+    }
+    
+    printf("✅ Created %d individual intersection elements\n", NODES);
+}
 
-// 🔧 Remove duplicate plateau_init_test_players function (lines 517-535)
+// 🔧 MODIFIER la fonction de rendu pour mettre à jour les positions
+static void plateau_update_intersection_positions(PlateauRenderData* data) {
+    if (!data) return;
+    
+    for (int id = 0; id < NODES; id++) {
+        IntersectionElement* elem = data->intersection_elements[id];
+        if (!elem) continue;
+        
+        Intersection* intersection = &data->board->nodes[id];
+        
+        // Recalculer la position écran
+        int screen_x = data->offset_x + intersection->c * data->cell_width;
+        int screen_y = data->offset_y + intersection->r * data->cell_height;
+        int size = PIECE_RADIUS * 2 + 8;
+        
+        // Mettre à jour la position de l'élément UI
+        atomic_set_position(elem->ui_node->element, 
+                          screen_x - size/2, screen_y - size/2);
+        
+        elem->screen_x = screen_x;
+        elem->screen_y = screen_y;
+    }
+}
 
-// 🔧 Modifier les fonctions existantes
-
-// 🔧 Modifier plateau_custom_render pour inclure le retour visuel
+// 🔧 MODIFIER plateau_custom_render pour inclure la mise à jour des positions
 static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer) {
     if (!element || !renderer) return;
     
@@ -580,6 +679,9 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     data->cell_width = (rect.w - 2 * PLATEAU_MARGIN) / (COLS - 1);
     data->cell_height = (rect.h - 2 * PLATEAU_MARGIN) / (ROWS - 1);
     
+    // 🆕 Mettre à jour les positions des éléments d'intersection
+    plateau_update_intersection_positions(data);
+    
     // Dessiner le fond du plateau (mat)
     SDL_SetRenderDrawColor(renderer, PLATEAU_BG_R, PLATEAU_BG_G, PLATEAU_BG_B, 255);
     SDL_RenderFillRect(renderer, &rect);
@@ -591,27 +693,24 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     // Dessiner tous les éléments du plateau
     plateau_draw_all_lines(data);
     plateau_draw_all_intersections(data);
-    plateau_draw_all_pieces(data);
-    plateau_draw_coordinates(data);
     
-    // Update visual feedback
-    plateau_update_visual_feedback(data, 0.016f); // ~60 FPS
+    // Mettre à jour le feedback AVANT de dessiner les pions
+    plateau_update_visual_feedback(data, 0.016f);
     
-    // Render visual feedback layers
+    // Dessiner les feedbacks SOUS les pions pour qu'ils soient visibles
     plateau_render_hover_feedback(data);
     plateau_render_selection_feedback(data);
     plateau_render_valid_destinations(data);
-    plateau_render_error_feedback(data);
     
-    //printf("🎨 Plateau rendered: %d intersections, %d pieces\n", NODES, data->board->piece_count);
+    // Dessiner les pions PAR-DESSUS les feedbacks
+    plateau_draw_all_pieces(data);
+    
+    // Coordonnées et erreurs en dernier
+    plateau_draw_coordinates(data);
+    plateau_render_error_feedback(data);
 }
 
-// === FONCTIONS PUBLIQUES ===
-
-UINode* ui_plateau_container(UITree* tree, const char* id) {
-    return ui_plateau_container_with_players(tree, id, NULL, NULL);
-}
-
+// 🔧 MODIFIER ui_plateau_container_with_players pour créer les éléments individuels
 UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlayer* player1, GamePlayer* player2) {
     if (!tree) {
         ui_log_event("UIComponent", "CreateError", id, "Tree is NULL");
@@ -641,6 +740,7 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
         // Créer les données de rendu
         PlateauRenderData* render_data = (PlateauRenderData*)malloc(sizeof(PlateauRenderData));
         if (render_data) {
+            // Initialiser toutes les données
             render_data->board = board;
             render_data->renderer = NULL;
             render_data->show_intersections = true;
@@ -650,11 +750,15 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
             render_data->texture_black = NULL;
             render_data->texture_brown = NULL;
             
+            // Initialiser le tableau des éléments d'intersection
+            for (int i = 0; i < NODES; i++) {
+                render_data->intersection_elements[i] = NULL;
+            }
+            
             // Initialiser les joueurs de test si pas fournis
             if (!player1 || !player2) {
                 plateau_init_test_players(render_data);
             } else {
-                // 🔧 FIX: Initialiser le visual feedback même avec des joueurs fournis
                 plateau_init_visual_feedback(render_data);
             }
             
@@ -665,14 +769,19 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
             // Définir le rendu personnalisé
             atomic_set_custom_render(plateau_container->element, plateau_custom_render);
             
-            // 🆕 Set up mouse event handlers
-            atomic_set_click_handler(plateau_container->element, plateau_handle_mouse_click);
-            // 🔧 FIX: Use proper handler name from atomic.h
-            atomic_set_hover_handler(plateau_container->element, plateau_handle_mouse_move);
+            // 🆕 Créer les éléments UI individuels pour chaque intersection MAINTENANT
+            // Calculer les positions initiales
+            render_data->offset_x = PLATEAU_MARGIN;
+            render_data->offset_y = PLATEAU_MARGIN;
+            render_data->cell_width = (PLATEAU_VISUAL_WIDTH - 2 * PLATEAU_MARGIN) / (COLS - 1);
+            render_data->cell_height = (PLATEAU_VISUAL_HEIGHT - 2 * PLATEAU_MARGIN) / (ROWS - 1);
             
-            ui_log_event("UIComponent", "Create", id, "Plateau container created with players and textures");
-            printf("✅ Plateau container '%s' créé avec joueurs :\n", id);
-            printf("   🎯 Damier %dx%d intersections\n", ROWS, COLS);
+            // Créer les éléments d'intersection maintenant
+            plateau_create_intersection_elements(render_data, plateau_container);
+            
+            ui_log_event("UIComponent", "Create", id, "Plateau container created with individual intersection elements");
+            printf("✅ Plateau container '%s' créé avec éléments individuels:\n", id);
+            printf("   🎯 %d éléments d'intersection avec événements propres\n", NODES);
             printf("   👥 Joueurs configurés avec textures\n");
             printf("   🎨 piece_black.png et piece_brun.png\n");
             printf("   ⚫ %d pions initialisés\n", board->piece_count);
@@ -687,109 +796,7 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
     return plateau_container;
 }
 
-UINode* ui_plateau_container_with_size(UITree* tree, const char* id, int width, int height) {
-    UINode* plateau = ui_plateau_container(tree, id);
-    if (plateau) {
-        SET_SIZE(plateau, width, height);
-        ui_log_event("UIComponent", "Style", id, "Plateau container size customized");
-    }
-    return plateau;
-}
-
-void ui_plateau_set_show_intersections(UINode* plateau, bool show) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->show_intersections = show;
-        ui_log_event("UIComponent", "PlateauConfig", plateau->id, 
-                    show ? "Intersection display enabled" : "Intersection display disabled");
-    }
-}
-
-void ui_plateau_set_show_coordinates(UINode* plateau, bool show) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->show_coordinates = show;
-        ui_log_event("UIComponent", "PlateauConfig", plateau->id, 
-                    show ? "Coordinate display enabled" : "Coordinate display disabled");
-    }
-}
-
-Board* ui_plateau_get_board(UINode* plateau) {
-    if (!plateau) return NULL;
-    
-    return (Board*)atomic_get_custom_data(plateau->element, "board");
-}
-
-void ui_plateau_update_from_board(UINode* plateau, Board* new_board) {
-    if (!plateau || !new_board) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->board = new_board;
-        atomic_set_custom_data(plateau->element, "board", new_board);
-        ui_log_event("UIComponent", "PlateauUpdate", plateau->id, "Board state updated");
-    }
-}
-
-// 🆕 NOUVELLES FONCTIONS pour les joueurs
-void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* player2) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->player1 = player1;
-        data->player2 = player2;
-        ui_log_event("UIComponent", "PlateauConfig", plateau->id, "Players updated");
-        printf("👥 Joueurs mis à jour pour le plateau '%s'\n", plateau->id);
-    }
-}
-
-// 🆕 NEW: Set up mouse handlers for the plateau
-void ui_plateau_set_mouse_handlers(UINode* plateau) {
-    if (!plateau || !plateau->element) {
-        printf("❌ Invalid plateau for mouse handlers setup\n");
-        return;
-    }
-    
-    // Handlers are already set up in ui_plateau_container_with_players
-    // This function is mainly for external setup if needed
-    printf("🖱️ Mouse handlers already configured for plateau '%s'\n", 
-           plateau->id ? plateau->id : "NoID");
-}
-
-// 🆕 NEW: Update visual feedback (called from external systems)
-void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data && data->visual_state) {
-        plateau_update_visual_feedback(data, delta_time);
-    }
-}
-
-// 🆕 NEW: Set game logic reference
-void ui_plateau_set_game_logic(UINode* plateau, void* game_logic) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->game_logic = game_logic;
-        printf("🧠 Game logic connected to plateau '%s'\n", plateau->id ? plateau->id : "NoID");
-    }
-}
-
-// 🆕 NEW: Get game logic reference
-void* ui_plateau_get_game_logic(UINode* plateau) {
-    if (!plateau) return NULL;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    return data ? data->game_logic : NULL;
-}
-
+// 🔧 MODIFIER ui_plateau_cleanup pour nettoyer les éléments individuels
 void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
     
@@ -799,7 +806,17 @@ void ui_plateau_cleanup(UINode* plateau) {
     Board* board = (Board*)atomic_get_custom_data(plateau->element, "board");
     
     if (data) {
-        // 🔧 FIX: Nettoyer les joueurs de test si créés localement
+        // 🆕 Nettoyer les éléments d'intersection individuels
+        for (int i = 0; i < NODES; i++) {
+            IntersectionElement* elem = data->intersection_elements[i];
+            if (elem) {
+                printf("🗑️ [PLATEAU_CLEANUP] Nettoyage intersection element %d\n", i);
+                free(elem);
+                data->intersection_elements[i] = NULL;
+            }
+        }
+        
+        // Nettoyer les joueurs de test si créés localement
         if (data->player1) {
             printf("🗑️ [PLATEAU_CLEANUP] Nettoyage player1: '%s'\n", data->player1->name);
             player_destroy(data->player1);
@@ -811,7 +828,7 @@ void ui_plateau_cleanup(UINode* plateau) {
             data->player2 = NULL;
         }
         
-        // 🔧 FIX: Les textures sont gérées par le système de référence, pas besoin de les détruire ici
+        // Les textures sont gérées par le système de référence
         data->texture_black = NULL;
         data->texture_brown = NULL;
         
@@ -833,11 +850,11 @@ void ui_plateau_cleanup(UINode* plateau) {
         free(board);
     }
     
-    // 🔧 FIX: Nettoyer les custom_data pour éviter les pointeurs pendants
+    // Nettoyer les custom_data pour éviter les pointeurs pendants
     atomic_set_custom_data(plateau->element, "plateau_data", NULL);
     atomic_set_custom_data(plateau->element, "board", NULL);
     
-    ui_log_event("UIComponent", "PlateauCleanup", plateau->id, "Plateau and players cleaned up completely");
+    ui_log_event("UIComponent", "PlateauCleanup", plateau->id, "Plateau and individual intersection elements cleaned up");
     printf("✅ [PLATEAU_CLEANUP] Nettoyage terminé pour '%s'\n", plateau->id);
 }
 

@@ -5,6 +5,7 @@
 #include "../utils/log_console.h"
 #include "../window/window.h"
 #include "../utils/asset_manager.h"
+#include "../plateau/plateau.h"  // Add missing include for PLATEAU_MARGIN, COLS, ROWS, NODES
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,34 +67,31 @@ void ui_cnt_playable_add_game_area(UINode* playable_container) {
     ui_set_justify_content(game_area, "center");
     ui_set_align_items(game_area, "center");
     
-    // === PLATEAU FANORONA AVEC JOUEURS ET ÉVÉNEMENTS ===
+    // === PLATEAU FANORONA AVEC ÉVÉNEMENTS INDIVIDUELS ===
     UINode* plateau = ui_plateau_container_with_players(playable_container->tree, "fanorona-plateau", NULL, NULL);
     if (plateau) {
         SET_SIZE(plateau, 480, 320);
         
-        // 🆕 Enable mouse interactions
-        ui_plateau_set_mouse_handlers(plateau);
-        
         APPEND(game_area, plateau);
         
-        printf("   🎯 Plateau Fanorona interactif intégré (480x320) avec :\n");
+        printf("   🎯 Plateau Fanorona avec événements individuels (480x320) :\n");
+        printf("      • %d éléments d'intersection avec hover/click séparés\n", NODES);
+        printf("      • Hover seulement sur pions utilisateur\n");
         printf("      • Validation de coups en temps réel\n");
-        printf("      • Feedback visuel (hover, sélection, erreurs)\n");
-        printf("      • Intégration avec is_move_valide()\n");
-        printf("      • Animations et effets visuels\n");
+        printf("      • Feedback visuel amélioré\n");
     }
     
     APPEND(playable_container, game_area);
     
-    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with textured Fanorona plateau added");
-    printf("   🏁 Zone de jeu 500x350 avec plateau Fanorona et textures\n");
+    ui_log_event("UIComponent", "GameArea", playable_container->id, "Game area with individual intersection elements");
+    printf("   🏁 Zone de jeu 500x350 avec plateau à événements individuels\n");
 }
 
 UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height) {
     UINode* playable_container = ui_cnt_playable(tree, id);
     if (playable_container) {
         SET_SIZE(playable_container, width, height);
-        ui_log_event("UIComponent", "Style", id, "Playable container size set");
+        ui_log_event("UIComponent", "Style", id, "Playable container size customized");
     }
     return playable_container;
 }

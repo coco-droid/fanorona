@@ -48,13 +48,13 @@ static void style_link_as_neon_button(UINode* link, int r, int g, int b) {
 
 // 🆕 Callback hover pour effet neon avec scale sur le lien
 static void ai_link_hovered(void* element, SDL_Event* event) {
-    //AtomicElement* atomic_element = (AtomicElement*)element;
+    (void)element;
     (void)event;
 }
 
 // 🆕 Callback unhover pour retour normal avec scale
 static void ai_link_unhovered(void* element, SDL_Event* event) {
-    //AtomicElement* atomic_element = (AtomicElement*)element;
+    (void)element;
     (void)event;
 }
 
