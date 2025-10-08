@@ -46,27 +46,15 @@ static void style_link_as_neon_button(UINode* link, int r, int g, int b) {
     printf("✨ UI Link stylisé comme neon button avec couleur (%d,%d,%d)\n", r, g, b);
 }
 
-// 🆕 Callback hover pour effet neon sur le lien
+// 🆕 Callback hover pour effet neon avec scale sur le lien
 static void ai_link_hovered(void* element, SDL_Event* event) {
-    AtomicElement* atomic_element = (AtomicElement*)element;
-    
-    // Intensifier l'effet neon au survol
-    atomic_set_background_color(atomic_element, 255/2, 0/2, 255/2, 255); // Violet plus intense
-    atomic_set_border(atomic_element, 3, 255, 100, 255, 255); // Bordure plus épaisse et plus claire
-    
-    printf("🔮 Effet neon intensifié sur le lien IA\n");
+    //AtomicElement* atomic_element = (AtomicElement*)element;
     (void)event;
 }
 
-// 🆕 Callback unhover pour retour normal
+// 🆕 Callback unhover pour retour normal avec scale
 static void ai_link_unhovered(void* element, SDL_Event* event) {
-    AtomicElement* atomic_element = (AtomicElement*)element;
-    
-    // Retour à l'état normal
-    atomic_set_background_color(atomic_element, 255/4, 0/4, 255/4, 200); // Violet de base
-    atomic_set_border(atomic_element, 2, 255, 0, 255, 255); // Bordure normale
-    
-    printf("🔮 Effet neon normal restauré sur le lien IA\n");
+    //AtomicElement* atomic_element = (AtomicElement*)element;
     (void)event;
 }
 

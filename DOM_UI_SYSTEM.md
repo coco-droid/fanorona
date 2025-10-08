@@ -174,16 +174,16 @@ ui_button_fix_text_rendering(button);
 ### Boutons avec états visuels
 
 ```c
-// Créer des boutons avec feedback automatique
+// Créer des boutons avec feedback automatique incluant l'effet de scale
 UINode* confirm_btn = ui_button(tree, "confirm", "CONFIRMER", on_confirm, NULL);
 ui_button_set_background_image(confirm_btn, "btn_confirm.png");
 
-// États visuels automatiques :
-// HOVER: Agrandissement (+2px) + overlay blanc translucide
-// CLICK: Réduction (-4px) + fond vert + texte noir
-// NORMAL: Taille normale + fond transparent + texte blanc
+// États visuels automatiques avec SCALE EFFECT :
+// HOVER: Scale +5% (105% de la taille) + overlay blanc translucide
+// CLICK: Scale -3% (97% de la taille) + fond vert + texte noir
+// NORMAL: Scale 100% (taille originale) + fond transparent + texte blanc
 
-// Connexion des événements avec feedback
+// Connexion des événements avec feedback automatique
 atomic_set_click_handler(confirm_btn->element, confirm_clicked);
 atomic_set_hover_handler(confirm_btn->element, button_hovered);
 atomic_set_unhover_handler(confirm_btn->element, button_unhovered);
@@ -192,16 +192,16 @@ atomic_set_unhover_handler(confirm_btn->element, button_unhovered);
 ### Styles prédéfinis pour feedback
 
 ```c
-// Appliquer des styles contextuels instantanément
-BUTTON_SUCCESS(play_btn);    // Vert pour actions positives
-BUTTON_DANGER(delete_btn);   // Rouge pour actions dangereuses
-BUTTON_INFO(help_btn);       // Bleu pour informations
-BUTTON_WARNING(reset_btn);   // Orange pour avertissements
+// Appliquer des styles contextuels avec effet de scale instantané
+BUTTON_SUCCESS(play_btn);    // Vert + scale 105% pour actions positives
+BUTTON_DANGER(delete_btn);   // Rouge + scale 95% pour actions dangereuses
+BUTTON_INFO(help_btn);       // Bleu + scale 105% pour informations
+BUTTON_WARNING(reset_btn);   // Orange + scale 102% pour avertissements
 
-// Contrôle manuel des états
-BUTTON_PRESSED(btn);         // Simuler un clic
-BUTTON_HOVER_ON(btn);        // Simuler un survol
-BUTTON_RESET(btn);           // Retour à l'état normal
+// Contrôle manuel des états avec scale
+BUTTON_PRESSED(btn);         // Scale 97% (effet enfoncé)
+BUTTON_HOVER_ON(btn);        // Scale 105% (effet agrandissement)
+BUTTON_RESET(btn);           // Scale 100% (retour normal)
 ```
 
 ### Logs de feedback en temps réel

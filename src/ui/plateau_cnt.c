@@ -470,12 +470,11 @@ static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
     int relative_mouse_x = mouse_x - rect.x;
     int relative_mouse_y = mouse_y - rect.y;
     
-    // 🆕 DEBUG: Afficher les coordonnées pour debug
+    // 🆕 DEBUG: Afficher les coordonnées pour debug (réduit pour éviter le spam)
     static int debug_counter = 0;
-    if (debug_counter++ % 30 == 0) { // Log toutes les 30 frames
-        printf("🐭 Mouse: abs(%d,%d) rect(%d,%d,%dx%d) rel(%d,%d)\n", 
-               mouse_x, mouse_y, rect.x, rect.y, rect.w, rect.h,
-               relative_mouse_x, relative_mouse_y);
+    if (debug_counter++ % 60 == 0) { // Log toutes les 60 frames
+        printf("🐭 Plateau hover: abs(%d,%d) -> rel(%d,%d)\n", 
+               mouse_x, mouse_y, relative_mouse_x, relative_mouse_y);
     }
     
     int new_hovered = plateau_find_intersection_at_mouse(data, relative_mouse_x, relative_mouse_y);
@@ -484,9 +483,9 @@ static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
         vf->hovered_intersection = new_hovered;
         vf->animation_timer = 0.0f; // Reset animation
         
-        // 🆕 DEBUG: Confirmer la détection
+        // 🆕 DEBUG: Confirmer la détection avec effet de scale
         if (new_hovered >= 0) {
-            printf("🎯 Intersection %d hovered\n", new_hovered);
+            printf("🎯 Intersection %d hovered with scale effect\n", new_hovered);
         }
     }
 }
@@ -604,7 +603,7 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     plateau_render_valid_destinations(data);
     plateau_render_error_feedback(data);
     
-    printf("🎨 Plateau rendered: %d intersections, %d pieces\n", NODES, data->board->piece_count);
+    //printf("🎨 Plateau rendered: %d intersections, %d pieces\n", NODES, data->board->piece_count);
 }
 
 // === FONCTIONS PUBLIQUES ===

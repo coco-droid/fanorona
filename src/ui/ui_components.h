@@ -229,6 +229,23 @@ void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);
 void ui_plateau_set_game_logic(UINode* plateau, void* game_logic);
 void* ui_plateau_get_game_logic(UINode* plateau);
 
+// === NOUVELLES FONCTIONS POUR FEEDBACK VISUEL AVEC SCALE ===
+
+// Gestion des états visuels des boutons avec effet de scale
+void ui_button_set_pressed_state(UINode* button, bool pressed);
+void ui_button_set_hover_state(UINode* button, bool hovered);
+void ui_button_reset_visual_state(UINode* button);
+
+// 🆕 NOUVELLES FONCTIONS pour l'effet de scale
+void ui_button_set_scale(UINode* button, float scale_factor);
+void ui_button_animate_scale_to(UINode* button, float target_scale, float duration);
+float ui_button_get_current_scale(UINode* button);
+
+// Effet de scale prédéfini pour les différents états
+void ui_button_scale_hover(UINode* button);     // Scale 105% (agrandissement hover)
+void ui_button_scale_pressed(UINode* button);   // Scale 97% (effet enfoncé)
+void ui_button_scale_normal(UINode* button);    // Scale 100% (taille normale)
+
 // === MACROS POUR FEEDBACK VISUEL ===
 
 #define BUTTON_PRESSED(btn) ui_button_set_pressed_state(btn, true)
@@ -236,6 +253,11 @@ void* ui_plateau_get_game_logic(UINode* plateau);
 #define BUTTON_HOVER_ON(btn) ui_button_set_hover_state(btn, true)
 #define BUTTON_HOVER_OFF(btn) ui_button_set_hover_state(btn, false)
 #define BUTTON_RESET(btn) ui_button_reset_visual_state(btn)
+
+// 🆕 NOUVELLES MACROS pour l'effet de scale
+#define BUTTON_SCALE_HOVER(btn) ui_button_scale_hover(btn)
+#define BUTTON_SCALE_PRESSED(btn) ui_button_scale_pressed(btn)
+#define BUTTON_SCALE_NORMAL(btn) ui_button_scale_normal(btn)
 
 // Styles prédéfinis
 #define BUTTON_SUCCESS(btn) ui_button_apply_success_style(btn)

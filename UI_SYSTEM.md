@@ -476,17 +476,17 @@ ui_container_set_modal_style(container, false);
 // Les boutons réagissent automatiquement aux interactions :
 
 // ✨ HOVER (Survol)
-// - Taille légèrement augmentée (+2px largeur, +1px hauteur)
+// - Effet de scale automatique (+5% de taille) avec transition fluide
 // - Overlay blanc translucide (alpha: 30)
-// - Animation fluide
+// - Animation fluide de 0.15 secondes
 
 // 🎯 CLICK (Clic)
-// - Taille réduite (-4px largeur, -2px hauteur) 
+// - Effet de scale inverse (-3% de taille) 
 // - Couleur de fond contextuelle (vert pour Play, rouge pour Quit)
 // - Texte contrasté automatiquement
 
 // 🔄 NORMAL (Repos)
-// - Apparence par défaut restaurée
+// - Taille originale restaurée avec transition fluide
 // - Background transparent pour montrer l'image PNG
 // - Texte blanc pour contraste optimal
 ```

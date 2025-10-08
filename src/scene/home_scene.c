@@ -58,26 +58,43 @@ static void quit_button_clicked(void* element, SDL_Event* event) {
     (void)event;
 }
 
-// 🔧 FIX: Callbacks avec gestion sécurisée de la taille
+// 🔧 FIX: Callbacks avec gestion sécurisée de la taille et effet de scale
 static void button_hovered(void* element, SDL_Event* event) {
-    // 🔧 FIX: Supprimer la variable inutilisée
-    // AtomicElement* atomic_element = (AtomicElement*)element;
+    AtomicElement* atomic_element = (AtomicElement*)element;
     
-    // 🆕 DEBUG: Simple log sans modification pour éviter les erreurs de taille
-    printf("🔍 [HOVER_DEBUG] Button hovered (no size modification for safety)\n");
+    // 🆕 APPLIQUER L'EFFET DE SCALE HOVER via l'API UI
+    // Créer un UINode temporaire pour utiliser l'API
+    UINode temp_node = {0};
+    temp_node.element = atomic_element;
+    temp_node.id = atomic_element->id;
     
-    (void)element; // Éviter le warning unused parameter
+    // Appliquer l'effet de scale hover (105%)
+    ui_button_scale_hover(&temp_node);
+    
+    // Ajouter l'overlay lumineux
+    atomic_set_background_color(atomic_element, 255, 255, 255, 30);
+    
+    //printf("🔍 [HOVER_SCALE] Button hovered with 105%% scale effect\n");
+    
     (void)event;
 }
 
 static void button_unhovered(void* element, SDL_Event* event) {
-    // 🔧 FIX: Supprimer la variable inutilisée
-    // AtomicElement* atomic_element = (AtomicElement*)element;
+    AtomicElement* atomic_element = (AtomicElement*)element;
     
-    // 🆕 DEBUG: Simple log sans modification pour éviter les erreurs de taille
-    printf("🔍 [UNHOVER_DEBUG] Button unhovered (no size modification for safety)\n");
+    // 🆕 RETOUR À LA TAILLE NORMALE via l'API UI
+    UINode temp_node = {0};
+    temp_node.element = atomic_element;
+    temp_node.id = atomic_element->id;
     
-    (void)element; // Éviter le warning unused parameter
+    // Retour au scale normal (100%)
+    ui_button_scale_normal(&temp_node);
+    
+    // Supprimer l'overlay
+    atomic_set_background_color(atomic_element, 0, 0, 0, 0);
+    
+    //printf("🔍 [UNHOVER_SCALE] Button unhovered with 100%% scale restored\n");
+    
     (void)event;
 }
 

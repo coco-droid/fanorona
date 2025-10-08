@@ -103,15 +103,19 @@ static void game_scene_update(Scene* scene, float delta_time) {
     
     GameSceneData* data = (GameSceneData*)scene->data;
     
-    // Mettre à jour l'arbre UI
+    // Mettre à jour l'arbre UI avec effets de scale
     if (data->ui_tree) {
         ui_tree_update(data->ui_tree, delta_time);
+        
+        // 🆕 Mettre à jour spécifiquement les effets de scale des boutons
+        // Cette fonction sera appelée automatiquement via l'arbre UI
+        //printf("🎯 Game scene updated with scale effects for all buttons\n");
     }
     
     // TODO: Mettre à jour la logique de jeu
-    // - État du plateau
+    // - État du plateau avec interactions visuelles
     // - Temps des joueurs
-    // - Animations en cours
+    // - Animations en cours incluant les effets de scale
 }
 
 // Rendu de la scène de jeu

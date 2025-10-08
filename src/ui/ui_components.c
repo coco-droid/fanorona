@@ -657,29 +657,110 @@ void ui_button_set_pressed_style(UINode* button, const char* pressed_bg_color, c
 
 // === NOUVELLES FONCTIONS POUR FEEDBACK VISUEL ===
 
+// 🆕 Structure pour stocker la taille originale du bouton
+typedef struct {
+    int original_width;
+    int original_height;
+    float current_scale;
+    bool scale_initialized;
+} ButtonScaleData;
+
+// 🆕 Obtenir ou créer les données de scale pour un bouton
+static ButtonScaleData* get_button_scale_data(UINode* button) {
+    if (!button || !button->element) return NULL;
+    
+    ButtonScaleData* scale_data = (ButtonScaleData*)atomic_get_custom_data(button->element, "scale_data");
+    
+    if (!scale_data) {
+        // Créer les données de scale la première fois
+        scale_data = (ButtonScaleData*)malloc(sizeof(ButtonScaleData));
+        if (scale_data) {
+            scale_data->original_width = button->element->style.width;
+            scale_data->original_height = button->element->style.height;
+            scale_data->current_scale = 1.0f;
+            scale_data->scale_initialized = true;
+            
+            atomic_set_custom_data(button->element, "scale_data", scale_data);
+            
+            printf("🎯 Scale data initialized for button '%s': %dx%d\n", 
+                   button->id ? button->id : "NoID",
+                   scale_data->original_width, 
+                   scale_data->original_height);
+        }
+    }
+    
+    return scale_data;
+}
+
+// 🆕 Appliquer un facteur de scale à un bouton
+void ui_button_set_scale(UINode* button, float scale_factor) {
+    if (!button) return;
+    
+    ButtonScaleData* scale_data = get_button_scale_data(button);
+    if (!scale_data) return;
+    
+    // Calculer les nouvelles dimensions
+    int new_width = (int)(scale_data->original_width * scale_factor);
+    int new_height = (int)(scale_data->original_height * scale_factor);
+    
+    // Appliquer la nouvelle taille
+    atomic_set_size(button->element, new_width, new_height);
+    scale_data->current_scale = scale_factor;
+    
+    ui_log_event("UIComponent", "ScaleEffect", button->id, 
+                "Scale applied - new dimensions calculated from original size");
+    
+    printf("🔍 Button '%s' scaled to %.0f%% (%dx%d -> %dx%d)\n",
+           button->id ? button->id : "NoID",
+           scale_factor * 100.0f,
+           scale_data->original_width, scale_data->original_height,
+           new_width, new_height);
+}
+
+// 🆕 Obtenir le scale actuel d'un bouton
+float ui_button_get_current_scale(UINode* button) {
+    if (!button) return 1.0f;
+    
+    ButtonScaleData* scale_data = get_button_scale_data(button);
+    return scale_data ? scale_data->current_scale : 1.0f;
+}
+
+// 🆕 Effet de scale hover (105%)
+void ui_button_scale_hover(UINode* button) {
+    ui_button_set_scale(button, 1.05f); // +5%
+}
+
+// 🆕 Effet de scale pressed (97%)
+void ui_button_scale_pressed(UINode* button) {
+    ui_button_set_scale(button, 0.97f); // -3%
+}
+
+// 🆕 Effet de scale normal (100%)
+void ui_button_scale_normal(UINode* button) {
+    ui_button_set_scale(button, 1.0f); // Taille originale
+}
+
+// 🔧 MODIFICATION: Mettre à jour les fonctions existantes avec l'effet de scale
+
 void ui_button_set_pressed_state(UINode* button, bool pressed) {
     if (!button) return;
     
     if (pressed) {
-        // 🔧 FIX: Accès direct au style
-        int width = button->element->style.width;
-        int height = button->element->style.height;
-        atomic_set_size(button->element, width - 4, height - 2);
+        // Appliquer l'effet de scale pressed
+        ui_button_scale_pressed(button);
         
         // Ajouter un overlay sombre
         atomic_set_background_color(button->element, 0, 0, 0, 100);
         
-        ui_log_event("UIComponent", "VisualState", button->id, "Button pressed state applied");
+        ui_log_event("UIComponent", "VisualState", button->id, "Button pressed state applied with scale effect");
     } else {
-        // 🔧 FIX: Accès direct au style
-        int width = button->element->style.width;
-        int height = button->element->style.height;
-        atomic_set_size(button->element, width + 4, height + 2);
+        // Retour à la taille normale
+        ui_button_scale_normal(button);
         
         // Supprimer l'overlay
         atomic_set_background_color(button->element, 0, 0, 0, 0);
         
-        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored");
+        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored with scale effect");
     }
 }
 
@@ -687,120 +768,75 @@ void ui_button_set_hover_state(UINode* button, bool hovered) {
     if (!button) return;
     
     if (hovered) {
-        // 🔧 FIX: Accès direct au style
-        int width = button->element->style.width;
-        int height = button->element->style.height;
-        atomic_set_size(button->element, width + 2, height + 1);
+        // Appliquer l'effet de scale hover
+        ui_button_scale_hover(button);
         
         // Ajouter un overlay lumineux
         atomic_set_background_color(button->element, 255, 255, 255, 30);
         
-        ui_log_event("UIComponent", "VisualState", button->id, "Button hover state applied");
+        ui_log_event("UIComponent", "VisualState", button->id, "Button hover state applied with scale effect");
     } else {
-        // 🔧 FIX: Accès direct au style
-        int width = button->element->style.width;
-        int height = button->element->style.height;
-        atomic_set_size(button->element, width - 2, height - 1);
+        // Retour à la taille normale
+        ui_button_scale_normal(button);
         
         // Supprimer l'overlay
         atomic_set_background_color(button->element, 0, 0, 0, 0);
         
-        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored from hover");
+        ui_log_event("UIComponent", "VisualState", button->id, "Button normal state restored from hover with scale effect");
     }
 }
 
 void ui_button_reset_visual_state(UINode* button) {
     if (!button) return;
     
-    // Restaurer l'apparence par défaut
+    // Restaurer l'apparence par défaut avec taille normale
+    ui_button_scale_normal(button);
     atomic_set_background_color(button->element, 0, 0, 0, 0); // Transparent
     atomic_set_text_color_rgba(button->element, 255, 255, 255, 255); // Blanc
     
-    // Note: La taille doit être restaurée manuellement selon le contexte
-    ui_log_event("UIComponent", "VisualState", button->id, "Button visual state reset to default");
+    ui_log_event("UIComponent", "VisualState", button->id, "Button visual state reset to default with normal scale");
 }
+
+// 🔧 MODIFICATION: Mettre à jour les styles prédéfinis avec scale
 
 void ui_button_apply_success_style(UINode* button) {
     if (!button) return;
     
+    ui_button_scale_hover(button); // Scale 105% pour effet positif
     atomic_set_background_color(button->element, 100, 200, 100, 200); // Vert translucide
     atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
     
-    ui_log_event("UIComponent", "VisualStyle", button->id, "Success style applied (green)");
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Success style applied (green) with hover scale effect");
 }
 
 void ui_button_apply_danger_style(UINode* button) {
     if (!button) return;
     
+    ui_button_scale_pressed(button); // Scale 97% pour effet d'avertissement
     atomic_set_background_color(button->element, 220, 100, 100, 200); // Rouge translucide
     atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
     
-    ui_log_event("UIComponent", "VisualStyle", button->id, "Danger style applied (red)");
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Danger style applied (red) with pressed scale effect");
 }
 
 void ui_button_apply_info_style(UINode* button) {
     if (!button) return;
     
+    ui_button_scale_hover(button); // Scale 105% pour information
     atomic_set_background_color(button->element, 100, 150, 220, 200); // Bleu translucide
     atomic_set_text_color_rgba(button->element, 255, 255, 255, 255);  // Blanc
     
-    ui_log_event("UIComponent", "VisualStyle", button->id, "Info style applied (blue)");
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Info style applied (blue) with hover scale effect");
 }
 
 void ui_button_apply_warning_style(UINode* button) {
     if (!button) return;
     
+    ui_button_set_scale(button, 1.02f); // Scale 102% pour avertissement modéré
     atomic_set_background_color(button->element, 255, 180, 100, 200); // Orange translucide
     atomic_set_text_color_rgba(button->element, 0, 0, 0, 255);        // Noir pour contraste
     
-    ui_log_event("UIComponent", "VisualStyle", button->id, "Warning style applied (orange)");
-}
-
-void ui_button_animate_click(UINode* button, int duration_ms) {
-    if (!button) return;
-    
-    // Simulation d'animation simple (dans une vraie implémentation, utiliser un timer)
-    ui_button_set_pressed_state(button, true);
-    
-    // TODO: Implémenter un vrai système de timer pour restaurer après duration_ms
-    ui_log_event("UIComponent", "Animation", button->id, "Click animation started");
-    
-    (void)duration_ms; // Éviter warning unused
-}
-
-void ui_button_animate_hover(UINode* button, bool entering) {
-    if (!button) return;
-    
-    ui_button_set_hover_state(button, entering);
-    
-    char message[256];
-    snprintf(message, sizeof(message), "Hover animation %s", entering ? "started" : "ended");
-    ui_log_event("UIComponent", "Animation", button->id, message);
-}
-
-void ui_button_add_glow_effect(UINode* button, const char* color) {
-    if (!button || !color) return;
-    
-    // TODO: Implémenter un vrai effet de lueur
-    ui_log_event("UIComponent", "Effect", button->id, "Glow effect added");
-    
-    (void)color; // Éviter warning unused
-}
-
-void ui_button_add_shadow_effect(UINode* button, int offset_x, int offset_y) {
-    if (!button) return;
-    
-    // TODO: Implémenter un vrai effet d'ombre
-    ui_log_event("UIComponent", "Effect", button->id, "Shadow effect added");
-    
-    (void)offset_x; (void)offset_y; // Éviter warnings unused
-}
-
-void ui_button_remove_all_effects(UINode* button) {
-    if (!button) return;
-    
-    ui_button_reset_visual_state(button);
-    ui_log_event("UIComponent", "Effect", button->id, "All visual effects removed");
+    ui_log_event("UIComponent", "VisualStyle", button->id, "Warning style applied (orange) with moderate scale effect");
 }
 
 // === FONCTIONS ADDITIONNELLES ===
