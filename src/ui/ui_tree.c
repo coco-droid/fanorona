@@ -390,11 +390,7 @@ void ui_node_add_event_listener(UINode* node, const char* event, void (*callback
         // 🔧 FIX PRINCIPAL: Enregistrer automatiquement avec l'EventManager
         if (node->tree && node->tree->event_manager) {
             atomic_register_with_event_manager(node->element, node->tree->event_manager);
-            printf("🔗 Element '%s' auto-registered with EventManager for click events\n", 
-                   node->id ? node->id : "NoID");
-        } else {
-            printf("⚠️ No EventManager available for auto-registration of '%s'\n", 
-                   node->id ? node->id : "NoID");
+            // 🔧 SUPPRESSION: Plus de logs d'enregistrement
         }
         
     } else if (strcmp(event, "hover") == 0 || strcmp(event, "mouseenter") == 0) {
@@ -403,8 +399,7 @@ void ui_node_add_event_listener(UINode* node, const char* event, void (*callback
         // 🔧 FIX: Enregistrer pour les événements hover aussi
         if (node->tree && node->tree->event_manager) {
             atomic_register_with_event_manager(node->element, node->tree->event_manager);
-            printf("🔗 Element '%s' auto-registered with EventManager for hover events\n", 
-                   node->id ? node->id : "NoID");
+            // 🔧 SUPPRESSION: Plus de logs d'enregistrement hover
         }
     }
     
@@ -438,17 +433,15 @@ static void ui_tree_validate_element_sizes(UINode* node) {
     
     // Vérifier et corriger les tailles invalides
     if (node->element->style.width <= 0 || node->element->style.height <= 0) {
-        printf("❌ [SIZE_VALIDATION] Element '%s' has invalid size: %dx%d\n",
-               node->id ? node->id : "NoID",
-               node->element->style.width, node->element->style.height);
-               
+        // 🔧 SUPPRESSION: Logs détaillés des tailles invalides
+        
         // Corriger avec des tailles par défaut selon le type
         if (node->tag_name && strcmp(node->tag_name, "button") == 0) {
             atomic_set_size(node->element, 150, 40);
-            printf("🔧 [SIZE_FIX] Button '%s' restored to 150x40\n", node->id);
+            // 🔧 SUPPRESSION: Plus de logs de correction de bouton
         } else {
             atomic_set_size(node->element, 100, 50);
-            printf("🔧 [SIZE_FIX] Element '%s' restored to 100x50\n", node->id);
+            // 🔧 SUPPRESSION: Plus de logs de correction d'élément
         }
     }
     
@@ -466,14 +459,12 @@ void ui_tree_update(UITree* tree, float delta_time) {
     if (!tree || !tree->root) return;
     
     // 1️⃣ PHASE 1: CALCULS DE LAYOUT COMPLETS
-    log_console_write("UITree", "UpdateStarted", "ui_tree.c", 
-                     "[ui_tree.c] 🔄 Starting complete UI tree update");
+    // 🔧 SUPPRESSION: Plus de logs de début d'update
     
     // Mise à jour récursive de tous les éléments
     ui_tree_update_node_recursive(tree->root, delta_time);
     
-    log_console_write("UITree", "LayoutCalculated", "ui_tree.c", 
-                     "[ui_tree.c] ✅ All layout calculations completed");
+    // 🔧 SUPPRESSION: Plus de logs de layout calculé
     
     // 🆕 PHASE 1.5: VÉRIFICATION DES TAILLES AVANT SYNC
     ui_tree_validate_element_sizes(tree->root);
@@ -483,20 +474,15 @@ void ui_tree_update(UITree* tree, float delta_time) {
         extern void optimum_sync_all_hitboxes_post_layout(UITree* tree);
         optimum_sync_all_hitboxes_post_layout(tree);
         
-        log_console_write("UITree", "HitboxesSynced", "ui_tree.c", 
-                         "[ui_tree.c] 🎯 All hitboxes synchronized with final positions");
-    } else {
-        log_console_write("UITree", "NoEventManager", "ui_tree.c", 
-                         "[ui_tree.c] ⚠️ No EventManager - hitbox sync skipped");
+        // 🔧 SUPPRESSION: Plus de logs de synchronisation
     }
     
-    log_console_write("UITree", "UpdateCompleted", "ui_tree.c", 
-                     "[ui_tree.c] ✅ UI tree update completed (layout + hitboxes)");
+    // 🔧 SUPPRESSION: Plus de logs de fin d'update
 }
 
 void ui_tree_render(UITree* tree, SDL_Renderer* renderer) {
     if (!tree || !tree->root || !renderer) {
-        printf("⚠️ [UI_TREE] Invalid parameters for UI tree rendering\n");
+        // 🔧 SUPPRESSION: Plus de logs d'erreur de rendu
         return;
     }
     

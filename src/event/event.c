@@ -17,7 +17,7 @@ static bool is_point_in_element(EventElement* element, int x, int y) {
 EventManager* event_manager_create(void) {
     EventManager* manager = (EventManager*)malloc(sizeof(EventManager));
     if (!manager) {
-        printf("Erreur: Impossible d'allouer la mémoire pour l'event manager\n");
+        //printf("Erreur: Impossible d'allouer la mémoire pour l'event manager\n");
         return NULL;
     }
     
@@ -42,7 +42,7 @@ void event_manager_subscribe(EventManager* manager, int x, int y, int width, int
     
     EventElement* element = (EventElement*)malloc(sizeof(EventElement));
     if (!element) {
-        printf("Erreur: Impossible d'allouer la mémoire pour l'élément\n");
+        //printf("Erreur: Impossible d'allouer la mémoire pour l'élément\n");
         return;
     }
     
@@ -109,9 +109,6 @@ void event_manager_clear_all(EventManager* manager) {
 void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     if (!manager || !event) return;
     
-    static int event_counter = 0;
-    event_counter++;
-    
     // 🔧 FERMETURE DE FENÊTRE (garder)
     if (event->type == SDL_WINDOWEVENT && event->window.event == SDL_WINDOWEVENT_CLOSE) {
         log_console_write_event("EventManager", "WindowClose", "event.c", 
@@ -129,57 +126,20 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     }
     
     // Traiter SEULEMENT SDL_MOUSEBUTTONDOWN comme des clics
-    if (event->type == SDL_MOUSEBUTTONDOWN) { // 1024 SEULEMENT
+    if (event->type == SDL_MOUSEBUTTONDOWN) {
         int mouse_x, mouse_y;
         SDL_GetMouseState(&mouse_x, &mouse_y);
         
-        log_console_write("EventManager", "Click", "event.c", 
-                         "[event.c] Mouse click DOWN detected (code=1024=SDL_MOUSEBUTTONDOWN)");
-        
-        // 🆕 DEBUG: Compter les éléments avant hit testing
-        int element_count = 0;
-        EventElement* count_current = manager->elements;
-        while (count_current) {
-            element_count++;
-            count_current = count_current->next;
-        }
-        
-        char debug_message[256];
-        snprintf(debug_message, sizeof(debug_message), 
-                "[event.c] Hit testing against %d registered elements at (%d,%d)", 
-                element_count, mouse_x, mouse_y);
-        log_console_write("EventManager", "HitTesting", "event.c", debug_message);
-        
         EventElement* current = manager->elements;
-        int element_index = 0;
         
         while (current) {
-            element_index++;
-            
-            // 🆕 DEBUG: Log chaque test avec coordonnées détaillées
-            char test_message[512];
-            snprintf(test_message, sizeof(test_message), 
-                    "[event.c] Testing element #%d: bounds(%d,%d,%dx%d) display=%s z=%d", 
-                    element_index, current->x, current->y, current->width, current->height,
-                    current->display ? "true" : "false", current->z_index);
-            log_console_write("EventManager", "ElementTest", "event.c", test_message);
-            
             if (current->display && is_point_in_element(current, mouse_x, mouse_y)) {
-                log_console_write("EventManager", "HitDetected", "event.c", 
-                                 "[event.c] 🎯 Element hit - calling callback");
-                
                 current->callback(event, current->user_data);
-                
-                log_console_write("EventManager", "CallbackDone", "event.c", 
-                                 "[event.c] ✅ Callback executed");
                 return;
             }
             current = current->next;
         }
         
-        // LOG si aucun hit
-        log_console_write("EventManager", "NoHit", "event.c", 
-                         "[event.c] ❌ No elements hit");
         return;
     }
     
@@ -216,12 +176,9 @@ void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer
     
     // Parcourir tous les éléments enregistrés
     EventElement* current = manager->elements;
-    int hitbox_count = 0;
     
     while (current) {
         if (current->display) {
-            hitbox_count++;
-            
             SDL_Rect hitbox_rect = {current->x, current->y, current->width, current->height};
             
             // 🔴 FOND ROUGE TRANSPARENT
@@ -246,15 +203,6 @@ void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer
     // Restaurer l'état du renderer
     SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
     SDL_SetRenderDrawColor(renderer, old_r, old_g, old_b, old_a);
-    
-    // Log périodique pour éviter le spam
-    static int render_counter = 0;
-    if (render_counter++ % 180 == 0) { // Log toutes les 3 secondes à 60 FPS
-        char message[256];
-        snprintf(message, sizeof(message), 
-                "[event.c] Rendered %d hitboxes (red transparent + blue border)", hitbox_count);
-        log_console_write("EventManager", "HitboxRender", "event.c", message);
-    }
 }
 
 // Définir l'état de fonctionnement

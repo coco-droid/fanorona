@@ -88,22 +88,32 @@ ui_container_add_content(container, my_buttons);
 ### Activation et utilisation
 
 ```c
-// Activer les logs d'événements
+// Activer les logs d'événements (maintenant plus discrets)
 ui_set_event_logging(true);
 
-// Les logs apparaissent automatiquement :
-// [EVENT] [EventManager] [MouseClick] [save-btn] : Event received at (150, 320)
-// [EVENT] [AtomicElement] [MouseClick] [save-btn] : Hit test passed, bounds (100,300,200,60)
+// Les logs critiques apparaissent toujours :
 // [EVENT] [UIComponent] [Click] [save-btn] : Button click callback triggered
 // [EVENT] [Button] [StateChange] [save-btn] : State NORMAL -> PRESSED
+
+// 🔧 AMÉLIORATION : Logs verbeux supprimés pour une console plus propre
+// ❌ Plus de logs de mouvement souris en continu
+// ❌ Plus de logs de hit testing détaillés  
+// ❌ Plus de logs de rendu périodiques
 ```
 
 ### Logs personnalisés
 
 ```c
-// Ajouter vos propres logs
+// Ajouter vos propres logs (toujours disponible)
 ui_log_event("MyComponent", "CustomEvent", "my-element", "Mon message personnalisé");
 ```
+
+**📊 Console allégée** :
+- ✅ Événements utilisateur importants (clics boutons)
+- ✅ Changements d'état visuels
+- ✅ Erreurs et avertissements
+- ❌ Mouvements souris répétitifs supprimés
+- ❌ Logs de synchronisation technique supprimés
 
 ## 🎯 Z-Index automatique
 

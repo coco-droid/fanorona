@@ -80,6 +80,8 @@ make install-deps
 
 ## Debug du système d'événements
 
+**🔧 Logs réduits** : Les logs verbeux ont été considérablement réduits pour une meilleure lisibilité.
+
 Si aucun événement ne fonctionne, utiliser ces fonctions de debug dans le code:
 
 ```c
@@ -88,6 +90,12 @@ game_core_debug_event_system(core);  // Debug complet du système
 scene_manager_debug_active_scenes(scene_manager);  // Debug des scènes
 game_core_force_scene_event_registration(core);  // Force la re-connexion
 ```
+
+**📊 Console plus propre** :
+- ✅ Logs critiques conservés (QUIT, fermeture fenêtre)
+- ❌ Logs de routine supprimés (clics, mouvements souris)
+- ❌ Logs de rendu périodiques supprimés
+- ❌ Logs de synchronisation verbeux supprimés
 
 ## Problèmes courants et solutions
 

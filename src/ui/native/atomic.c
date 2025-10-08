@@ -39,34 +39,10 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer) {
     
     // 🆕 VÉRIFICATION: Ne pas dessiner de hitbox pour des tailles invalides
     if (hitbox_rect.w <= 0 || hitbox_rect.h <= 0) {
-        printf("⚠️ [HITBOX_SKIP] Element '%s' has invalid size: %dx%d\n",
-               element->id ? element->id : "NoID", hitbox_rect.w, hitbox_rect.h);
         return;
     }
     
-    // 🆕 DEBUG DÉTAILLÉ: Log des dimensions pour chaque hitbox rendue
-    printf("🎯 [HITBOX_DEBUG] Element '%s':\n", element->id ? element->id : "NoID");
-    printf("   📐 Dimensions: %dx%d pixels\n", hitbox_rect.w, hitbox_rect.h);
-    printf("   📍 Position: (%d, %d)\n", hitbox_rect.x, hitbox_rect.y);
-    printf("   🔲 Bounds: x=%d→%d, y=%d→%d\n", 
-           hitbox_rect.x, hitbox_rect.x + hitbox_rect.w,
-           hitbox_rect.y, hitbox_rect.y + hitbox_rect.h);
-    
-    // 🆕 DEBUG: Vérifiui_set_hitbox_visualization(true);cations spécifiques
-    if (hitbox_rect.h < 10) {
-        printf("🚨 [HITBOX_WARNING] Element '%s' has suspiciously small height: %d\n",
-               element->id ? element->id : "NoID", hitbox_rect.h);
-    }
-    
-    if (hitbox_rect.w < 50) {
-        printf("🚨 [HITBOX_WARNING] Element '%s' has suspiciously small width: %d\n",
-               element->id ? element->id : "NoID", hitbox_rect.w);
-    }
-    
-    // 🆕 DEBUG: Comparaison avec le style original
-    printf("   🔧 Style original: %dx%d à (%d,%d)\n",
-           element->style.width, element->style.height,
-           element->style.x, element->style.y);
+    // 🔧 SUPPRESSION: Plus de logs détaillés de hitbox
     
     // Sauvegarder l'état du renderer
     SDL_BlendMode old_blend_mode;
@@ -94,8 +70,6 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer) {
         };
         SDL_RenderDrawRect(renderer, &border_rect);
     }
-    
-    printf("   ✅ Hitbox rendue avec bordure bleue 4px\n\n");
     
     // Restaurer l'état du renderer
     SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
@@ -298,17 +272,14 @@ void atomic_apply_flex_shrink(AtomicElement* container) {
         }
     }
     
-    log_console_write("AtomicFlex", "ShrinkApplied", "atomic.c", 
-                     "[atomic.c] Flex shrink applied to children");
+    // 🔧 SUPPRESSION: Plus de logs de shrink
 }
 
 static void atomic_apply_flex_wrap(AtomicElement* container) {
     if (!container || !container->style.flex.wrap) return;
     
     // TODO: Implémentation complète du wrap
-    // Pour l'instant, log seulement
-    log_console_write("AtomicFlex", "WrapRequested", "atomic.c", 
-                     "[atomic.c] Flex wrap requested but not yet fully implemented");
+    // 🔧 SUPPRESSION: Plus de logs de wrap
 }
 
 void atomic_apply_flex_layout_improved(AtomicElement* container) {
@@ -372,8 +343,7 @@ void atomic_apply_flex_layout_improved(AtomicElement* container) {
         }
     }
     
-    log_console_write("AtomicFlex", "CompleteLayout", "atomic.c", 
-                     "[atomic.c] Complete flexbox layout applied with shrink and wrap support");
+    // 🔧 SUPPRESSION: Plus de logs de layout
 }
 
 // === ABSOLUTE POSITIONING SYSTEM ===
@@ -452,6 +422,7 @@ void atomic_handle_event(SDL_Event* event, void* user_data) {
             }
             break;
         case SDL_MOUSEMOTION: {
+            // 🔧 FIX: Améliorer la gestion du hover
             int mouse_x, mouse_y;
             SDL_GetMouseState(&mouse_x, &mouse_y);
             
@@ -463,11 +434,15 @@ void atomic_handle_event(SDL_Event* event, void* user_data) {
                 if (element->events.on_hover) {
                     element->events.on_hover(element, event);
                 }
+                // 🔧 SUPPRESSION: Plus de logs hover
             } else if (was_hovered && !is_now_hovered) {
                 element->is_hovered = false;
                 if (element->events.on_unhover) {
                     element->events.on_unhover(element, event);
                 }
+                // 🔧 SUPPRESSION: Plus de logs unhover
+            } else if (is_now_hovered && element->events.on_hover) {
+                element->events.on_hover(element, event);
             }
             break;
         }
@@ -485,9 +460,6 @@ void atomic_register_with_event_manager(AtomicElement* element, EventManager* ma
     event_manager_subscribe(manager, rect.x, rect.y, rect.w, rect.h, 
                           element->style.z_index, element->style.visible,
                           atomic_handle_event, element);
-    
-    log_console_write("AtomicEvent", "RegisteredWithFinalPosition", "atomic.c", 
-                     "[atomic.c] Element registered with final calculated position for accurate hit testing");
 }
 
 void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* manager) {
@@ -697,12 +669,7 @@ static void atomic_set_error(AtomicElement* element, AtomicError error, const ch
     free(element->error_message);
     element->error_message = message ? strdup(message) : NULL;
     
-    // Log l'erreur
-    char error_log[512];
-    snprintf(error_log, sizeof(error_log), 
-            "[atomic.c] ERROR %d in element '%s': %s", 
-            error, element->id ? element->id : "NoID", message ? message : "Unknown error");
-    log_console_write("AtomicError", "Error", "atomic.c", error_log);
+    // 🔧 SUPPRESSION: Plus de logs d'erreur
 }
 
 AtomicError atomic_get_last_error(AtomicElement* element) {
@@ -770,8 +737,7 @@ void atomic_texture_ref_add(const char* path, SDL_Texture* texture) {
         new_ref->next = g_texture_refs;
         g_texture_refs = new_ref;
         
-        log_console_write("AtomicTexture", "RefAdded", "atomic.c", 
-                         "[atomic.c] Texture reference added with count=1");
+        // 🔧 SUPPRESSION: Plus de logs de texture
     }
     
     SDL_UnlockMutex(g_texture_mutex);
@@ -883,8 +849,7 @@ AtomicError atomic_destroy_safe(AtomicElement* element) {
     // Marquer comme en cours de destruction
     element->state = ELEMENT_STATE_DESTROYING;
     
-    log_console_write("AtomicDestruction", "Starting", "atomic.c", 
-                     "[atomic.c] Starting safe destruction");
+    // 🔧 SUPPRESSION: Plus de logs de destruction
     
     // 🔧 FIX: Nettoyer les custom_data AVANT de détruire les enfants
     atomic_cleanup_custom_data(element);
@@ -925,8 +890,7 @@ AtomicError atomic_destroy_safe(AtomicElement* element) {
     element->state = ELEMENT_STATE_DESTROYED;
     free(element);
     
-    log_console_write("AtomicDestruction", "Completed", "atomic.c", 
-                     "[atomic.c] Safe destruction completed with custom_data cleanup");
+    // 🔧 SUPPRESSION: Plus de logs de destruction
     
     return ATOMIC_SUCCESS;
 }
@@ -1070,8 +1034,7 @@ AtomicElement* atomic_create(const char* id) {
     // 🔧 FIX: Initialiser le champ custom_data
     element->custom_data = NULL;
     
-    log_console_write("AtomicElement", "Created", "atomic.c", 
-                     "[atomic.c] Element created with error handling");
+    // 🔧 SUPPRESSION: Plus de logs de création
     
     return element;
 }
@@ -1108,8 +1071,7 @@ void atomic_set_custom_data(AtomicElement* element, const char* key, void* value
     entry->next = element->custom_data;
     element->custom_data = entry;
     
-    printf("🔧 [CUSTOM_DATA] Clé '%s' ajoutée pour élément '%s'\n", 
-           key, element->id ? element->id : "NoID");
+    // 🔧 SUPPRESSION: Plus de logs de custom data
 }
 
 void* atomic_get_custom_data(AtomicElement* element, const char* key) {
@@ -1142,10 +1104,7 @@ void atomic_cleanup_custom_data(AtomicElement* element) {
     }
     element->custom_data = NULL;
     
-    if (cleaned_count > 0) {
-        printf("🧹 [CUSTOM_DATA] %d entrées nettoyées pour élément '%s'\n", 
-               cleaned_count, element->id ? element->id : "NoID");
-    }
+    // 🔧 SUPPRESSION: Plus de logs de nettoyage (même silencieux)
 }
 
 // === IMPROVED UPDATE FUNCTION ===
@@ -1171,23 +1130,9 @@ void atomic_update(AtomicElement* element, float delta_time) {
     // 4. Final constraints (overflow)
     atomic_apply_overflow_constraints(element);
     
-    // ❌ SUPPRESSION: Ne plus synchroniser ici pour éviter la synchronisation prématurée
-    // La synchronisation des hitboxes se fera maintenant dans optimum_sync_all_hitboxes_post_layout()
-    // après que TOUS les calculs de l'arbre soient terminés
-    
     // 5. Update children
     for (int i = 0; i < element->content.children_count; i++) {
         atomic_update(element->content.children[i], delta_time);
-    }
-    
-    // 🆕 LOG de fin de mise à jour individuelle
-    static int update_counter = 0;
-    if (update_counter++ % 120 == 0) { // Log toutes les 120 frames pour éviter le spam
-        char update_message[256];
-        snprintf(update_message, sizeof(update_message),
-                "[atomic.c] Element '%s' individual update completed - waiting for tree-wide hitbox sync",
-                element->id ? element->id : "NoID");
-        log_console_write("AtomicUpdate", "IndividualDone", "atomic.c", update_message);
     }
 }
 
@@ -1205,15 +1150,6 @@ void atomic_sync_event_manager_position(AtomicElement* element, EventManager* ma
     
     // Réenregistrer avec la position finale calculée (après tous les calculs)
     atomic_register_with_event_manager(element, manager);
-    
-    // Log détaillé de la synchronisation
-    SDL_Rect final_rect = atomic_get_final_render_rect(element);
-    char sync_message[512];
-    snprintf(sync_message, sizeof(sync_message),
-            "[atomic.c] Element '%s' synchronized - Final position: (%d,%d,%dx%d)",
-            element->id ? element->id : "NoID",
-            final_rect.x, final_rect.y, final_rect.w, final_rect.h);
-    log_console_write("AtomicSync", "ElementSynced", "atomic.c", sync_message);
 }
 
 // === UTILITY FUNCTIONS ===
@@ -1684,9 +1620,7 @@ void atomic_set_border_radius(AtomicElement* element, int radius) {
     // TODO: Ajouter un vrai champ border_radius dans AtomicStyle si nécessaire
     element->style.border_width = radius;
     
-    // Log pour debug
-    printf("🔧 [atomic_set_border_radius] Radius %d défini pour élément '%s'\n", 
-           radius, element->id ? element->id : "no-id");
+    // 🔧 SUPPRESSION: Plus de logs de border radius
 }
 
 // 🆕 Fonction pour définir la transparence du texte
@@ -1696,9 +1630,7 @@ void atomic_set_text_alpha(AtomicElement* element, Uint8 alpha) {
     // Conserver les composantes R, G, B actuelles mais modifier alpha
     element->style.text.color.a = alpha;
     
-    // Log pour debugging
-    printf("🔍 [TEXT_ALPHA] Alpha du texte pour élément '%s' défini à %d\n", 
-           element->id ? element->id : "NoID", alpha);
+    // 🔧 SUPPRESSION: Plus de logs de text alpha
 }
 
 // 🆕 CUSTOM RENDER FUNCTION IMPLEMENTATION

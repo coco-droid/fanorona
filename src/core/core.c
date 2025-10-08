@@ -192,15 +192,15 @@ void game_core_handle_events(GameCore* core) {
         
         // 🔧 GESTION DIRECTE des événements critiques
         if (event.type == SDL_QUIT) {
-            log_console_write("CoreEvents", "Quit", "core.c", 
-                             "[core.c] SDL_QUIT received - shutting down");
+            // 🔧 SUPPRESSION: Log seulement pour QUIT
+            printf("🚪 SDL_QUIT reçu - Arrêt du jeu\n");
             core->running = false;
             return;
         }
         
         if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-            log_console_write("CoreEvents", "WindowClose", "core.c", 
-                             "[core.c] Window close detected - shutting down");
+            // 🔧 SUPPRESSION: Log seulement pour fermeture de fenêtre
+            printf("🚪 Fermeture de fenêtre - Arrêt du jeu\n");
             core->running = false;
             return;
         }
@@ -213,14 +213,6 @@ void game_core_handle_events(GameCore* core) {
             // Transmettre directement à l'EventManager de la scène
             event_manager_handle_event(active_scene->event_manager, &event);
         }
-    }
-    
-    // Log seulement si des événements ont été traités
-    if (events_processed > 0) {
-        char summary[256];
-        snprintf(summary, sizeof(summary), 
-                "[core.c] Processed %d events in mono-thread", events_processed);
-        log_console_write("CoreEvents", "ProcessedBatch", "core", summary);
     }
 }
 

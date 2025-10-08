@@ -91,13 +91,13 @@ static TTF_Font* optimum_get_default_font(void) {
         for (int i = 0; i < 6; i++) {
             optimum_default_font = TTF_OpenFont(font_paths[i], 16);
             if (optimum_default_font) {
-                printf("✅ [OPTIMUM] Police par défaut chargée: %s\n", font_paths[i]);
+                ////printf("✅ [OPTIMUM] Police par défaut chargée: %s\n", font_paths[i]);
                 break;
             }
         }
         
         if (!optimum_default_font) {
-            printf("❌ [OPTIMUM] ERREUR: Aucune police système trouvée!\n");
+            ////printf("❌ [OPTIMUM] ERREUR: Aucune police système trouvée!\n");
         }
     }
     
@@ -185,8 +185,8 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         if (!font) {
             font = optimum_get_default_font();
             if (!font) {
-                printf("⚠️ [OPTIMUM] No font available for text rendering of '%s'\n", 
-                       element->id ? element->id : "NoID");
+                /*printf("⚠️ [OPTIMUM] No font available for text rendering of '%s'\n", 
+                       element->id ? element->id : "NoID");*/
                 goto skip_text_rendering;
             }
         }
@@ -200,14 +200,14 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         
         SDL_Surface* text_surface = TTF_RenderText_Blended(font, element->content.text, text_color);
         if (!text_surface) {
-            printf("⚠️ [OPTIMUM] Failed to create text surface: %s\n", TTF_GetError());
+            //printf("⚠️ [OPTIMUM] Failed to create text surface: %s\n", TTF_GetError());
             goto skip_text_rendering;
         }
         
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
         if (!text_texture) {
             SDL_FreeSurface(text_surface);
-            printf("⚠️ [OPTIMUM] Failed to create text texture: %s\n", SDL_GetError());
+            //printf("⚠️ [OPTIMUM] Failed to create text texture: %s\n", SDL_GetError());
             goto skip_text_rendering;
         }
         
@@ -261,33 +261,23 @@ skip_text_rendering:
 
 void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer) {
     if (!tree || !tree->root || !renderer) {
-        printf("⚠️ [OPTIMUM] Invalid parameters for UI tree rendering\n");
         return;
     }
-    
-    // Log de début de rendu
-    log_console_write("OptimumEngine", "RenderStart", "optimum.c", 
-                     "[optimum.c] 🎨 Starting UI tree rendering with Optimum Engine");
     
     // Rendre l'arbre UI complet en commençant par la racine
     optimum_render_element(tree->root->element, renderer);
     
     // 🆕 RENDU DES HITBOXES après le rendu normal
     if (tree->event_manager) {
-        // 🔧 FIX: Utiliser le bon type EventManager* au lieu de void*
         event_manager_render_hitboxes(tree->event_manager, renderer);
     }
-    
-    // Log de fin de rendu
-    log_console_write("OptimumEngine", "RenderComplete", "optimum.c", 
-                     "[optimum.c] ✅ UI tree rendering completed with hitbox visualization");
 }
 
 void optimum_cleanup(void) {
     if (optimum_default_font) {
         TTF_CloseFont(optimum_default_font);
         optimum_default_font = NULL;
-        printf("🧹 [OPTIMUM] Default font cleaned up\n");
+        //printf("🧹 [OPTIMUM] Default font cleaned up\n");
     }
 }
 
@@ -320,7 +310,9 @@ void optimum_debug_render_bounds(AtomicElement* element, SDL_Renderer* renderer,
 void optimum_render_performance_info(SDL_Renderer* renderer, int elements_rendered, float render_time_ms) {
     // TODO: Implémenter l'affichage des informations de performance
     (void)renderer; // Éviter le warning unused parameter
-    printf("🎯 [OPTIMUM] Rendered %d elements in %.2fms\n", elements_rendered, render_time_ms);
+    (void)elements_rendered; // Éviter le warning unused parameter
+    (void)render_time_ms; // Éviter le warning unused parameter
+    //printf("🎯 [OPTIMUM] Rendered %d elements in %.2fms\n", elements_rendered, render_time_ms);
 }
 
 // === SYSTÈME DE SYNCHRONISATION POST-CALCULS ===
@@ -340,18 +332,6 @@ void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager) 
     if (has_handlers) {
         // Synchroniser la position finale calculée avec l'EventManager
         atomic_sync_event_manager_position(node->element, manager);
-        
-        // Log de synchronisation (périodique pour éviter le spam)
-        static int sync_counter = 0;
-        if (sync_counter++ % 60 == 0) { // Log toutes les 60 frames
-            SDL_Rect final_rect = atomic_get_final_render_rect(node->element);
-            char sync_message[256];
-            snprintf(sync_message, sizeof(sync_message),
-                    "[optimum.c] Element '%s' hitbox synced to final position (%d,%d,%dx%d)",
-                    node->id ? node->id : "NoID",
-                    final_rect.x, final_rect.y, final_rect.w, final_rect.h);
-            log_console_write("OptimumSync", "HitboxSynced", "optimum.c", sync_message);
-        }
     }
     
     // Parcourir récursivement tous les enfants
@@ -366,17 +346,14 @@ void optimum_sync_element_hitbox_recursive(UINode* node, EventManager* manager) 
  */
 void optimum_sync_all_hitboxes_post_layout(UITree* tree) {
     if (!tree || !tree->root || !tree->event_manager) {
-        log_console_write("OptimumSync", "SyncSkipped", "optimum.c", 
-                         "[optimum.c] Sync skipped - invalid tree or event manager");
+        
         return;
     }
     
-    log_console_write("OptimumSync", "SyncStarted", "optimum.c", 
-                     "[optimum.c] 🎯 Starting post-layout hitbox synchronization");
+   
     
     // Parcourir récursivement l'arbre entier et synchroniser toutes les hitboxes
     optimum_sync_element_hitbox_recursive(tree->root, tree->event_manager);
     
-    log_console_write("OptimumSync", "SyncCompleted", "optimum.c", 
-                     "[optimum.c] ✅ Post-layout hitbox synchronization completed");
+   
 }

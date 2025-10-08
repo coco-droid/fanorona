@@ -370,6 +370,12 @@ static void plateau_render_hover_feedback(PlateauRenderData* data) {
     VisualFeedbackState* vf = data->visual_state;
     if (vf->hovered_intersection < 0) return;
     
+    // 🆕 DEBUG
+    static int hover_debug_counter = 0;
+    if (hover_debug_counter++ % 60 == 0) { // Log toutes les 60 frames
+        printf("🌟 Rendering hover feedback for intersection %d\n", vf->hovered_intersection);
+    }
+    
     Intersection* intersection = &data->board->nodes[vf->hovered_intersection];
     int x, y;
     plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
@@ -380,7 +386,6 @@ static void plateau_render_hover_feedback(PlateauRenderData* data) {
     int alpha = 80 + (int)(pulse * 80); // 80-160
     
     // Golden hover halo
-    SDL_SetRenderDrawColor(data->renderer, 255, 255, 100, alpha);
     plateau_draw_filled_circle(data->renderer, x, y, halo_radius, 255, 255, 100, alpha);
 }
 
@@ -447,20 +452,71 @@ static void plateau_update_visual_feedback(PlateauRenderData* data, float delta_
     }
 }
 
-static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
+static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
+    (void)event; // Éviter le warning unused parameter
+    
     AtomicElement* atomic = (AtomicElement*)element;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
     if (!data) return;
     
     VisualFeedbackState* vf = data->visual_state;
-    // 🔧 FIX: Use render rect instead of missing functions
-    SDL_Rect rect = atomic_get_render_rect(atomic);
-    int mouse_x = event->button.x - rect.x;
-    int mouse_y = event->button.y - rect.y;
     
-    int clicked_id = plateau_find_intersection_at_mouse(data, mouse_x, mouse_y);
+    // 🔧 FIX: Obtenir les coordonnées de souris absolues
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    
+    // 🔧 FIX: Convertir en coordonnées relatives au plateau
+    SDL_Rect rect = atomic_get_render_rect(atomic);
+    int relative_mouse_x = mouse_x - rect.x;
+    int relative_mouse_y = mouse_y - rect.y;
+    
+    // 🆕 DEBUG: Afficher les coordonnées pour debug
+    static int debug_counter = 0;
+    if (debug_counter++ % 30 == 0) { // Log toutes les 30 frames
+        printf("🐭 Mouse: abs(%d,%d) rect(%d,%d,%dx%d) rel(%d,%d)\n", 
+               mouse_x, mouse_y, rect.x, rect.y, rect.w, rect.h,
+               relative_mouse_x, relative_mouse_y);
+    }
+    
+    int new_hovered = plateau_find_intersection_at_mouse(data, relative_mouse_x, relative_mouse_y);
+    
+    if (new_hovered != vf->hovered_intersection) {
+        vf->hovered_intersection = new_hovered;
+        vf->animation_timer = 0.0f; // Reset animation
+        
+        // 🆕 DEBUG: Confirmer la détection
+        if (new_hovered >= 0) {
+            printf("🎯 Intersection %d hovered\n", new_hovered);
+        }
+    }
+}
+
+static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
+    (void)event; // Éviter le warning unused parameter
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
+    if (!data) return;
+    
+    VisualFeedbackState* vf = data->visual_state;
+    
+    // 🔧 FIX: Même correction pour les clics
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    
+    SDL_Rect rect = atomic_get_render_rect(atomic);
+    int relative_mouse_x = mouse_x - rect.x;
+    int relative_mouse_y = mouse_y - rect.y;
+    
+    // 🆕 DEBUG: Confirmer les coordonnées de clic
+    printf("🖱️ Click: abs(%d,%d) -> rel(%d,%d)\n", 
+           mouse_x, mouse_y, relative_mouse_x, relative_mouse_y);
+    
+    int clicked_id = plateau_find_intersection_at_mouse(data, relative_mouse_x, relative_mouse_y);
     
     if (clicked_id >= 0) {
+        printf("🎯 Intersection %d clicked\n", clicked_id);
+        
         Intersection* clicked = &data->board->nodes[clicked_id];
         
         if (vf->selected_intersection < 0) {
@@ -471,6 +527,7 @@ static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
                 printf("🎯 Piece selected at intersection %d\n", clicked_id);
             } else {
                 plateau_show_error_feedback(data, 4); // Wrong piece
+                printf("❌ Cannot select intersection %d (no piece or wrong owner)\n", clicked_id);
             }
         } else {
             // Piece already selected - try to move
@@ -488,27 +545,11 @@ static void plateau_handle_mouse_click(void* element, SDL_Event* event) {
             } else {
                 // Invalid move - show error
                 plateau_show_error_feedback(data, 3); // Not adjacent (simplified)
+                printf("❌ Invalid move to intersection %d\n", clicked_id);
             }
         }
-    }
-}
-
-static void plateau_handle_mouse_move(void* element, SDL_Event* event) {
-    AtomicElement* atomic = (AtomicElement*)element;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(atomic, "plateau_data");
-    if (!data) return;
-    
-    VisualFeedbackState* vf = data->visual_state;
-    // 🔧 FIX: Use render rect instead of missing functions
-    SDL_Rect rect = atomic_get_render_rect(atomic);
-    int mouse_x = event->motion.x - rect.x;
-    int mouse_y = event->motion.y - rect.y;
-    
-    int new_hovered = plateau_find_intersection_at_mouse(data, mouse_x, mouse_y);
-    
-    if (new_hovered != vf->hovered_intersection) {
-        vf->hovered_intersection = new_hovered;
-        vf->animation_timer = 0.0f; // Reset animation
+    } else {
+        printf("❌ No intersection found at click position\n");
     }
 }
 
@@ -613,6 +654,9 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
             // Initialiser les joueurs de test si pas fournis
             if (!player1 || !player2) {
                 plateau_init_test_players(render_data);
+            } else {
+                // 🔧 FIX: Initialiser le visual feedback même avec des joueurs fournis
+                plateau_init_visual_feedback(render_data);
             }
             
             // Attacher les données au composant

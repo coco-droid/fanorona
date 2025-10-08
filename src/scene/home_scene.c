@@ -144,13 +144,7 @@ static void debug_element_size(AtomicElement* element, const char* context) {
 static void home_scene_init(Scene* scene) {
     printf("🏠 Initialisation de la scène Home avec UI DOM-like\n");
     
-    // 🆕 ACTIVER AUTOMATIQUEMENT la console d'événements dédiée
-    #ifdef ENABLE_LOG_CONSOLE
-    if (!log_console_is_enabled()) {
-        log_console_init();
-        printf("🎯 Console d'événements dédiée activée automatiquement\n");
-    }
-    #endif
+    // 🔧 SUPPRESSION: Plus d'activation automatique de la console d'événements
     
     // Activer les logs d'événements pour debugging
     ui_set_event_logging(true);
