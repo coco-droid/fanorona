@@ -2,6 +2,7 @@
 #define UI_COMPONENTS_H
 
 #include "ui_tree.h"
+#include "animation.h"  // 🆕 AJOUT: Support pour les animations
 #include <SDL2/SDL_ttf.h>
 
 // Forward declarations
@@ -365,5 +366,15 @@ void ui_plateau_container_destroy(UINode* plateau_container);
 #define CENTER(node) ui_center(node)
 #define CENTER_X(node) ui_center_x(node)
 #define CENTER_Y(node) ui_center_y(node)
+
+// === NOUVELLES FONCTIONS D'ANIMATION UI ===
+UINode* ui_animate_fade_in(UINode* node, float duration);
+UINode* ui_animate_fade_out(UINode* node, float duration);
+UINode* ui_animate_slide_in_left(UINode* node, float duration, float distance);
+UINode* ui_animate_slide_in_right(UINode* node, float duration, float distance);
+UINode* ui_animate_slide_out_left(UINode* node, float duration, float distance);
+UINode* ui_animate_shake_x(UINode* node, float duration, float intensity);
+UINode* ui_animate_pulse(UINode* node, float duration);
+UINode* ui_stop_animations(UINode* node);
 
 #endif // UI_COMPONENTS_H

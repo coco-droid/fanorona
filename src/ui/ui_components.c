@@ -1102,3 +1102,83 @@ void ui_container_add_default_subtitle(UINode* container) {
     
     ui_log_event("UIComponent", "ContainerDefault", container->id, "Default subtitle positioned at 111px with 20px margin-bottom (adjusted for 15px padding)");
 }
+
+// === NOUVELLES FONCTIONS D'ANIMATION UI ===
+
+UINode* ui_animate_fade_in(UINode* node, float duration) {
+    if (!node) return node;
+    
+    Animation* anim = animation_fade_in(duration);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Fade-in animation started");
+    return node;
+}
+
+UINode* ui_animate_fade_out(UINode* node, float duration) {
+    if (!node) return node;
+    
+    Animation* anim = animation_fade_out(duration);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Fade-out animation started");
+    return node;
+}
+
+UINode* ui_animate_slide_in_left(UINode* node, float duration, float distance) {
+    if (!node) return node;
+    
+    Animation* anim = animation_slide_in_left(duration, distance);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Slide-in-left animation started");
+    return node;
+}
+
+UINode* ui_animate_slide_in_right(UINode* node, float duration, float distance) {
+    if (!node) return node;
+    
+    Animation* anim = animation_slide_in_right(duration, distance);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Slide-in-right animation started");
+    return node;
+}
+
+UINode* ui_animate_slide_out_left(UINode* node, float duration, float distance) {
+    if (!node) return node;
+    
+    Animation* anim = animation_slide_out_left(duration, distance);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Slide-out-left animation started");
+    return node;
+}
+
+UINode* ui_animate_shake_x(UINode* node, float duration, float intensity) {
+    if (!node) return node;
+    
+    Animation* anim = animation_shake_x(duration, intensity);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Shake animation started");
+    return node;
+}
+
+UINode* ui_animate_pulse(UINode* node, float duration) {
+    if (!node) return node;
+    
+    Animation* anim = animation_pulse(duration);
+    ui_node_add_animation(node, anim);
+    
+    ui_log_event("UIComponent", "Animation", node->id, "Pulse animation started");
+    return node;
+}
+
+UINode* ui_stop_animations(UINode* node) {
+    if (!node) return node;
+    
+    ui_node_stop_animations(node);
+    ui_log_event("UIComponent", "Animation", node->id, "All animations stopped");
+    return node;
+}

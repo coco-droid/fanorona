@@ -88,6 +88,7 @@ SOURCES=(
     "$SRC_DIR/ui/native/optimum.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
+    "$SRC_DIR/ui/animation.c"
     "$SRC_DIR/ui/cnt_ui.c"
     "$SRC_DIR/ui/sidebar.c"
     "$SRC_DIR/ui/cnt_playable.c"

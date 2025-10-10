@@ -13,32 +13,29 @@ TARGET = $(BUILD_DIR)/fanorona
 
 # Fichiers sources
 SOURCES = main.c \
-          $(SRC_DIR)/core/core.c \
-          $(SRC_DIR)/event/event.c \
-          $(SRC_DIR)/window/window.c \
-          $(SRC_DIR)/scene/scene.c \
-          $(SRC_DIR)/scene/scene_manager.c \
-          $(SRC_DIR)/scene/scene_registry.c \
-          $(SRC_DIR)/scene/home_scene.c \
-          $(SRC_DIR)/scene/menu_scene.c \
-          $(SRC_DIR)/scene/game_scene.c \
-          $(SRC_DIR)/utils/asset_manager.c \
-          $(SRC_DIR)/utils/log_console.c \
-          $(SRC_DIR)/config.c \
-          $(SRC_DIR)/logic/mode.c \
-          $(SRC_DIR)/logic/rules.c \
-          $(SRC_DIR)/plateau/plateau.c \
-          $(SRC_DIR)/pions/pions.c \
-          $(SRC_DIR)/ui/native/atomic.c \
-          $(SRC_DIR)/ui/native/optimum.c \
-          $(SRC_DIR)/ui/ui_tree.c \
-          $(SRC_DIR)/ui/ui_components.c \
-          $(SRC_DIR)/ui/cnt_ui.c \
-          $(SRC_DIR)/ui/sidebar.c \
-          $(SRC_DIR)/ui/cnt_playable.c \
-          $(SRC_DIR)/ui/plateau_cnt.c \
-          $(SRC_DIR)/ui/neon_btn.c \
-          $(SRC_DIR)/ui/components/ui_link.c
+          src/core/core.c \
+          src/event/event.c \
+          src/scene/scene_manager.c \
+          src/scene/scene_registry.c \
+          src/scene/home_scene.c \
+          src/scene/menu_scene.c \
+          src/scene/game_scene.c \
+          src/ui/ui_tree.c \
+          src/ui/ui_components.c \
+          src/ui/animation.c \
+          src/ui/cnt_ui.c \
+          src/ui/sidebar.c \
+          src/ui/plateau_cnt.c \
+          src/ui/neon_btn.c \
+          src/ui/components/ui_link.c \
+          src/ui/native/atomic.c \
+          src/ui/native/optimum.c \
+          src/window/window.c \
+          src/plateau/plateau.c \
+          src/pions/pions.c \
+          src/logic/rules.c \
+          src/utils/asset_manager.c \
+          src/utils/log_console.c
 
 # Fichiers objets
 OBJECTS = $(SOURCES:%.c=$(OBJ_DIR)/%.o)

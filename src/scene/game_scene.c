@@ -67,18 +67,24 @@ static void game_scene_init(Scene* scene) {
     if (data->sidebar) {
         SET_SIZE(data->sidebar, 266, 600); // 1/3 de 800px = ~266px
         
+        // 🆕 ANIMATION: Slide-in depuis la gauche à l'ouverture
+        ui_animate_slide_in_left(data->sidebar, 0.6f, 300.0f);
+        
         // Connecter les callbacks des boutons
         // TODO: Connecter les vrais callbacks quand le système d'événements sera prêt
         
         APPEND(app, data->sidebar);
-        printf("📋 Sidebar créée (266x600) avec tous les composants\n");
+        printf("📋 Sidebar créée (266x600) avec animation slide-in et tous les composants\n");
     }
     
     // === ZONE DE JEU (2/3 de l'écran) ===
     data->playable_area = ui_cnt_playable_with_size(data->ui_tree, "game-playable", 534, 600); // 2/3 de 800px = 534px
     if (data->playable_area) {
+        // 🆕 ANIMATION: Fade-in de la zone de jeu
+        ui_animate_fade_in(data->playable_area, 1.2f);
+        
         APPEND(app, data->playable_area);
-        printf("🎮 Zone de jeu créée (534x600) avec plateau centré\n");
+        printf("🎮 Zone de jeu créée (534x600) avec animation fade-in et plateau centré\n");
     }
     
     // Construire la hiérarchie
@@ -102,6 +108,9 @@ static void game_scene_update(Scene* scene, float delta_time) {
     if (!scene || !scene->data) return;
     
     GameSceneData* data = (GameSceneData*)scene->data;
+    
+    // 🆕 AJOUT: Mettre à jour les animations
+    ui_update_animations(delta_time);
     
     // Mettre à jour l'arbre UI avec effets de scale
     if (data->ui_tree) {

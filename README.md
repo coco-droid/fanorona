@@ -25,6 +25,8 @@ fanoron-sivy/
     │   ├── menu_scene.c # Scène de menu
     │   └── game_scene.c # Scène de jeu
     ├── ui/
+    │   ├── animation.h     # 🆕 Système d'animations keyframe-based
+    │   ├── animation.c     # 🆕 Implémentation des animations
     │   ├── components/
     │   │   └── ui_link.c # Composant de liens de navigation
     │   └── ui_components.h # Interface des composants UI
@@ -34,6 +36,14 @@ fanoron-sivy/
 ```
 
 ## Fonctionnalités
+
+### ✨ Système d'animations (NOUVEAU)
+- **🎬 Animations keyframe-based**: Système inspiré de CSS avec support complet des keyframes
+- **🔄 Fonctions d'easing**: linear, ease-in, ease-out, ease-in-out
+- **📊 Propriétés animables**: Position (X,Y), taille (W,H), opacité
+- **♾️ Contrôles avancés**: Itérations, va-et-vient, modes de remplissage
+- **🎭 Animations prédéfinies**: Fade-in/out, slide, shake, pulse, bounce
+- **⚡ Performance optimisée**: Nettoyage automatique des animations terminées
 
 ### Event Manager
 - Système de souscription d'éléments aux événements par scène
@@ -78,6 +88,112 @@ make run
 make install-deps
 ```
 
+## ✨ Utilisation du système d'animations
+
+### Animations prédéfinies (usage simple)
+
+```c
+// Dans votre fonction d'initialisation de scène
+static void my_scene_init(Scene* scene) {
+    UINode* titre = ui_text(tree, "titre", "FANORONA");
+    UINode* bouton = ui_button(tree, "play-btn", "JOUER", on_play_click, NULL);
+    
+    // Animations d'entrée
+    ANIMATE_FADE_IN(titre, 1.0f);                    // Apparition en 1 seconde
+    ANIMATE_SLIDE_LEFT(bouton, 0.8f, 200.0f);       // Glissement depuis la gauche
+    ANIMATE_PULSE(bouton, 2.0f);                     // Pulsation continue
+}
+
+// Dans votre fonction update (OBLIGATOIRE)
+static void my_scene_update(Scene* scene, float delta_time) {
+    // Mettre à jour les animations
+    ui_update_animations(delta_time);
+    
+    // ...reste de votre logique...
+}
+```
+
+### Animations personnalisées (usage avancé)
+
+```c
+// Créer une animation bounce personnalisée
+Animation* bounce = animation_create("custom-bounce", ANIMATION_PROPERTY_Y, 1.5f);
+animation_add_keyframe(bounce, 0.0f, 0.0f, "ease-out");     // Début
+animation_add_keyframe(bounce, 0.3f, -40.0f, "ease-in");    // Premier saut
+animation_add_keyframe(bounce, 0.6f, 0.0f, "ease-out");     // Retour
+animation_add_keyframe(bounce, 0.8f, -20.0f, "ease-in");    // Petit saut
+animation_add_keyframe(bounce, 1.0f, 0.0f, "ease-out");     // Position finale
+
+// Configuration avancée
+animation_set_iterations(bounce, 3);       // Répéter 3 fois
+animation_set_alternate(bounce, false);    // Pas de va-et-vient
+
+// Appliquer à un élément
+ui_node_add_animation(logo, bounce);
+```
+
+### Animations d'erreur et feedback
+
+```c
+// Secouer un bouton en cas d'erreur
+void show_error_on_button(UINode* button) {
+    ANIMATE_SHAKE(button, 0.4f, 8.0f);  // Secousse 0.4s avec intensité 8px
+}
+
+// Animation de succès
+void show_success_feedback(UINode* element) {
+    // Animation combinée : scale + fade
+    Animation* scale_up = animation_create("success-scale", ANIMATION_PROPERTY_WIDTH, 0.3f);
+    animation_add_keyframe(scale_up, 0.0f, 100.0f, "ease-out");
+    animation_add_keyframe(scale_up, 1.0f, 110.0f, "ease-out");
+    
+    ANIMATE_FADE_IN(element, 0.2f);
+    ui_node_add_animation(element, scale_up);
+}
+```
+
+### Transitions entre scènes
+
+```c
+// Animation de sortie avant changement de scène
+void animate_scene_exit(UINode* container, void (*on_complete_callback)(void)) {
+    // Faire disparaître la scène actuelle
+    ANIMATE_FADE_OUT(container, 0.5f);
+    
+    // Programmer le changement de scène après l'animation
+    // (utilisez un timer ou un callback dans votre système)
+    schedule_callback(on_complete_callback, 0.5f);
+}
+```
+
+### Macros disponibles
+
+```c
+ANIMATE_FADE_IN(node, duration)                    // Apparition en fondu
+ANIMATE_FADE_OUT(node, duration)                   // Disparition en fondu
+ANIMATE_SLIDE_LEFT(node, duration, distance)       // Glissement gauche
+ANIMATE_SLIDE_RIGHT(node, duration, distance)      // Glissement droite
+ANIMATE_SHAKE(node, duration, intensity)           // Secousse horizontale
+ANIMATE_PULSE(node, duration)                      // Pulsation continue
+STOP_ANIMATIONS(node)                              // Arrêter toutes les animations
+```
+
+### Debug et monitoring
+
+```c
+// Vérifier le nombre d'animations actives
+int active_count = ui_get_active_animations_count();
+printf("Animations actives: %d\n", active_count);
+
+// Vérifier si un élément a des animations
+if (ui_node_has_active_animations(mon_bouton)) {
+    printf("Le bouton est en cours d'animation\n");
+}
+
+// Arrêter toutes les animations d'un élément
+ui_node_stop_animations(mon_bouton);
+```
+
 ## Debug du système d'événements
 
 **🔧 Logs réduits** : Les logs verbeux ont été considérablement réduits pour une meilleure lisibilité.
@@ -99,6 +215,17 @@ game_core_force_scene_event_registration(core);  // Force la re-connexion
 
 ## Problèmes courants et solutions
 
+### Animations qui ne fonctionnent pas
+1. **Oublier ui_update_animations()** : Cette fonction DOIT être appelée dans chaque scene_update()
+2. **Delta_time incorrect** : Vérifier que delta_time est en secondes, pas en millisecondes
+3. **Nœud détruit** : Ne pas détruire un nœud qui a des animations actives
+4. **Mémoire insuffisante** : Le système peut refuser de nouvelles animations si la mémoire est limitée
+
+### Performance des animations
+1. **Trop d'animations simultanées** : Limiter à ~20-30 animations actives maximum
+2. **Nettoyage automatique** : Le système nettoie automatiquement les animations terminées
+3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller
+
 ### Événements non détectés
 1. **Vérifier l'initialisation**: La scène doit être `initialized = true`
 2. **Vérifier l'EventManager**: Chaque scène doit avoir son EventManager
@@ -109,68 +236,3 @@ game_core_force_scene_event_registration(core);  // Force la re-connexion
 1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé
 2. **Vérifier les IDs**: Les IDs de scène doivent correspondre
 3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées
-
-## Utilisation de l'Event Manager
-
-```c
-// Créer un event manager par scène
-EventManager* manager = event_manager_create();
-
-// Debug des éléments enregistrés
-event_manager_debug_elements(manager);
-
-// Souscrire un élément
-event_manager_subscribe(manager, x, y, width, height, z_index, true, callback_function, user_data);
-
-// Gérer les événements
-event_manager_handle_event(manager, &event);
-```
-
-## Exemple de callback
-
-```c
-void my_button_callback(SDL_Event* event, void* user_data) {
-    if (event->type == SDL_MOUSEBUTTONDOWN) {
-        printf("Bouton cliqué!\n");
-        
-        // Debug optionnel
-        printf("Position clic: (%d, %d)\n", event->button.x, event->button.y);
-    }
-}
-```
-
-## Navigation entre scènes
-
-```c
-// Créer un lien de navigation
-UINode* link = ui_create_link(tree, "my-link", "Aller au menu", "menu", SCENE_TRANSITION_REPLACE);
-
-// Connecter au SceneManager (OBLIGATOIRE)
-ui_link_connect_to_manager(link, scene_manager);
-
-// NOUVEAUTÉ: Ajouter un délai de sécurité pour éviter les clics prématurés
-ui_link_set_activation_delay(link, 0.5f);  // 500ms avant activation
-
-// Mettre à jour le lien dans la boucle de jeu
-ui_link_update(link, delta_time);
-
-// Le clic déclenchera automatiquement la transition après le délai
-```
-
-### Résolution de problèmes avec UI Links
-
-Si vos transitions entre scènes fonctionnent de manière erratique:
-
-1. **Délais de sécurité**: Utilisez `ui_link_set_activation_delay()` pour éviter les clics prématurés
-2. **Vérifiez les IDs**: Assurez-vous que les IDs de scène correspondent exactement
-3. **Connectez avant utilisation**: Appelez toujours `ui_link_connect_to_manager()`
-4. **Mise à jour**: N'oubliez pas d'appeler `ui_link_update()` dans votre fonction `update()`
-
-Pour déboguer les transitions:
-```c
-// Affichez toutes les scènes disponibles
-for (int i = 0; i < manager->scene_count; i++) {
-    Scene* s = manager->scenes[i];
-    printf("[%d] ID:'%s' Name:'%s'\n", i, s->id, s->name);
-}
-```

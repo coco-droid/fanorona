@@ -17,6 +17,184 @@ Le système UI de Fanorona est basé sur une architecture atomique où tous les 
 - 🆕 **Gestion des débordements par calcul** - plus de clipping SDL, contraintes intelligentes
 - 🆕 **Calculs de position absolue** - SET_POS résolu en coordonnées écran réelles
 - 🎯 **Synchronisation post-calculs des hitboxes** - Assignation après tous les calculs de layout
+- ✨ **Système d'animations keyframe-based** - Animations CSS-like avec easing
+
+## ✨ Système d'animations keyframe-based
+
+Le nouveau système d'animation permet de créer des animations fluides inspirées de CSS avec support complet des keyframes et fonctions d'easing.
+
+### Architecture du système d'animation
+
+```c
+// CRÉATION D'ANIMATION
+Animation* anim = animation_create("mon-animation", ANIMATION_PROPERTY_X, 2.0f);
+├── animation_add_keyframe(anim, 0.0f, 0.0f, "ease-out");    // Début
+├── animation_add_keyframe(anim, 0.5f, 200.0f, "ease-in");   // Milieu
+└── animation_add_keyframe(anim, 1.0f, 100.0f, "ease-out");  // Fin
+
+// APPLICATION À UN NOEUD
+ui_node_add_animation(mon_bouton, anim);
+
+// MISE À JOUR AUTOMATIQUE (dans la boucle de jeu)
+ui_update_animations(delta_time);
+```
+
+### Propriétés animables
+
+```c
+typedef enum {
+    ANIMATION_PROPERTY_X,        // Position horizontale
+    ANIMATION_PROPERTY_Y,        // Position verticale
+    ANIMATION_PROPERTY_WIDTH,    // Largeur
+    ANIMATION_PROPERTY_HEIGHT,   // Hauteur
+    ANIMATION_PROPERTY_OPACITY,  // Transparence (0-255)
+    ANIMATION_PROPERTY_SCALE_X,  // Échelle horizontale (futur)
+    ANIMATION_PROPERTY_SCALE_Y,  // Échelle verticale (futur)
+    ANIMATION_PROPERTY_ROTATION  // Rotation (futur)
+} AnimationProperty;
+```
+
+### Fonctions d'easing disponibles
+
+- **"linear"** : Animation linéaire
+- **"ease-in"** : Accélération progressive
+- **"ease-out"** : Décélération progressive  
+- **"ease-in-out"** : Accélération puis décélération
+
+### Animations prédéfinies
+
+```c
+// Apparition en fondu
+Animation* fade_in = animation_fade_in(1.0f);
+ui_node_add_animation(mon_element, fade_in);
+
+// Disparition en fondu
+Animation* fade_out = animation_fade_out(0.8f);
+ui_node_add_animation(mon_element, fade_out);
+
+// Glissement depuis la gauche
+Animation* slide_left = animation_slide_in_left(1.2f, 300.0f);
+ui_node_add_animation(mon_element, slide_left);
+
+// Glissement depuis la droite
+Animation* slide_right = animation_slide_in_right(1.0f, 250.0f);
+ui_node_add_animation(mon_element, slide_right);
+
+// Secousse horizontale
+Animation* shake = animation_shake_x(0.5f, 10.0f);
+ui_node_add_animation(mon_element, shake);
+
+// Pulsation infinie
+Animation* pulse = animation_pulse(2.0f);
+animation_set_iterations(pulse, -1); // Infini
+ui_node_add_animation(mon_element, pulse);
+```
+
+### API simplifiée avec macros
+
+```c
+// Macros pour usage rapide
+ANIMATE_FADE_IN(mon_bouton, 1.0f);
+ANIMATE_SLIDE_LEFT(mon_titre, 0.8f, 200.0f);
+ANIMATE_SHAKE(bouton_erreur, 0.3f, 5.0f);
+ANIMATE_PULSE(bouton_important, 1.5f);
+
+// Arrêter toutes les animations
+STOP_ANIMATIONS(mon_element);
+```
+
+### Contrôles avancés d'animation
+
+```c
+// Créer une animation personnalisée
+Animation* custom = animation_create("bounce", ANIMATION_PROPERTY_Y, 2.0f);
+animation_add_keyframe(custom, 0.0f, 0.0f, "ease-out");
+animation_add_keyframe(custom, 0.25f, -50.0f, "ease-in");
+animation_add_keyframe(custom, 0.5f, 0.0f, "ease-out");
+animation_add_keyframe(custom, 0.75f, -25.0f, "ease-in");
+animation_add_keyframe(custom, 1.0f, 0.0f, "ease-out");
+
+// Configuration avancée
+animation_set_iterations(custom, 3);      // 3 répétitions
+animation_set_alternate(custom, true);    // Va-et-vient
+animation_set_fill_mode(custom, "forwards"); // Garder la valeur finale
+
+ui_node_add_animation(logo, custom);
+```
+
+### Intégration dans les scènes
+
+```c
+// Dans menu_scene.c - Animations d'entrée
+static void menu_scene_init(Scene* scene) {
+    // ...création des éléments...
+    
+    // Animation du container principal
+    ui_animate_fade_in(modal_container, 0.8f);
+    
+    // Animation des boutons avec délais
+    ui_animate_slide_in_left(multiplayer_btn, 1.0f, 300.0f);
+    ui_animate_pulse(wiki_btn, 2.0f); // Pulsation continue
+    
+    // ...reste de l'init...
+}
+
+// Dans la fonction update - OBLIGATOIRE
+static void menu_scene_update(Scene* scene, float delta_time) {
+    // Mettre à jour les animations
+    ui_update_animations(delta_time);
+    
+    // ...reste de l'update...
+}
+```
+
+### Exemple complet d'animation de transition
+
+```c
+// Animation de sortie de scène
+void transition_out_scene(UINode* container) {
+    // Créer une animation de sortie customisée
+    Animation* slide_out = animation_create("exit-transition", ANIMATION_PROPERTY_X, 0.6f);
+    animation_add_keyframe(slide_out, 0.0f, 0.0f, "ease-in");
+    animation_add_keyframe(slide_out, 1.0f, -800.0f, "ease-in");
+    
+    Animation* fade_out = animation_fade_out(0.6f);
+    
+    // Appliquer les deux animations en parallèle
+    ui_node_add_animation(container, slide_out);
+    ui_node_add_animation(container, fade_out);
+    
+    printf("🎬 Transition de sortie démarrée\n");
+}
+```
+
+### Gestion automatique des ressources
+
+Le système d'animation gère automatiquement :
+- ✅ **Nettoyage des animations terminées**
+- ✅ **Gestion mémoire des keyframes**
+- ✅ **Interpolation fluide entre keyframes**
+- ✅ **Support des itérations et va-et-vient**
+- ✅ **Performance optimisée** (suppression automatique des animations inactives)
+
+### Logs et debugging
+
+```
+✨ Animation 'fade-in' created (property: 4, duration: 1.00s)
+🔧 Keyframe added to 'fade-in': time=0.00, value=0.00, easing=ease-out
+🔧 Keyframe added to 'fade-in': time=1.00, value=255.00, easing=ease-out
+🎬 Animation 'fade-in' started on node 'modal-container' (start value: 255.00)
+🎬 Active animations: 3 (completed: 1 this frame)
+```
+
+### Intégration avec les autres systèmes
+
+- 🔗 **Compatible avec le feedback visuel** : Les animations coexistent avec les effets de scale des boutons
+- 🔗 **Compatible avec les neon buttons** : Les animations peuvent s'appliquer aux boutons neon
+- 🔗 **Compatible avec les transitions de scènes** : Animations de sortie/entrée lors des changements de scène
+- 🔗 **Performance intégrée** : Mise à jour dans la boucle principale sans overhead
+
+Cette implémentation offre un système d'animation puissant et flexible, permettant de créer des interfaces utilisateur modernes et engageantes ! ✨🎬
 
 ## 🎯 Système de synchronisation post-calculs des hitboxes
 

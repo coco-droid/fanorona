@@ -142,6 +142,9 @@ static void menu_scene_init(Scene* scene) {
             SET_SIZE(multiplayer_btn, 280, 45);
             ui_set_text_align(multiplayer_btn, "center");
             
+            // 🆕 ANIMATION: Fade-in avec délai
+            ui_animate_fade_in(multiplayer_btn, 0.8f);
+            
             // 🆕 DEBUG DÉTAILLÉ: Vérifier les dimensions du bouton "play"
             printf("🔍 [BUTTON_DEBUG] Bouton Multijoueur créé:\n");
             printf("   📐 Taille demandée: 280x45\n");
@@ -162,7 +165,7 @@ static void menu_scene_init(Scene* scene) {
             ui_neon_button_set_animation_speed(multiplayer_btn, 1.5f);
             
             APPEND(buttons_container, multiplayer_btn);
-            printf("✨ Neon Button 'Multijoueur' créé avec lueur verte\n");
+            printf("✨ Neon Button 'Multijoueur' créé avec lueur verte + animation fade-in\n");
         }
         
         // 🆕 2. UI LINK pour IA avec transition de fenêtre (MINI → MAIN)
@@ -170,6 +173,9 @@ static void menu_scene_init(Scene* scene) {
         if (data->ai_link) {
             // Styliser comme un neon button violet
             style_link_as_neon_button(data->ai_link, 255, 0, 255); // Violet neon
+            
+            // 🆕 ANIMATION: Slide-in depuis la gauche avec délai
+            ui_animate_slide_in_left(data->ai_link, 1.0f, 300.0f);
             
             // Ajouter les effets hover/unhover pour l'effet neon
             atomic_set_hover_handler(data->ai_link->element, ai_link_hovered);
@@ -179,10 +185,7 @@ static void menu_scene_init(Scene* scene) {
             ui_link_set_target_window(data->ai_link, WINDOW_TYPE_MAIN);
             
             APPEND(buttons_container, data->ai_link);
-            printf("🔗✨ UI Link 'IA' créé avec transition MINI → MAIN WINDOW\n");
-            printf("   🎯 Cible: game_scene dans MAIN WINDOW (800x600)\n");
-            printf("   🔄 Transition: SCENE_TRANSITION_CLOSE_AND_OPEN\n");
-            printf("   🎨 Style: Neon button violet avec effets hover\n");
+            printf("🔗✨ UI Link 'IA' créé avec transition MINI → MAIN WINDOW + animation slide-in\n");
         }
         
         // 3. Bouton Wiki avec neon (inchangé)
@@ -191,12 +194,15 @@ static void menu_scene_init(Scene* scene) {
             SET_SIZE(wiki_btn, 280, 45);
             ui_set_text_align(wiki_btn, "center");
             
+            // 🆕 ANIMATION: Pulse infini
+            ui_animate_pulse(wiki_btn, 2.0f);
+            
             // Configuration spécifique neon
             ui_neon_button_set_glow_color(wiki_btn, 0, 191, 255); // Bleu ciel neon
             ui_neon_button_set_animation_speed(wiki_btn, 1.0f);
             
             APPEND(buttons_container, wiki_btn);
-            printf("✨ Neon Button 'Wiki' créé avec lueur bleu ciel\n");
+            printf("✨ Neon Button 'Wiki' créé avec lueur bleu ciel + animation pulse\n");
         }
         
         // 🎯 AJOUTER LE CONTAINER DE BOUTONS AU MODAL AVEC CENTRAGE VERTICAL
@@ -234,6 +240,9 @@ static void menu_scene_update(Scene* scene, float delta_time) {
     if (!scene || !scene->data) return;
     
     MenuSceneData* data = (MenuSceneData*)scene->data;
+    
+    // 🆕 AJOUT: Mettre à jour les animations
+    ui_update_animations(delta_time);
     
     // Mettre à jour l'arbre UI
     if (data->ui_tree) {
