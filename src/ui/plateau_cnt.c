@@ -624,12 +624,12 @@ static void animate_piece_move(PlateauRenderData* data, int from_id, int to_id) 
     int to_y = data->offset_y + to_intersection->r * data->cell_height;
     
     // Animation X
-    Animation* slide_x = animation_create("piece-move-x", ANIMATION_PROPERTY_X, 0.5f);
+    Animation* slide_x = animation_create("piece-move-x", ANIMATION_PROPERTY_X, 0.7f);
     animation_add_keyframe(slide_x, 0.0f, (float)from_x, "ease-out");
     animation_add_keyframe(slide_x, 1.0f, (float)to_x, "ease-out");
     
     // Animation Y
-    Animation* slide_y = animation_create("piece-move-y", ANIMATION_PROPERTY_Y, 0.5f);
+    Animation* slide_y = animation_create("piece-move-y", ANIMATION_PROPERTY_Y, 0.7f);
     animation_add_keyframe(slide_y, 0.0f, (float)from_y, "ease-out");
     animation_add_keyframe(slide_y, 1.0f, (float)to_y, "ease-out");
     
@@ -1078,4 +1078,69 @@ void ui_plateau_container_destroy(UINode* plateau_container) {
     
     // Le UINode lui-même sera détruit par le système UI
     printf("✅ [PLATEAU_DESTROY] Container de plateau détruit\n");
+}
+
+// === PUBLIC API FUNCTIONS FOR ANIMATIONS ===
+
+void ui_plateau_animate_piece_move(UINode* plateau, int from_id, int to_id) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_piece_move(data, from_id, to_id);
+}
+
+void ui_plateau_animate_piece_capture(UINode* plateau, int piece_id) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_piece_capture(data, piece_id);
+}
+
+void ui_plateau_animate_piece_placement(UINode* plateau, int intersection_id) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_piece_placement(data, intersection_id);
+}
+
+void ui_plateau_animate_piece_selection(UINode* plateau, int piece_id) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_piece_selection(data, piece_id);
+}
+
+void ui_plateau_animate_victory_dance(UINode* plateau, int winning_player) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_victory_dance(data, (Player)winning_player);
+}
+
+void ui_plateau_animate_defeat_fade(UINode* plateau, int losing_player) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_defeat_fade(data, (Player)losing_player);
+}
+
+void ui_plateau_animate_initial_wave(UINode* plateau) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    animate_initial_piece_wave(data);
 }
