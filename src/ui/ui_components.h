@@ -377,4 +377,35 @@ UINode* ui_animate_shake_x(UINode* node, float duration, float intensity);
 UINode* ui_animate_pulse(UINode* node, float duration);
 UINode* ui_stop_animations(UINode* node);
 
+// === NOUVELLES FONCTIONS D'ANIMATION DE PIECES ===
+
+// Animation de déplacement de pièce
+void ui_plateau_animate_piece_move(UINode* plateau, int from_id, int to_id);
+
+// Animation de capture (disparition)
+void ui_plateau_animate_piece_capture(UINode* plateau, int piece_id);
+
+// Animation de placement (apparition)
+void ui_plateau_animate_piece_placement(UINode* plateau, int intersection_id);
+
+// Animation de sélection (pulse)
+void ui_plateau_animate_piece_selection(UINode* plateau, int piece_id);
+
+// Animations de fin de jeu
+void ui_plateau_animate_victory_dance(UINode* plateau, int winning_player);
+void ui_plateau_animate_defeat_fade(UINode* plateau, int losing_player);
+
+// Animation d'apparition initiale
+void ui_plateau_animate_initial_wave(UINode* plateau);
+
+// === MACROS POUR ANIMATIONS DE PIECES ===
+
+#define ANIMATE_PIECE_MOVE(plateau, from, to) ui_plateau_animate_piece_move(plateau, from, to)
+#define ANIMATE_PIECE_CAPTURE(plateau, id) ui_plateau_animate_piece_capture(plateau, id)
+#define ANIMATE_PIECE_PLACE(plateau, id) ui_plateau_animate_piece_placement(plateau, id)
+#define ANIMATE_PIECE_SELECT(plateau, id) ui_plateau_animate_piece_selection(plateau, id)
+#define ANIMATE_VICTORY(plateau, player) ui_plateau_animate_victory_dance(plateau, player)
+#define ANIMATE_DEFEAT(plateau, player) ui_plateau_animate_defeat_fade(plateau, player)
+#define ANIMATE_INITIAL_WAVE(plateau) ui_plateau_animate_initial_wave(plateau)
+
 #endif // UI_COMPONENTS_H

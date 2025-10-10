@@ -109,22 +109,25 @@ static void game_scene_update(Scene* scene, float delta_time) {
     
     GameSceneData* data = (GameSceneData*)scene->data;
     
-    // 🆕 AJOUT: Mettre à jour les animations
+    // 🆕 AJOUT: Mettre à jour les animations (inclut les animations de pièces)
     ui_update_animations(delta_time);
     
     // Mettre à jour l'arbre UI avec effets de scale
     if (data->ui_tree) {
         ui_tree_update(data->ui_tree, delta_time);
         
-        // 🆕 Mettre à jour spécifiquement les effets de scale des boutons
-        // Cette fonction sera appelée automatiquement via l'arbre UI
-        //printf("🎯 Game scene updated with scale effects for all buttons\n");
+        // 🆕 Les animations de pièces sont automatiquement mises à jour via ui_update_animations()
+        // Les effets incluent :
+        // - Mouvements de pièces avec transitions fluides
+        // - Animations de capture avec fade-out
+        // - Pulsations de sélection
+        // - Animations de victoire/défaite
     }
     
     // TODO: Mettre à jour la logique de jeu
-    // - État du plateau avec interactions visuelles
+    // - État du plateau avec interactions visuelles animées
     // - Temps des joueurs
-    // - Animations en cours incluant les effets de scale
+    // - Détection de fin de partie avec animations correspondantes
 }
 
 // Rendu de la scène de jeu

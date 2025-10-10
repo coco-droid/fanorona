@@ -34,6 +34,7 @@ typedef struct {
     int iterations;      // -1 = infinite, 0 = 1 fois, n = n fois
     bool alternate;      // true = va-et-vient
     char* fill_mode;     // "none", "forwards", "backwards", "both"
+    float activation_delay; // 🆕 Délai avant démarrage en secondes
 } Animation;
 
 // === FONCTIONS PRINCIPALES ===
@@ -101,5 +102,11 @@ void animation_set_iterations(Animation* anim, int iterations);
 
 // Définir le mode alternatif (va-et-vient)
 void animation_set_alternate(Animation* anim, bool alternate);
+
+// Définir un délai d'activation pour l'animation
+void animation_set_activation_delay(Animation* anim, float delay_seconds);
+
+// Obtenir le délai d'activation
+float animation_get_activation_delay(Animation* anim);
 
 #endif // UI_ANIMATION_H

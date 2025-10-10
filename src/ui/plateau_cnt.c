@@ -82,6 +82,18 @@ typedef struct PlateauRenderData {
     IntersectionElement* intersection_elements[NODES];
 } PlateauRenderData;
 
+// === BUG FIX: FORWARD DECLARATIONS ===
+// These declarations inform the compiler about the animation functions
+// before they are called, fixing the implicit declaration errors.
+static void animate_piece_move(PlateauRenderData* data, int from_id, int to_id);
+static void animate_piece_selection(PlateauRenderData* data, int piece_id);
+static void animate_piece_capture(PlateauRenderData* data, int piece_id);
+static void animate_piece_placement(PlateauRenderData* data, int intersection_id);
+static void animate_victory_dance(PlateauRenderData* data, Player winning_player);
+static void animate_defeat_fade(PlateauRenderData* data, Player losing_player);
+static void animate_initial_piece_wave(PlateauRenderData* data);
+
+
 // 🆕 ERROR MESSAGES
 static const char* error_messages[] = {
     [0] = "⚠️ Vous devez capturer quand c'est possible !",
@@ -542,6 +554,10 @@ static void intersection_handle_click(void* element, SDL_Event* event) {
             vf->selected_intersection = intersection_id;
             intersection_elem->is_selected = true;
             plateau_calculate_valid_moves(data, intersection_id);
+            
+            // Animation de sélection (now properly declared)
+            animate_piece_selection(data, intersection_id);
+            
             printf("🎯 Piece selected at intersection %d\n", intersection_id);
         } else {
             plateau_show_error_feedback(data, 4); // Wrong piece
@@ -556,8 +572,22 @@ static void intersection_handle_click(void* element, SDL_Event* event) {
             vf->valid_count = 0;
             printf("🔄 Piece deselected\n");
         } else if (vf->valid_destinations[intersection_id]) {
-            // Valid move - execute it
+            // Valid move - execute it with animation
             printf("✅ Valid move from %d to %d\n", vf->selected_intersection, intersection_id);
+            
+            // 🔧 FIX: Update board state BEFORE animation
+            Intersection* from_intersection = &data->board->nodes[vf->selected_intersection];
+            Intersection* to_intersection = &data->board->nodes[intersection_id];
+            
+            // Move the piece in the board logic
+            if (from_intersection->piece) {
+                to_intersection->piece = from_intersection->piece;
+                from_intersection->piece = NULL;
+                printf("🔄 Board updated: piece moved from %d to %d\n", vf->selected_intersection, intersection_id);
+            }
+            
+            // Animation de déplacement (now properly declared)
+            animate_piece_move(data, vf->selected_intersection, intersection_id);
             
             // Reset selection states
             if (data->intersection_elements[vf->selected_intersection]) {
@@ -569,6 +599,181 @@ static void intersection_handle_click(void* element, SDL_Event* event) {
             // Invalid move - show error
             plateau_show_error_feedback(data, 3); // Not adjacent (simplified)
             printf("❌ Invalid move to intersection %d\n", intersection_id);
+        }
+    }
+}
+
+// 🆕 ANIMATION FUNCTIONS FOR PIECES (moved before first use)
+
+// Animation de déplacement d'une pièce
+static void animate_piece_move(PlateauRenderData* data, int from_id, int to_id) {
+    if (!data || from_id < 0 || from_id >= NODES || to_id < 0 || to_id >= NODES) return;
+    
+    IntersectionElement* from_elem = data->intersection_elements[from_id];
+    IntersectionElement* to_elem = data->intersection_elements[to_id];
+    
+    if (!from_elem || !to_elem) return;
+    
+    // Calculer les positions écran
+    Intersection* from_intersection = &data->board->nodes[from_id];
+    Intersection* to_intersection = &data->board->nodes[to_id];
+    
+    int from_x = data->offset_x + from_intersection->c * data->cell_width;
+    int from_y = data->offset_y + from_intersection->r * data->cell_height;
+    int to_x = data->offset_x + to_intersection->c * data->cell_width;
+    int to_y = data->offset_y + to_intersection->r * data->cell_height;
+    
+    // Animation X
+    Animation* slide_x = animation_create("piece-move-x", ANIMATION_PROPERTY_X, 0.5f);
+    animation_add_keyframe(slide_x, 0.0f, (float)from_x, "ease-out");
+    animation_add_keyframe(slide_x, 1.0f, (float)to_x, "ease-out");
+    
+    // Animation Y
+    Animation* slide_y = animation_create("piece-move-y", ANIMATION_PROPERTY_Y, 0.5f);
+    animation_add_keyframe(slide_y, 0.0f, (float)from_y, "ease-out");
+    animation_add_keyframe(slide_y, 1.0f, (float)to_y, "ease-out");
+    
+    ui_node_add_animation(from_elem->ui_node, slide_x);
+    ui_node_add_animation(from_elem->ui_node, slide_y);
+    
+    printf("🎬 Piece move animation: (%d,%d) → (%d,%d)\n", 
+           from_intersection->r, from_intersection->c,
+           to_intersection->r, to_intersection->c);
+}
+
+// Animation de sélection (pulse)
+static void animate_piece_selection(PlateauRenderData* data, int piece_id) {
+    if (!data || piece_id < 0 || piece_id >= NODES) return;
+    
+    IntersectionElement* elem = data->intersection_elements[piece_id];
+    if (!elem) return;
+    
+    // Animation de pulse (opacity)
+    Animation* select_pulse = animation_create("selection-pulse", ANIMATION_PROPERTY_OPACITY, 0.8f);
+    animation_add_keyframe(select_pulse, 0.0f, 255.0f, "ease-in-out");
+    animation_add_keyframe(select_pulse, 0.5f, 150.0f, "ease-in-out");
+    animation_add_keyframe(select_pulse, 1.0f, 255.0f, "ease-in-out");
+    
+    animation_set_iterations(select_pulse, 3); // 3 pulsations
+    
+    ui_node_add_animation(elem->ui_node, select_pulse);
+    
+    printf("🔵 Piece selection animation: intersection %d\n", piece_id);
+}
+
+// Animation de capture (disparition)
+static void animate_piece_capture(PlateauRenderData* data, int piece_id) {
+    if (!data || piece_id < 0 || piece_id >= NODES) return;
+    
+    IntersectionElement* elem = data->intersection_elements[piece_id];
+    if (!elem) return;
+    
+    // Animation de fade out + scale down
+    Animation* fade_out = animation_create("capture-fade", ANIMATION_PROPERTY_OPACITY, 0.4f);
+    animation_add_keyframe(fade_out, 0.0f, 255.0f, "ease-in");
+    animation_add_keyframe(fade_out, 0.7f, 100.0f, "ease-in");
+    animation_add_keyframe(fade_out, 1.0f, 0.0f, "ease-in");
+    
+    ui_node_add_animation(elem->ui_node, fade_out);
+    
+    printf("💥 Piece capture animation: intersection %d\n", piece_id);
+}
+
+// Animation de placement (apparition)
+static void animate_piece_placement(PlateauRenderData* data, int intersection_id) {
+    if (!data || intersection_id < 0 || intersection_id >= NODES) return;
+    
+    IntersectionElement* elem = data->intersection_elements[intersection_id];
+    if (!elem) return;
+    
+    // Animation de fade in + scale up
+    Animation* appear = animation_create("piece-appear", ANIMATION_PROPERTY_OPACITY, 0.5f);
+    animation_add_keyframe(appear, 0.0f, 0.0f, "ease-out");
+    animation_add_keyframe(appear, 0.3f, 150.0f, "ease-out");
+    animation_add_keyframe(appear, 1.0f, 255.0f, "ease-out");
+    
+    ui_node_add_animation(elem->ui_node, appear);
+    
+    printf("✨ Piece placement animation: intersection %d\n", intersection_id);
+}
+
+// Animation de victoire pour toutes les pièces d'un joueur
+static void animate_victory_dance(PlateauRenderData* data, Player winning_player) {
+    if (!data) return;
+    
+    printf("🎉 Starting victory dance for player %s\n", winning_player == WHITE ? "WHITE" : "BLACK");
+    
+    for (int id = 0; id < NODES; id++) {
+        Intersection* intersection = &data->board->nodes[id];
+        if (intersection->piece && intersection->piece->owner == winning_player) {
+            
+            IntersectionElement* elem = data->intersection_elements[id];
+            if (!elem) continue;
+            
+            // Animation de saut + rotation
+            Animation* bounce = animation_create("victory-bounce", ANIMATION_PROPERTY_Y, 1.2f);
+            animation_add_keyframe(bounce, 0.0f, 0.0f, "ease-out");
+            animation_add_keyframe(bounce, 0.3f, -25.0f, "ease-out");
+            animation_add_keyframe(bounce, 0.6f, 0.0f, "ease-in");
+            animation_add_keyframe(bounce, 0.8f, -15.0f, "ease-out");
+            animation_add_keyframe(bounce, 1.0f, 0.0f, "ease-in");
+            
+            animation_set_iterations(bounce, 3); // Sauter 3 fois
+            
+            // Délai progressif pour un effet wave
+            // TODO: Implémenter activation_delay dans le système d'animation
+            
+            ui_node_add_animation(elem->ui_node, bounce);
+        }
+    }
+}
+
+// Animation de défaite pour toutes les pièces d'un joueur
+static void animate_defeat_fade(PlateauRenderData* data, Player losing_player) {
+    if (!data) return;
+    
+    printf("😞 Starting defeat fade for player %s\n", losing_player == WHITE ? "WHITE" : "BLACK");
+    
+    for (int id = 0; id < NODES; id++) {
+        Intersection* intersection = &data->board->nodes[id];
+        if (intersection->piece && intersection->piece->owner == losing_player) {
+            
+            IntersectionElement* elem = data->intersection_elements[id];
+            if (!elem) continue;
+            
+            // Animation de disparition lente
+            Animation* defeat_fade = animation_create("defeat-fade", ANIMATION_PROPERTY_OPACITY, 2.5f);
+            animation_add_keyframe(defeat_fade, 0.0f, 255.0f, "ease-in");
+            animation_add_keyframe(defeat_fade, 0.8f, 100.0f, "ease-in");
+            animation_add_keyframe(defeat_fade, 1.0f, 30.0f, "ease-in");
+            
+            ui_node_add_animation(elem->ui_node, defeat_fade);
+        }
+    }
+}
+
+// Animation d'apparition initiale en wave
+static void animate_initial_piece_wave(PlateauRenderData* data) {
+    if (!data) return;
+    
+    printf("🌊 Starting initial piece wave animation\n");
+    
+    for (int id = 0; id < NODES; id++) {
+        Intersection* intersection = &data->board->nodes[id];
+        if (intersection->piece) {
+            
+            IntersectionElement* elem = data->intersection_elements[id];
+            if (!elem) continue;
+            
+            // Animation d'apparition avec délai progressif
+            Animation* appear = animation_create("initial-wave", ANIMATION_PROPERTY_OPACITY, 0.6f);
+            animation_add_keyframe(appear, 0.0f, 0.0f, "ease-out");
+            animation_add_keyframe(appear, 0.4f, 200.0f, "ease-out");
+            animation_add_keyframe(appear, 1.0f, 255.0f, "ease-out");
+            
+            // TODO: Ajouter délai basé sur l'ID : (float)id * 0.05f
+            
+            ui_node_add_animation(elem->ui_node, appear);
         }
     }
 }
@@ -630,7 +835,10 @@ static void plateau_create_intersection_elements(PlateauRenderData* data, UINode
         }
     }
     
-    printf("✅ Created %d individual intersection elements\n", NODES);
+    // 🆕 AJOUT: Animation initiale en wave
+    animate_initial_piece_wave(data);
+    
+    printf("✅ Created %d individual intersection elements with wave animation\n", NODES);
 }
 
 // 🔧 MODIFIER la fonction de rendu pour mettre à jour les positions

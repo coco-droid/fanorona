@@ -19,6 +19,8 @@ typedef struct {
     bool is_reversed;
     float start_value;   // Valeur de départ pour certaines propriétés
     bool start_value_cached;
+    float activation_timer; // 🆕 Timer pour le délai d'activation
+    bool activation_completed; // 🆕 Indique si le délai est écoulé
 } AnimationInstance;
 
 // Storage global pour les animations actives
@@ -160,6 +162,7 @@ Animation* animation_create(const char* name, AnimationProperty property, float 
     anim->iterations = 1;
     anim->alternate = false;
     anim->fill_mode = strdup("none");
+    anim->activation_delay = 0.0f; // 🆕 Pas de délai par défaut
     
     anim->keyframes = (Keyframe*)calloc(8, sizeof(Keyframe));
     anim->keyframe_count = 0;
@@ -228,11 +231,13 @@ void ui_node_add_animation(UINode* node, Animation* anim) {
     instance->is_reversed = false;
     instance->start_value = get_property_value(node, anim->property);
     instance->start_value_cached = true;
+    instance->activation_timer = 0.0f; // 🆕 Initialiser le timer
+    instance->activation_completed = (anim->activation_delay <= 0.0f); // 🆕 Actif immédiatement si pas de délai
     
     g_animations[g_animation_count++] = instance;
     
-    printf("🎬 Animation '%s' started on node '%s' (start value: %.2f)\n", 
-           anim->name, node->id ? node->id : "NoID", instance->start_value);
+    printf("🎬 Animation '%s' started on node '%s' (start value: %.2f, delay: %.2fs)\n", 
+           anim->name, node->id ? node->id : "NoID", instance->start_value, anim->activation_delay);
 }
 
 void ui_node_stop_animations(UINode* node) {
@@ -263,6 +268,17 @@ void ui_update_animations(float delta_time) {
     for (int i = g_animation_count - 1; i >= 0; i--) {
         AnimationInstance* instance = g_animations[i];
         if (!instance || !instance->is_playing) continue;
+        
+        // 🆕 Gérer le délai d'activation
+        if (!instance->activation_completed) {
+            instance->activation_timer += delta_time;
+            if (instance->activation_timer >= instance->animation->activation_delay) {
+                instance->activation_completed = true;
+                printf("⏰ Animation '%s' activation delay completed\n", instance->animation->name);
+            } else {
+                continue; // Ne pas mettre à jour l'animation tant que le délai n'est pas écoulé
+            }
+        }
         
         instance->current_time += delta_time;
         
@@ -435,4 +451,16 @@ void animation_set_iterations(Animation* anim, int iterations) {
 void animation_set_alternate(Animation* anim, bool alternate) {
     if (!anim) return;
     anim->alternate = alternate;
+}
+
+// 🆕 NOUVELLES FONCTIONS UTILITAIRES
+
+void animation_set_activation_delay(Animation* anim, float delay_seconds) {
+    if (!anim) return;
+    anim->activation_delay = delay_seconds;
+    printf("⏰ Animation '%s' activation delay set to %.2fs\n", anim->name, delay_seconds);
+}
+
+float animation_get_activation_delay(Animation* anim) {
+    return anim ? anim->activation_delay : 0.0f;
 }

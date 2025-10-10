@@ -913,3 +913,51 @@ Cette architecture garantit une **simplicité maximale** tout en maintenant **to
 - ✅ **Même performance** : 60 FPS garantis
 - ✅ **Plus stable** : Élimination des problèmes de threading
 - ✅ **Plus simple** : Code divisé par 10 en complexité
+
+### 🎯 Animations de pièces du plateau
+
+Le système d'animation support maintenant les animations spécifiques aux pièces du jeu Fanorona :
+
+```c
+// Animation de déplacement d'une pièce
+ANIMATE_PIECE_MOVE(plateau, from_intersection_id, to_intersection_id);
+
+// Animation de capture (disparition avec fade-out)
+ANIMATE_PIECE_CAPTURE(plateau, piece_intersection_id);
+
+// Animation de placement (apparition avec fade-in)
+ANIMATE_PIECE_PLACE(plateau, intersection_id);
+
+// Animation de sélection (pulsation)
+ANIMATE_PIECE_SELECT(plateau, piece_intersection_id);
+
+// Animations de fin de jeu
+ANIMATE_VICTORY(plateau, winning_player);  // Toutes les pièces gagnantes sautent
+ANIMATE_DEFEAT(plateau, losing_player);    // Toutes les pièces perdantes s'estompent
+
+// Animation d'apparition initiale en vague
+ANIMATE_INITIAL_WAVE(plateau);
+```
+
+### Intégration automatique dans les interactions
+
+Les animations de pièces sont automatiquement déclenchées lors des interactions :
+
+- **Sélection** : Pulsation automatique quand une pièce est sélectionnée
+- **Déplacement** : Animation fluide lors d'un mouvement valide
+- **Capture** : Fade-out automatique des pièces capturées
+- **Fin de partie** : Animations de victoire/défaite selon le résultat
+
+### Délais d'activation et effets en cascade
+
+```c
+// Créer une animation avec délai
+Animation* delayed_anim = animation_create("delayed-bounce", ANIMATION_PROPERTY_Y, 1.0f);
+animation_set_activation_delay(delayed_anim, 0.5f); // Attendre 0.5 seconde
+animation_add_keyframe(delayed_anim, 0.0f, 0.0f, "ease-out");
+animation_add_keyframe(delayed_anim, 1.0f, -30.0f, "ease-in");
+
+ui_node_add_animation(piece_element, delayed_anim);
+```
+
+Cette fonctionnalité permet de créer des effets en cascade où les pièces s'animent les unes après les autres ! 🌊✨
