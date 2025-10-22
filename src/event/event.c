@@ -125,7 +125,20 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
         return;
     }
     
-    // Traiter SEULEMENT SDL_MOUSEBUTTONDOWN comme des clics
+    // 🆕 NOUVEAU: Transmettre TOUS les événements (y compris clavier) aux éléments
+    if (event->type == SDL_TEXTINPUT || event->type == SDL_KEYDOWN) {
+        // Transmettre les événements clavier à TOUS les éléments
+        EventElement* current = manager->elements;
+        while (current) {
+            if (current->display) {
+                current->callback(event, current->user_data);
+            }
+            current = current->next;
+        }
+        return;
+    }
+    
+    // Traiter SDL_MOUSEBUTTONDOWN comme des clics avec hit-testing
     if (event->type == SDL_MOUSEBUTTONDOWN) {
         int mouse_x, mouse_y;
         SDL_GetMouseState(&mouse_x, &mouse_y);
@@ -139,12 +152,10 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
             }
             current = current->next;
         }
-        
         return;
     }
     
-    // 🔧 GESTION SILENCIEUSE DES AUTRES ÉVÉNEMENTS
-    // Transmettre TOUS les événements aux éléments (y compris mousemotion, mouseup, etc.)
+    // Transmettre autres événements souris (motion, etc.)
     EventElement* current = manager->elements;
     while (current) {
         if (current->display) {

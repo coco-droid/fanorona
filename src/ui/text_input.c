@@ -37,6 +37,16 @@ static void text_input_handle_text(void* element, SDL_Event* event) {
     TextInputData* data = (TextInputData*)node->component_data;
     if (!data || !data->is_focused) return;
     
+    // 🔧 FIX CRITIQUE: Vérifier qu'on ne traite QU'UNE FOIS par événement
+    static SDL_Event last_event = {0};
+    if (event->type == last_event.type && 
+        event->type == SDL_TEXTINPUT &&
+        strcmp(event->text.text, last_event.text.text) == 0) {
+        // Même événement déjà traité
+        return;
+    }
+    last_event = *event;
+    
     if (event->type == SDL_TEXTINPUT) {
         int len = strlen(data->text);
         if (len < data->max_length - 1) {
@@ -51,7 +61,7 @@ static void text_input_handle_text(void* element, SDL_Event* event) {
     }
 }
 
-// 🆕 HANDLE FOCUS
+// 🆕 HANDLE FOCUS - Re-add missing function
 static void text_input_handle_focus(void* element, SDL_Event* event) {
     (void)event;
     AtomicElement* atomic = (AtomicElement*)element;
@@ -63,9 +73,6 @@ static void text_input_handle_focus(void* element, SDL_Event* event) {
         data->is_focused = true;
         SDL_StartTextInput();
         printf("🎯 Text input focused\n");
-        
-        // 🔧 FIX: Remove atomic_set_key_handler call - not needed
-        // The text handler is already registered at creation time
     }
 }
 
@@ -81,16 +88,49 @@ static void text_input_render(AtomicElement* element, SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255);
     SDL_RenderDrawRect(renderer, &rect);
     
-    // 🔧 FIX: Render text or placeholder
-    const char* display_text = data->text[0] != '\0' ? data->text : data->placeholder;
-    if (display_text[0] != '\0') {
-        // TODO: Implement TTF text rendering
+    // 🔧 FIX: Rendu du texte AVEC TTF (priorité au texte saisi)
+    const char* display_text = (data->text[0] != '\0') ? data->text : data->placeholder;
+    
+    if (display_text && display_text[0] != '\0') {
+        extern TTF_Font* atomic_get_default_font(void);
+        TTF_Font* font = atomic_get_default_font();
+        
+        if (font) {
+            // 🔧 FIX: Noir pour texte saisi, gris pour placeholder
+            SDL_Color text_color = (data->text[0] != '\0') ? 
+                (SDL_Color){0, 0, 0, 255} : (SDL_Color){128, 128, 128, 255};
+            
+            SDL_Surface* surface = TTF_RenderText_Blended(font, display_text, text_color);
+            if (surface) {
+                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+                if (texture) {
+                    SDL_Rect text_rect = {
+                        rect.x + 10, 
+                        rect.y + (rect.h - surface->h) / 2, 
+                        surface->w, 
+                        surface->h
+                    };
+                    SDL_RenderCopy(renderer, texture, NULL, &text_rect);
+                    SDL_DestroyTexture(texture);
+                }
+                SDL_FreeSurface(surface);
+            }
+        }
     }
     
     // Curseur jaune clignotant
     if (data->cursor_visible && data->is_focused) {
-        int cursor_x = rect.x + 10 + (int)strlen(data->text) * 8;
-        SDL_Rect cursor = {cursor_x, rect.y + 5, 2, rect.h - 10};
+        extern TTF_Font* atomic_get_default_font(void);
+        TTF_Font* font = atomic_get_default_font();
+        int cursor_x = rect.x + 10;
+        
+        if (font && data->text[0] != '\0') {
+            int text_w = 0;
+            TTF_SizeText(font, data->text, &text_w, NULL);
+            cursor_x += text_w;
+        }
+        
+        SDL_Rect cursor = {cursor_x, rect.y + 8, 2, rect.h - 16};
         SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
         SDL_RenderFillRect(renderer, &cursor);
     }
@@ -107,20 +147,24 @@ UINode* ui_text_input(UITree* tree, const char* id, const char* placeholder) {
     data->blink_timer = 0.0f;
     data->cursor_visible = true;
     data->max_length = 255;
-    data->is_focused = false; // 🆕 Initialize focus
+    data->is_focused = false;
     
     input->component_data = data;
-    input->component_update = text_input_update; // ✅ Now valid - field added to UINode
+    input->component_update = text_input_update;
     atomic_set_custom_data(input->element, "input_data", data);
     atomic_set_custom_render(input->element, text_input_render);
     
-    // 🆕 ATTACH EVENT HANDLERS
+    // 🆕 CONNEXION DU HANDLER CLAVIER via atomic
     input->element->user_data = input;
     atomic_set_click_handler(input->element, text_input_handle_focus);
     
-    // 🔧 FIX: Remove atomic_set_key_handler call - function doesn't exist
-    // Keyboard events will be handled via EventManager when focused
-    // TODO: Register for SDL_TEXTINPUT/SDL_KEYDOWN events via EventManager
+    // 🔧 FIX CRITIQUE: Enregistrer la hitbox pour recevoir les événements
+    if (tree->event_manager) {
+        atomic_register_with_event_manager(input->element, tree->event_manager);
+        printf("🔗 Text input hitbox registered with EventManager\n");
+    }
+    
+    input->element->events.on_key_down = text_input_handle_text;
     
     return input;
 }

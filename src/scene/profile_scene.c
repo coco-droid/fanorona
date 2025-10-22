@@ -171,7 +171,7 @@ static void profile_scene_init(Scene* scene) {
     }
     
     // === AVATAR PRINCIPAL (grand rond centré) ===
-    data->main_avatar = create_avatar_circle(data->ui_tree, "avatar-main", "p1.png", 80, 3, true); // 🔧 120→80
+    data->main_avatar = create_avatar_circle(data->ui_tree, "avatar-main", "p1.png", 45, 2, false); // 🔧 80→45 (même taille que mini-avatars)
     if (data->main_avatar) {
         ALIGN_SELF_X(data->main_avatar);
         ui_animate_pulse(data->main_avatar, 2.0f);

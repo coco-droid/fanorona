@@ -421,8 +421,16 @@ void atomic_handle_event(SDL_Event* event, void* user_data) {
                 element->events.on_click(element, event);
             }
             break;
+            
+        // 🆕 NOUVEAU: Support des événements clavier
+        case SDL_TEXTINPUT:
+        case SDL_KEYDOWN:
+            if (element->events.on_key_down) {
+                element->events.on_key_down(element, event);
+            }
+            break;
+            
         case SDL_MOUSEMOTION: {
-            // 🔧 FIX: Améliorer la gestion du hover
             int mouse_x, mouse_y;
             SDL_GetMouseState(&mouse_x, &mouse_y);
             
@@ -434,15 +442,11 @@ void atomic_handle_event(SDL_Event* event, void* user_data) {
                 if (element->events.on_hover) {
                     element->events.on_hover(element, event);
                 }
-                // 🔧 SUPPRESSION: Plus de logs hover
             } else if (was_hovered && !is_now_hovered) {
                 element->is_hovered = false;
                 if (element->events.on_unhover) {
                     element->events.on_unhover(element, event);
                 }
-                // 🔧 SUPPRESSION: Plus de logs unhover
-            } else if (is_now_hovered && element->events.on_hover) {
-                element->events.on_hover(element, event);
             }
             break;
         }
