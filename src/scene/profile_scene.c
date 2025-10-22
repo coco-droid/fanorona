@@ -21,14 +21,24 @@ typedef struct ProfileSceneData {
 } ProfileSceneData;
 
 // Callback pour la sélection d'un avatar
-static void avatar_selected(UINode* node, void* user_data) {
-    ProfileSceneData* data = (ProfileSceneData*)user_data;
-    if (!data) return;
+static void avatar_selected(void* element, SDL_Event* event) {
+    (void)event;
+    
+    // 🔧 FIX: Get ProfileSceneData from element user_data
+    AtomicElement* atomic = (AtomicElement*)element;
+    ProfileSceneData* data = (ProfileSceneData*)atomic->user_data;
+    
+    if (!data) {
+        printf("❌ User data NULL in avatar_selected\n");
+        return;
+    }
+    
+    // Get ID from atomic element directly
+    if (!atomic->id) return;
     
     // Extraire le numéro d'avatar depuis l'ID (format: "avatar-mini-X")
-    const char* id = node->id;
     int avatar_num = 0;
-    if (sscanf(id, "avatar-mini-%d", &avatar_num) == 1) {
+    if (sscanf(atomic->id, "avatar-mini-%d", &avatar_num) == 1) {
         data->selected_avatar = avatar_num;
         printf("🎭 Avatar %d sélectionné\n", avatar_num);
         
@@ -161,7 +171,7 @@ static void profile_scene_init(Scene* scene) {
     }
     
     // === AVATAR PRINCIPAL (grand rond centré) ===
-    data->main_avatar = create_avatar_circle(data->ui_tree, "avatar-main", "p1.png", 120, 4, true);
+    data->main_avatar = create_avatar_circle(data->ui_tree, "avatar-main", "p1.png", 80, 3, true); // 🔧 120→80
     if (data->main_avatar) {
         ALIGN_SELF_X(data->main_avatar);
         ui_animate_pulse(data->main_avatar, 2.0f);
@@ -170,7 +180,7 @@ static void profile_scene_init(Scene* scene) {
     // === CONTAINER POUR LES MINI-AVATARS ===
     UINode* avatars_container = UI_DIV(data->ui_tree, "avatars-container");
     if (avatars_container) {
-        SET_SIZE(avatars_container, 480, 70);
+        SET_SIZE(avatars_container, 400, 50); // 🔧 480x70 → 400x50
         ui_set_display_flex(avatars_container);
         FLEX_ROW(avatars_container);
         ui_set_justify_content(avatars_container, "space-between");
@@ -184,49 +194,25 @@ static void profile_scene_init(Scene* scene) {
             snprintf(avatar_id, sizeof(avatar_id), "avatar-mini-%d", i);
             snprintf(avatar_path, sizeof(avatar_path), "p%d.png", i);
             
-            UINode* mini_avatar = create_avatar_circle(data->ui_tree, avatar_id, avatar_path, 60, 2, false);
+            UINode* mini_avatar = create_avatar_circle(data->ui_tree, avatar_id, avatar_path, 45, 2, false);
             if (mini_avatar) {
-                // Ajouter l'interaction au clic
-                atomic_set_click_handler(mini_avatar->element, 
-                    (void (*)(void*, SDL_Event*))avatar_selected);
-                mini_avatar->element->user_data = data;
+                // 🔧 FIX: Store BOTH node and data in user_data chain
+                mini_avatar->element->user_data = data; // ProfileSceneData for callback
                 
-                // Animation d'apparition progressive
+                // 🔧 FIX: Use proper callback signature
+                atomic_set_click_handler(mini_avatar->element, avatar_selected);
+                
                 ui_animate_fade_in(mini_avatar, 0.5f + (i * 0.1f));
                 
                 APPEND(avatars_container, mini_avatar);
+                printf("🎭 Mini-avatar %d créé avec callback connecté\n", i);
             }
         }
     }
     
     // === CHAMP DE TEXTE POUR LE NOM ===
-    UINode* input_container = UI_DIV(data->ui_tree, "input-container");
-    if (input_container) {
-        SET_SIZE(input_container, 350, 50);
-        ALIGN_SELF_X(input_container);
-        
-        // Label
-        UINode* label = ui_text(data->ui_tree, "username-label", "Nom d'utilisateur:");
-        if (label) {
-            ui_set_text_color(label, "rgb(255, 255, 255)");
-            ui_set_text_size(label, 16);
-            ui_set_text_align(label, "left");
-        }
-        
-        // Input (simulé avec un div pour l'instant)
-        data->username_input = UI_DIV(data->ui_tree, "username-input");
-        if (data->username_input) {
-            SET_SIZE(data->username_input, 350, 40);
-            atomic_set_background_color(data->username_input->element, 255, 255, 255, 200);
-            atomic_set_border(data->username_input->element, 2, 255, 165, 0, 255);
-            atomic_set_padding(data->username_input->element, 5, 10, 5, 10);
-            
-            // TODO: Ajouter la gestion du texte input (SDL_TEXTINPUT)
-        }
-        
-        APPEND(input_container, label);
-        APPEND(input_container, data->username_input);
-    }
+    // 🔧 FIX: Supprimer le input_container qui causait le DIV bleu
+    // L'input sera créé directement avec ui_text_input
     
     // === BOUTON CONFIRMER ===
     UINode* confirm_btn = ui_neon_button(data->ui_tree, "confirm-btn", "CONFIRMER", confirm_clicked, data);
@@ -238,16 +224,39 @@ static void profile_scene_init(Scene* scene) {
         ui_animate_slide_in_left(confirm_btn, 1.0f, 200.0f);
     }
     
-    // === CONSTRUIRE LA HIÉRARCHIE ===
+    // === CONSTRUIRE AVEC SPACING VERTICAL FIXE ===
+    UINode* content_column = UI_DIV(data->ui_tree, "profile-content-column");
+    if (content_column) {
+        SET_SIZE(content_column, 500, 420);
+        ui_set_display_flex(content_column);
+        FLEX_COLUMN(content_column);
+        ui_set_justify_content(content_column, "flex-start");
+        ui_set_align_items(content_column, "center");
+        ui_set_flex_gap(content_column, 15);
+        
+        // Ajouter titre + avatar + liste + input + bouton dans l'ordre
+        APPEND(content_column, title);
+        APPEND(content_column, data->main_avatar);
+        APPEND(content_column, avatars_container);
+        
+        // === TEXT INPUT (nouveau composant) ===
+        data->username_input = ui_text_input(data->ui_tree, "username-input", "Entrez votre nom...");
+        if (data->username_input) {
+            SET_SIZE(data->username_input, 300, 35); // 🔧 350x40 → 300x35
+            ALIGN_SELF_X(data->username_input);
+            ui_text_input_set_max_length(data->username_input, 20);
+            ui_animate_fade_in(data->username_input, 1.5f);
+            APPEND(content_column, data->username_input);
+        }
+        
+        APPEND(content_column, confirm_btn);
+        
+        ui_container_add_content(modal_container, content_column);
+    }
+    
+    // Construire la hiérarchie
     APPEND(data->ui_tree->root, app);
     APPEND(app, modal_container);
-    
-    // Ajouter le contenu au modal dans l'ordre
-    ui_container_add_content(modal_container, title);
-    ui_container_add_content(modal_container, data->main_avatar);
-    ui_container_add_content(modal_container, avatars_container);
-    ui_container_add_content(modal_container, input_container);
-    ui_container_add_content(modal_container, confirm_btn);
     
     // Calculer les z-index
     ui_calculate_implicit_z_index(data->ui_tree);

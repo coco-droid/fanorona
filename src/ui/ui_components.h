@@ -348,6 +348,18 @@ void ui_plateau_cleanup(UINode* plateau);
 // 🆕 NOUVELLE FONCTION: Destruction complète du container
 void ui_plateau_container_destroy(UINode* plateau_container);
 
+// === TEXT INPUT COMPONENT ===
+
+// Créer un champ de texte avec placeholder et curseur clignotant
+UINode* ui_text_input(UITree* tree, const char* id, const char* placeholder);
+
+// Configurer la longueur maximale
+void ui_text_input_set_max_length(UINode* input, int max_length);
+
+// Obtenir/définir le texte
+const char* ui_text_input_get_text(UINode* input);
+void ui_text_input_set_text(UINode* input, const char* text);
+
 // === MACROS POUR LES NOUVEAUX COMPOSANTS ===
 
 #define UI_SIDEBAR(tree, id) ui_sidebar(tree, id)

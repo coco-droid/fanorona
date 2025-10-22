@@ -22,13 +22,16 @@ SOURCES = main.c \
           src/scene/menu_scene.c \
           src/scene/profile_scene.c \
           src/scene/game_scene.c \
+          src/scene/ai_scene.c \
           src/ui/ui_tree.c \
           src/ui/ui_components.c \
           src/ui/animation.c \
           src/ui/cnt_ui.c \
+          src/ui/cnt_playable.c \
           src/ui/sidebar.c \
           src/ui/plateau_cnt.c \
           src/ui/neon_btn.c \
+          src/ui/text_input.c \
           src/ui/components/ui_link.c \
           src/ui/native/atomic.c \
           src/ui/native/optimum.c \
@@ -36,6 +39,7 @@ SOURCES = main.c \
           src/plateau/plateau.c \
           src/pions/pions.c \
           src/logic/rules.c \
+          src/config.c \
           src/utils/asset_manager.c \
           src/utils/log_console.c
 

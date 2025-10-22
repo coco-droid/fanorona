@@ -10,22 +10,23 @@ typedef struct UINode UINode;
 
 // Structure pour un nœud de l'arbre UI
 struct UINode {
-    char* id;                    // Identifiant unique
-    char* class_name;            // Classe CSS-like
-    char* tag_name;              // Type de composant (button, div, etc.)
+    char* id;                    
+    char* class_name;            
+    char* tag_name;              
     
-    AtomicElement* element;      // Élément atomique associé
+    AtomicElement* element;      
     
-    UINode* parent;              // Nœud parent
-    UINode** children;           // Tableau des enfants
+    UINode* parent;              
+    UINode** children;           
     int children_count;
     int children_capacity;
     
-    UITree* tree;                // Référence vers l'arbre
+    UITree* tree;                
     
     // Données spécifiques au composant
     void* component_data;
     void (*component_destroy)(void* data);
+    void (*component_update)(struct UINode* node, float delta_time); // 🆕 AJOUT: Callback d'update par composant
 };
 
 // Structure pour l'arbre UI

@@ -416,7 +416,11 @@ void ui_node_remove_event_listener(UINode* node, const char* event, void (*callb
 static void ui_tree_update_node_recursive(UINode* node, float delta_time) {
     if (!node || !node->element) return;
     
-    // Mettre à jour l'élément atomique
+    // 🆕 AJOUT: Appeler le callback d'update du composant si présent
+    if (node->component_update) {
+        node->component_update(node, delta_time);
+    }
+    
     atomic_update(node->element, delta_time);
     
     // Mettre à jour récursivement tous les enfants
