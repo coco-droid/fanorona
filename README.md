@@ -22,7 +22,9 @@ fanoron-sivy/
     │   ├── scene_manager.c # Gestionnaire de scènes
     │   ├── scene_registry.c # Registre automatique des scènes
     │   ├── home_scene.c # Scène d'accueil
+    │   ├── choice_scene.c # 🆕 Scène de choix de mode (Local/En ligne)
     │   ├── menu_scene.c # Scène de menu
+    │   ├── profile_scene.c # 🆕 Scène de création de profil
     │   └── game_scene.c # Scène de jeu
     ├── ui/
     │   ├── animation.h     # 🆕 Système d'animations keyframe-based
@@ -69,6 +71,20 @@ fanoron-sivy/
 - **🆕 Transitions automatiques**: Support de 4 types de transitions
 - **🆕 Multi-fenêtres**: Transition entre MINI et MAIN window
 
+### Profile Scene (NOUVEAU)
+- **🎭 Sélection d'avatar**: 6 avatars (p1.png à p6.png) avec rond cliquable
+- **📝 Saisie de nom**: Champ de texte pour le nom d'utilisateur
+- **🎨 Avatar principal**: Grand aperçu avec bordure dorée
+- **✨ Animations**: Fade-in, pulse, et slide pour une expérience fluide
+- **✅ Validation**: Bouton neon "CONFIRMER" pour sauvegarder le profil
+
+### Choice Scene (NOUVEAU)
+- **🎮 Choix de mode de jeu**: Local ou En ligne
+- **🔗 Navigation intelligente**: Lien vers menu_scene pour le mode local
+- **🌐 Placeholder en ligne**: Bouton préparé pour la fonctionnalité future
+- **✨ Animations**: Slide-in depuis les côtés pour chaque bouton
+- **🎨 Neon buttons**: Vert pour local, bleu pour en ligne
+
 ## Compilation et exécution
 
 ### Avec le script run.sh (recommandé)
@@ -113,6 +129,32 @@ static void my_scene_update(Scene* scene, float delta_time) {
 }
 ```
 
+## 🔄 Navigation entre scènes
+
+### Flux de jeu complet (NOUVEAU)
+
+1. **Home Scene** → "JOUER" → **Choice Scene** (MINI window)
+2. **Choice Scene** → "JOUER EN LOCAL" → **Menu Scene** (MINI window)
+3. **Menu Scene** → "JOUER CONTRE L'IA" → **AI Configuration Scene** (MINI window)
+4. **AI Configuration Scene** → Sélection difficulté/couleur → "DÉMARRER" → **Game Scene** (MAIN window)
+
+**Alternative multijoueur:**
+3bis. **Menu Scene** → "JOUER EN MULTIJOUEUR" → Configuration multijoueur → **Game Scene**
+
+```c
+// Navigation fluide avec transitions animées
+// Home → Choice : SCENE_TRANSITION_REPLACE (même fenêtre)
+// Choice → Menu : SCENE_TRANSITION_REPLACE (même fenêtre)
+// Menu → AI Config : SCENE_TRANSITION_REPLACE (même fenêtre)
+// AI Config → Game : SCENE_TRANSITION_CLOSE_AND_OPEN (changement de fenêtre)
+```
+
+**🎯 Caractéristiques du flux complet :**
+- ✅ **Séparation claire des modes** : Local vs En ligne dès le départ
+- ✅ **Navigation intuitive** : Chaque choix mène à la configuration appropriée
+- ✅ **Transitions fluides** : Animations pour chaque changement de scène
+- ✅ **Fenêtres adaptées** : Config en MINI, jeu en MAIN
+
 ### Animations personnalisées (usage avancé)
 
 ```c
@@ -130,109 +172,96 @@ animation_set_alternate(bounce, false);    // Pas de va-et-vient
 
 // Appliquer à un élément
 ui_node_add_animation(logo, bounce);
-```
-
+```   ANIMATE_SHAKE(button, 0.4f, 8.0f);  // Secousse 0.4s avec intensité 8px
+}
 ### Animations d'erreur et feedback
 
-```c
+```cnt) {
 // Secouer un bouton en cas d'erreur
-void show_error_on_button(UINode* button) {
-    ANIMATE_SHAKE(button, 0.4f, 8.0f);  // Secousse 0.4s avec intensité 8px
+    ANIMATE_SHAKE(button, 0.4f, 8.0f);  // Secousse 0.4s avec intensité 8pxMATION_PROPERTY_WIDTH, 0.3f);
 }
-
+animation_add_keyframe(scale_up, 1.0f, 110.0f, "ease-out");
 // Animation de succès
 void show_success_feedback(UINode* element) {
-    // Animation combinée : scale + fade
+    // Animation combinée : scale + fade   ui_node_add_animation(element, scale_up);
     Animation* scale_up = animation_create("success-scale", ANIMATION_PROPERTY_WIDTH, 0.3f);
-    animation_add_keyframe(scale_up, 0.0f, 100.0f, "ease-out");
+    animation_add_keyframe(scale_up, 0.0f, 100.0f, "ease-out");```
     animation_add_keyframe(scale_up, 1.0f, 110.0f, "ease-out");
-    
+    ### Transitions entre scènes
     ANIMATE_FADE_IN(element, 0.2f);
     ui_node_add_animation(element, scale_up);
 }
-```
-
-### Transitions entre scènes
+``` void (*on_complete_callback)(void)) {
+elle
+### Transitions entre scènesANIMATE_FADE_OUT(container, 0.5f);
 
 ```c
-// Animation de sortie avant changement de scène
-void animate_scene_exit(UINode* container, void (*on_complete_callback)(void)) {
+// Animation de sortie avant changement de scènee système)
+void animate_scene_exit(UINode* container, void (*on_complete_callback)(void)) {   schedule_callback(on_complete_callback, 0.5f);
     // Faire disparaître la scène actuelle
-    ANIMATE_FADE_OUT(container, 0.5f);
+    ANIMATE_FADE_OUT(container, 0.5f);```
     
-    // Programmer le changement de scène après l'animation
+    // Programmer le changement de scène après l'animation### Macros disponibles
     // (utilisez un timer ou un callback dans votre système)
     schedule_callback(on_complete_callback, 0.5f);
 }
-```
+```ndu
 
 ### Macros disponibles
-
+le
 ```c
-ANIMATE_FADE_IN(node, duration)                    // Apparition en fondu
-ANIMATE_FADE_OUT(node, duration)                   // Disparition en fondu
-ANIMATE_SLIDE_LEFT(node, duration, distance)       // Glissement gauche
-ANIMATE_SLIDE_RIGHT(node, duration, distance)      // Glissement droite
-ANIMATE_SHAKE(node, duration, intensity)           // Secousse horizontale
-ANIMATE_PULSE(node, duration)                      // Pulsation continue
-STOP_ANIMATIONS(node)                              // Arrêter toutes les animations
-```
-
-### Debug et monitoring
-
-```c
-// Vérifier le nombre d'animations actives
-int active_count = ui_get_active_animations_count();
+ANIMATE_FADE_IN(node, duration)                   
 printf("Animations actives: %d\n", active_count);
-
-// Vérifier si un élément a des animations
-if (ui_node_has_active_animations(mon_bouton)) {
+n élément
+// Vérifier si un élément a des animationsnode_stop_animations(mon_bouton);
+if (ui_node_has_active_animations(mon_bouton)) {```
     printf("Le bouton est en cours d'animation\n");
-}
+}## Debug du système d'événements
 
-// Arrêter toutes les animations d'un élément
+// Arrêter toutes les animations d'un élément**🔧 Logs réduits** : Les logs verbeux ont été considérablement réduits pour une meilleure lisibilité.
 ui_node_stop_animations(mon_bouton);
-```
+```Si aucun événement ne fonctionne, utiliser ces fonctions de debug dans le code:
 
 ## Debug du système d'événements
 
 **🔧 Logs réduits** : Les logs verbeux ont été considérablement réduits pour une meilleure lisibilité.
 
-Si aucun événement ne fonctionne, utiliser ces fonctions de debug dans le code:
-
+Si aucun événement ne fonctionne, utiliser ces fonctions de debug dans le code:e_core_force_scene_event_registration(core);  // Force la re-connexion
+```
 ```c
 // Dans main.c ou dans une fonction de debug
 game_core_debug_event_system(core);  // Debug complet du système
-scene_manager_debug_active_scenes(scene_manager);  // Debug des scènes
+scene_manager_debug_active_scenes(scene_manager);  // Debug des scènesouvements souris)
 game_core_force_scene_event_registration(core);  // Force la re-connexion
-```
+```- ❌ Logs de synchronisation verbeux supprimés
 
-**📊 Console plus propre** :
+**📊 Console plus propre** :## Problèmes courants et solutions
 - ✅ Logs critiques conservés (QUIT, fermeture fenêtre)
 - ❌ Logs de routine supprimés (clics, mouvements souris)
-- ❌ Logs de rendu périodiques supprimés
-- ❌ Logs de synchronisation verbeux supprimés
+- ❌ Logs de rendu périodiques supprimésupdate()
+- ❌ Logs de synchronisation verbeux supprimés en millisecondes
 
-## Problèmes courants et solutions
+## Problèmes courants et solutions4. **Mémoire insuffisante** : Le système peut refuser de nouvelles animations si la mémoire est limitée
 
 ### Animations qui ne fonctionnent pas
 1. **Oublier ui_update_animations()** : Cette fonction DOIT être appelée dans chaque scene_update()
-2. **Delta_time incorrect** : Vérifier que delta_time est en secondes, pas en millisecondes
-3. **Nœud détruit** : Ne pas détruire un nœud qui a des animations actives
+2. **Delta_time incorrect** : Vérifier que delta_time est en secondes, pas en millisecondess terminées
+3. **Nœud détruit** : Ne pas détruire un nœud qui a des animations actives3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller
 4. **Mémoire insuffisante** : Le système peut refuser de nouvelles animations si la mémoire est limitée
 
-### Performance des animations
+### Performance des animations`
 1. **Trop d'animations simultanées** : Limiter à ~20-30 animations actives maximum
-2. **Nettoyage automatique** : Le système nettoie automatiquement les animations terminées
-3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller
+2. **Nettoyage automatique** : Le système nettoie automatiquement les animations terminéestrés
+3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre
 
 ### Événements non détectés
-1. **Vérifier l'initialisation**: La scène doit être `initialized = true`
+1. **Vérifier l'initialisation**: La scène doit être `initialized = true`oit être appelé
 2. **Vérifier l'EventManager**: Chaque scène doit avoir son EventManager
-3. **Vérifier l'enregistrement**: Les éléments UI doivent être enregistrés
-4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre
 
-### Transitions qui ne fonctionnent pas
-1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé
-2. **Vérifier les IDs**: Les IDs de scène doivent correspondre
-3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées
+
+
+
+
+
+
+3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées2. **Vérifier les IDs**: Les IDs de scène doivent correspondre1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé### Transitions qui ne fonctionnent pas4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre3. **Vérifier l'enregistrement**: Les éléments UI doivent être enregistrés3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées

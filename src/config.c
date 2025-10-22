@@ -132,3 +132,9 @@ const char* config_difficulty_to_string(AIDifficulty difficulty) {
         default:                   return "Inconnue";
     }
 }
+
+// 🆕 FONCTION RAPIDE pour activer le mode IA
+void config_enable_ai_mode(void) {
+    config_set_mode(GAME_MODE_VS_AI);
+    printf("⚡ Mode IA activé rapidement avec configuration par défaut\n");
+}

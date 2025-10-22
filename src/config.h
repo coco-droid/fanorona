@@ -52,4 +52,7 @@ GameConfig* config_get_current(void);
 const char* config_mode_to_string(GameMode mode);
 const char* config_difficulty_to_string(AIDifficulty difficulty);
 
+// 🆕 FONCTION RAPIDE pour activer le mode IA
+void config_enable_ai_mode(void);
+
 #endif // FANORONA_CONFIG_H

@@ -16,13 +16,11 @@ typedef struct MenuSceneData {
     UITree* ui_tree;
     GameCore* core;
     UINode* ai_link;  // 🆕 AJOUT: Référence au lien IA pour la connexion
+    UINode* multiplayer_link;  // 🆕 AJOUT: Référence au lien multijoueur
 } MenuSceneData;
 
-// Callbacks pour les neon buttons
-static void multiplayer_clicked(UINode* node, void* user_data) {
-    printf("🌐 Multijoueur sélectionné\n");
-    (void)node; (void)user_data;
-}
+// Callbacks pour les neon buttons - SUPPRIMÉS car multiplayer devient un lien
+// static void multiplayer_clicked(...) - SUPPRIMÉ
 
 static void wiki_clicked(UINode* node, void* user_data) {
     printf("📚 Wiki ouvert\n");
@@ -46,7 +44,19 @@ static void style_link_as_neon_button(UINode* link, int r, int g, int b) {
     printf("✨ UI Link stylisé comme neon button avec couleur (%d,%d,%d)\n", r, g, b);
 }
 
-// 🆕 Callback hover pour effet neon avec scale sur le lien
+// 🆕 Callback hover pour effet neon sur le lien multijoueur
+static void multiplayer_link_hovered(void* element, SDL_Event* event) {
+    (void)element;
+    (void)event;
+}
+
+// 🆕 Callback unhover pour retour normal
+static void multiplayer_link_unhovered(void* element, SDL_Event* event) {
+    (void)element;
+    (void)event;
+}
+
+// 🆕 Callback hover pour effet neon avec scale sur le lien IA
 static void ai_link_hovered(void* element, SDL_Event* event) {
     (void)element;
     (void)event;
@@ -75,6 +85,7 @@ static void menu_scene_init(Scene* scene) {
     data->initialized = true;
     data->core = NULL;
     data->ai_link = NULL;  // 🆕 Initialiser la référence
+    data->multiplayer_link = NULL;  // 🆕 Initialiser la référence multijoueur
     
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -134,42 +145,30 @@ static void menu_scene_init(Scene* scene) {
         ui_set_align_items(buttons_container, "center");
         ui_set_flex_gap(buttons_container, 15);
         
-        // === VRAIS NEON BUTTONS (maintenant que neon_btn.c est compilé) ===
+        // === REMPLACER LE NEON BUTTON PAR UN UI LINK ===
         
-        // 1. Bouton Multijoueur avec neon - DEBUG DES DIMENSIONS
-        UINode* multiplayer_btn = ui_neon_button(data->ui_tree, "multiplayer-btn", "JOUER EN MULTIJOUEUR", multiplayer_clicked, NULL);
-        if (multiplayer_btn) {
-            SET_SIZE(multiplayer_btn, 280, 45);
-            ui_set_text_align(multiplayer_btn, "center");
+        // 1. UI LINK pour Multijoueur avec transition vers CHOICE_SCENE
+        data->multiplayer_link = ui_create_link(data->ui_tree, "multiplayer-link", "JOUER EN MULTIJOUEUR", "choice", SCENE_TRANSITION_REPLACE);
+        if (data->multiplayer_link) {
+            // Styliser comme un neon button vert
+            style_link_as_neon_button(data->multiplayer_link, 0, 255, 127); // Vert neon
             
-            // 🆕 ANIMATION: Fade-in avec délai
-            ui_animate_fade_in(multiplayer_btn, 0.8f);
+            // 🆕 ANIMATION: Fade-in
+            ui_animate_fade_in(data->multiplayer_link, 0.8f);
             
-            // 🆕 DEBUG DÉTAILLÉ: Vérifier les dimensions du bouton "play"
-            printf("🔍 [BUTTON_DEBUG] Bouton Multijoueur créé:\n");
-            printf("   📐 Taille demandée: 280x45\n");
-            printf("   📐 Taille réelle dans style: %dx%d\n", 
-                   multiplayer_btn->element->style.width, 
-                   multiplayer_btn->element->style.height);
-            printf("   📍 Position: (%d, %d)\n",
-                   multiplayer_btn->element->style.x,
-                   multiplayer_btn->element->style.y);
+            // Ajouter les effets hover/unhover pour l'effet neon
+            atomic_set_hover_handler(data->multiplayer_link->element, multiplayer_link_hovered);
+            atomic_set_unhover_handler(data->multiplayer_link->element, multiplayer_link_unhovered);
             
-            // Vérifier le rectangle de rendu final
-            SDL_Rect render_rect = atomic_get_final_render_rect(multiplayer_btn->element);
-            printf("   🎯 Rectangle de rendu final: (%d,%d,%dx%d)\n",
-                   render_rect.x, render_rect.y, render_rect.w, render_rect.h);
+            // Rester dans la MINI WINDOW
+            ui_link_set_target_window(data->multiplayer_link, WINDOW_TYPE_MINI);
             
-            // Configuration spécifique neon
-            ui_neon_button_set_glow_color(multiplayer_btn, 0, 255, 127); // Vert neon
-            ui_neon_button_set_animation_speed(multiplayer_btn, 1.5f);
-            
-            APPEND(buttons_container, multiplayer_btn);
-            printf("✨ Neon Button 'Multijoueur' créé avec lueur verte + animation fade-in\n");
+            APPEND(buttons_container, data->multiplayer_link);
+            printf("🔗✨ UI Link 'Multijoueur' créé avec transition vers CHOICE_SCENE en MINI WINDOW + animation fade-in\n");
         }
         
-        // 🆕 2. UI LINK pour IA avec transition de fenêtre (MINI → MAIN)
-        data->ai_link = ui_create_link(data->ui_tree, "ai-link", "JOUER CONTRE L'IA", "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
+        // 🆕 2. UI LINK pour IA avec transition vers AI_SCENE (pas game_scene)
+        data->ai_link = ui_create_link(data->ui_tree, "ai-link", "JOUER CONTRE L'IA", "ai", SCENE_TRANSITION_REPLACE);
         if (data->ai_link) {
             // Styliser comme un neon button violet
             style_link_as_neon_button(data->ai_link, 255, 0, 255); // Violet neon
@@ -181,11 +180,11 @@ static void menu_scene_init(Scene* scene) {
             atomic_set_hover_handler(data->ai_link->element, ai_link_hovered);
             atomic_set_unhover_handler(data->ai_link->element, ai_link_unhovered);
             
-            // 🆕 CONFIGURER LA FENÊTRE CIBLE (MAIN WINDOW)
-            ui_link_set_target_window(data->ai_link, WINDOW_TYPE_MAIN);
+            // 🆕 RESTER DANS LA MINI WINDOW pour aller vers ai_scene
+            ui_link_set_target_window(data->ai_link, WINDOW_TYPE_MINI);
             
             APPEND(buttons_container, data->ai_link);
-            printf("🔗✨ UI Link 'IA' créé avec transition MINI → MAIN WINDOW + animation slide-in\n");
+            printf("🔗✨ UI Link 'IA' créé avec transition vers AI_SCENE en MINI WINDOW + animation slide-in\n");
         }
         
         // 3. Bouton Wiki avec neon (inchangé)
@@ -227,9 +226,9 @@ static void menu_scene_init(Scene* scene) {
     printf("   🖼️  Background identique à home\n");
     printf("   📦  Container modal avec logo et sous-titre AUTOMATIQUES\n");
     printf("   🎮  Bouton Multijoueur : Neon button classique\n");
-    printf("   🔗  Bouton IA : UI LINK avec transition MINI→MAIN vers game_scene\n");
+    printf("   🔗  Bouton IA : UI LINK avec transition vers AI_SCENE en MINI WINDOW\n");
     printf("   📚  Bouton Wiki : Neon button classique\n");
-    printf("   🌟  NOUVELLE FONCTIONNALITÉ : Clic sur IA = Ouverture game en main window !\n");
+    printf("   🌟  NOUVEAU FLUX : Clic sur IA = Configuration IA puis choix de démarrage !\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;
@@ -254,6 +253,11 @@ static void menu_scene_update(Scene* scene, float delta_time) {
         // 🆕 Mettre à jour le lien IA
         if (data->ai_link) {
             ui_link_update(data->ai_link, delta_time);
+        }
+        
+        // 🆕 Mettre à jour le lien multijoueur
+        if (data->multiplayer_link) {
+            ui_link_update(data->multiplayer_link, delta_time);
         }
     }
 }
@@ -375,6 +379,18 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
     scene->active = true;
     
     printf("✅ Scène menu prête avec son propre système d'événements\n");
+    
+    // 🆕 CONNECTER LE LIEN MULTIJOUEUR AU SCENEMANAGER
+    if (data->multiplayer_link) {
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(core);
+        
+        if (scene_manager) {
+            ui_link_connect_to_manager(data->multiplayer_link, scene_manager);
+            ui_link_set_activation_delay(data->multiplayer_link, 0.5f);
+            printf("🔗 UI Link 'Multijoueur' connecté au SceneManager pour transition vers CHOICE_SCENE\n");
+        }
+    }
     
     // 🆕 CONNECTER SPÉCIFIQUEMENT LE LIEN IA AU SCENEMANAGER
     if (data->ai_link) {

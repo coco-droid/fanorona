@@ -939,25 +939,26 @@ ANIMATE_DEFEAT(plateau, losing_player);    // Toutes les pièces perdantes s'est
 ANIMATE_INITIAL_WAVE(plateau);
 ```
 
-### Intégration automatique dans les interactions
+### 🔄 Nouveau flux de navigation IA
 
-Les animations de pièces sont automatiquement déclenchées lors des interactions :
+Le système de navigation vers le jeu contre l'IA a été simplifié :
 
-- **Sélection** : Pulsation automatique quand une pièce est sélectionnée
-- **Déplacement** : Animation fluide lors d'un mouvement valide
-- **Capture** : Fade-out automatique des pièces capturées
-- **Fin de partie** : Animations de victoire/défaite selon le résultat
-
-### Délais d'activation et effets en cascade
+1. **Menu Principal** → Bouton "JOUER CONTRE L'IA" → **Scène Configuration IA** (MINI window)
+2. **Scène Configuration IA** → Configuration utilisateur → Bouton "DÉMARRER" → **Scène de Jeu** (MAIN window)
 
 ```c
-// Créer une animation avec délai
-Animation* delayed_anim = animation_create("delayed-bounce", ANIMATION_PROPERTY_Y, 1.0f);
-animation_set_activation_delay(delayed_anim, 0.5f); // Attendre 0.5 seconde
-animation_add_keyframe(delayed_anim, 0.0f, 0.0f, "ease-out");
-animation_add_keyframe(delayed_anim, 1.0f, -30.0f, "ease-in");
+// Dans menu_scene.c - Lien vers configuration IA
+ui_create_link(tree, "ai-link", "JOUER CONTRE L'IA", "ai", SCENE_TRANSITION_REPLACE);
+// Reste dans la MINI window, va vers ai_scene
 
-ui_node_add_animation(piece_element, delayed_anim);
+// Dans ai_scene.c - Lien vers le jeu
+ui_create_link(tree, "start-game-link", "DÉMARRER LA PARTIE", "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
+// Transition MINI → MAIN window vers game_scene
+// AUCUNE configuration forcée - respecte les choix utilisateur
 ```
 
-Cette fonctionnalité permet de créer des effets en cascade où les pièces s'animent les unes après les autres ! 🌊✨
+**🎯 Avantages du nouveau flux :**
+- ✅ **Choix utilisateur respectés** : Aucune configuration forcée lors du démarrage
+- ✅ **Navigation claire** : Menu → Configuration → Jeu
+- ✅ **Flexibilité** : L'utilisateur configure avant de jouer
+- ✅ **Cohérence** : Même pattern pour toutes les options de jeu

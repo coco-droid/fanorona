@@ -18,7 +18,9 @@ SOURCES = main.c \
           src/scene/scene_manager.c \
           src/scene/scene_registry.c \
           src/scene/home_scene.c \
+          src/scene/choice_scene.c \
           src/scene/menu_scene.c \
+          src/scene/profile_scene.c \
           src/scene/game_scene.c \
           src/ui/ui_tree.c \
           src/ui/ui_components.c \

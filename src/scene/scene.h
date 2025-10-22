@@ -102,10 +102,16 @@ Scene* create_main_menu_scene(void);
 Scene* create_game_scene(void);
 Scene* create_home_scene(void);
 Scene* create_menu_scene(void);  // 🆕 Ajout de la déclaration pour la nouvelle scène menu
+Scene* create_ai_scene(void);    // 🆕 Ajout de la déclaration pour la scène de configuration IA
+Scene* create_profile_scene(void); // 🆕 Ajout de la déclaration pour profile_scene
+Scene* create_choice_scene(void);  // 🆕 Ajout de la déclaration pour choice_scene
 
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
 void menu_scene_connect_events(Scene* scene, GameCore* core);  // 🔧 AJOUTÉ: Déclaration pour menu_scene
 void game_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 AJOUTÉ: Déclaration pour game_scene
+void ai_scene_connect_events(Scene* scene, GameCore* core);    // 🆕 AJOUTÉ: Déclaration pour ai_scene
+void profile_scene_connect_events(Scene* scene, GameCore* core); // 🆕 AJOUTÉ: Déclaration pour profile_scene
+void choice_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 AJOUTÉ: Déclaration pour choice_scene
 
 #endif // SCENE_H
