@@ -962,3 +962,10 @@ ui_create_link(tree, "start-game-link", "DÉMARRER LA PARTIE", "game", SCENE_TRA
 - ✅ **Navigation claire** : Menu → Configuration → Jeu
 - ✅ **Flexibilité** : L'utilisateur configure avant de jouer
 - ✅ **Cohérence** : Même pattern pour toutes les options de jeu
+
+### Wiki Scene (NOUVEAU)
+- **📚 Contenu structuré**: Titre, sous-titre et 3 sections thématiques
+- **🎨 Design épuré**: Couleurs dorées (#E9D7A1) pour les titres, gris clair (#BEBEBE) pour le texte
+- **🖼️ Icônes décoratives**: Placeholders dorés avec bordures pour chaque section
+- **✨ Animations**: Slide alternées pour chaque section (gauche/droite)
+- **🔗 Navigation**: Lien de retour vers le menu principal

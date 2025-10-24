@@ -80,6 +80,7 @@ SOURCES=(
     "$SRC_DIR/scene/profile_scene.c"
     "$SRC_DIR/scene/game_scene.c"
     "$SRC_DIR/scene/ai_scene.c"
+    "$SRC_DIR/scene/wiki_scene.c"  # 🆕 Ajout de wiki_scene.c
     "$SRC_DIR/scene/scene_registry.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"

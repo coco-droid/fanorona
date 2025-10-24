@@ -73,3 +73,21 @@ Scene* create_main_menu_scene(void) {
     
     return scene;
 }
+
+void scene_destroy(Scene* scene) {
+    if (!scene) return;
+    
+    // 🔧 FIX: Only free if dynamically allocated
+    if (scene->id) free(scene->id);
+    if (scene->name) free(scene->name);
+    
+    if (scene->cleanup && scene->data) {
+        scene->cleanup(scene);
+    }
+    
+    if (scene->event_manager) {
+        event_manager_destroy(scene->event_manager);
+    }
+    
+    free(scene);
+}

@@ -4,6 +4,7 @@
 #include "../ui/components/ui_link.h"
 #include "../utils/log_console.h"
 #include "../utils/asset_manager.h"
+#include "../config.h"
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,10 +17,34 @@ typedef struct ChoiceSceneData {
     UITree* ui_tree;
     GameCore* core;
     UINode* local_link;
-    UINode* online_link;  // 🔧 FIX: Changed from online_btn to online_link
+    UINode* online_link;
 } ChoiceSceneData;
 
-// Initialisation de la scène choice
+// Callbacks AVANT usage
+static void local_link_clicked(void* element, SDL_Event* event) {
+    (void)event;
+    
+    config_set_mode(GAME_MODE_LOCAL_MULTIPLAYER);
+    config_reset_player_configs();  // 🆕 Réinitialiser les flags J1/J2
+    printf("🎮 Mode MULTIJOUEUR LOCAL activé (flags réinitialisés)\n");
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    UINode* link = (UINode*)atomic->user_data;
+    
+    if (link) {
+        extern void ui_link_activate(UINode* link);
+        ui_link_activate(link);
+    }
+}
+
+static void online_link_clicked(void* element, SDL_Event* event) {
+    (void)element;
+    (void)event;
+    
+    config_set_mode(GAME_MODE_ONLINE_MULTIPLAYER);
+    printf("🌐 Mode MULTIJOUEUR EN LIGNE activé\n");
+}
+
 static void choice_scene_init(Scene* scene) {
     printf("🎮 Initialisation de la scène Choix de mode\n");
     
@@ -34,13 +59,11 @@ static void choice_scene_init(Scene* scene) {
     data->initialized = true;
     data->core = NULL;
     data->local_link = NULL;
-    data->online_link = NULL;  // 🔧 FIX: Initialize online_link
+    data->online_link = NULL;
     
-    // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // Charger le background
     SDL_Texture* background_texture = NULL;
     GameWindow* window = use_mini_window();
     if (window) {
@@ -50,7 +73,6 @@ static void choice_scene_init(Scene* scene) {
         }
     }
     
-    // Container principal
     UINode* app = UI_DIV(data->ui_tree, "choice-app");
     SET_POS(app, 0, 0);
     SET_SIZE(app, 700, 500);
@@ -61,11 +83,9 @@ static void choice_scene_init(Scene* scene) {
         SET_BG(app, "rgb(135, 206, 250)");
     }
     
-    // Container modal avec header
     UINode* modal_container = UI_CONTAINER_CENTERED(data->ui_tree, "choice-modal", 500, 380);
     ui_container_add_header(modal_container, "CHOISIR UN MODE DE JEU");
     
-    // Container pour les boutons
     UINode* buttons_container = UI_DIV(data->ui_tree, "choice-buttons-container");
     SET_SIZE(buttons_container, 350, 180);
     
@@ -75,59 +95,53 @@ static void choice_scene_init(Scene* scene) {
     ui_set_align_items(buttons_container, "center");
     ui_set_flex_gap(buttons_container, 20);
     
-    // === BOUTON LOCAL (UI Link vers profile_scene) ===
+    // BOUTON LOCAL
     data->local_link = ui_create_link(data->ui_tree, "local-link", "JOUER EN LOCAL", "profile", SCENE_TRANSITION_REPLACE);
     if (data->local_link) {
         SET_SIZE(data->local_link, 300, 50);
         ui_set_text_align(data->local_link, "center");
         
-        // Style neon vert
         atomic_set_background_color(data->local_link->element, 0, 64, 0, 200);
         atomic_set_border(data->local_link->element, 2, 0, 255, 0, 255);
         atomic_set_text_color_rgba(data->local_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->local_link->element, 10, 15, 10, 15);
         
         ui_link_set_target_window(data->local_link, WINDOW_TYPE_MINI);
-        
-        // Animation d'entrée
         ui_animate_slide_in_left(data->local_link, 0.8f, 200.0f);
+        
+        atomic_set_click_handler(data->local_link->element, local_link_clicked);
         
         APPEND(buttons_container, data->local_link);
         printf("✅ Lien 'Local' créé avec transition vers profile_scene\n");
     }
     
-    // === BOUTON EN LIGNE (UI Link vers profile_scene) ===
+    // BOUTON EN LIGNE
     data->online_link = ui_create_link(data->ui_tree, "online-link", "JOUER EN LIGNE", "profile", SCENE_TRANSITION_REPLACE);
     if (data->online_link) {
         SET_SIZE(data->online_link, 300, 50);
         ui_set_text_align(data->online_link, "center");
         
-        // Style neon bleu (identique au bouton précédent)
         atomic_set_background_color(data->online_link->element, 0, 47, 64, 200);
         atomic_set_border(data->online_link->element, 2, 0, 191, 255, 255);
         atomic_set_text_color_rgba(data->online_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->online_link->element, 10, 15, 10, 15);
         
         ui_link_set_target_window(data->online_link, WINDOW_TYPE_MINI);
-        
-        // Animation d'entrée
         ui_animate_slide_in_right(data->online_link, 1.0f, 200.0f);
+        
+        atomic_set_click_handler(data->online_link->element, online_link_clicked);
         
         APPEND(buttons_container, data->online_link);
         printf("✅ Lien 'En ligne' créé avec transition vers profile_scene\n");
     }
     
-    // Ajouter le container de boutons au modal
     ui_container_add_content(modal_container, buttons_container);
     ALIGN_SELF_Y(buttons_container);
     
-    // Construire la hiérarchie
     APPEND(data->ui_tree->root, app);
     APPEND(app, modal_container);
     
-    // Animation du modal
     ui_animate_fade_in(modal_container, 0.6f);
-    
     ui_calculate_implicit_z_index(data->ui_tree);
     
     printf("✅ Interface Choix créée avec :\n");
@@ -138,7 +152,6 @@ static void choice_scene_init(Scene* scene) {
     scene->ui_tree = data->ui_tree;
 }
 
-// Mise à jour de la scène choice
 static void choice_scene_update(Scene* scene, float delta_time) {
     if (!scene || !scene->data) return;
     
@@ -154,13 +167,12 @@ static void choice_scene_update(Scene* scene, float delta_time) {
             ui_link_update(data->local_link, delta_time);
         }
         
-        if (data->online_link) {  // 🔧 FIX: Update online_link
+        if (data->online_link) {
             ui_link_update(data->online_link, delta_time);
         }
     }
 }
 
-// Rendu de la scène choice
 static void choice_scene_render(Scene* scene, GameWindow* window) {
     if (!scene || !scene->data || !window) return;
     
@@ -174,7 +186,6 @@ static void choice_scene_render(Scene* scene, GameWindow* window) {
     }
 }
 
-// Nettoyage de la scène choice
 static void choice_scene_cleanup(Scene* scene) {
     printf("🧹 Nettoyage de la scène Choix\n");
     if (!scene || !scene->data) return;
@@ -192,7 +203,6 @@ static void choice_scene_cleanup(Scene* scene) {
     printf("✅ Nettoyage de la scène Choix terminé\n");
 }
 
-// Créer la scène choice
 Scene* create_choice_scene(void) {
     Scene* scene = (Scene*)malloc(sizeof(Scene));
     if (!scene) {
@@ -227,7 +237,6 @@ Scene* create_choice_scene(void) {
     return scene;
 }
 
-// Connecter les événements
 void choice_scene_connect_events(Scene* scene, GameCore* core) {
     if (!scene || !core) {
         printf("❌ Scene ou Core NULL dans choice_scene_connect_events\n");
@@ -260,7 +269,6 @@ void choice_scene_connect_events(Scene* scene, GameCore* core) {
     scene->initialized = true;
     scene->active = true;
     
-    // Connecter le lien local au SceneManager
     if (data->local_link) {
         extern SceneManager* game_core_get_scene_manager(GameCore* core);
         SceneManager* scene_manager = game_core_get_scene_manager(core);
@@ -272,7 +280,6 @@ void choice_scene_connect_events(Scene* scene, GameCore* core) {
         }
     }
     
-    // 🔧 FIX: Connecter le lien en ligne au SceneManager
     if (data->online_link) {
         extern SceneManager* game_core_get_scene_manager(GameCore* core);
         SceneManager* scene_manager = game_core_get_scene_manager(core);

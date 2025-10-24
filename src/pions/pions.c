@@ -105,10 +105,14 @@ GamePlayer* player_create(const char* name, Player logical_color, PieceColor pie
     player->type = type;
     player->player_number = player_number;
     
+    // 🔧 FIX: Initialize avatar field
+    player->avatar = AVATAR_WARRIOR; // Default avatar
+    
     // Initialiser les statistiques
-    player->pieces_remaining = 22; // Standard Fanorona
+    player->pieces_remaining = 22;
     player->captures_made = 0;
     player->total_time = 0.0f;
+    player->thinking_time = 0.0f; // 🔧 FIX: Initialize thinking_time
     player->is_current_turn = false;
     player->has_mandatory_capture = false;
     

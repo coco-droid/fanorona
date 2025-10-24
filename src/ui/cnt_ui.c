@@ -38,7 +38,7 @@ UINode* ui_container(UITree* tree, const char* id) {
     FLEX_COLUMN(main_container);
     ui_set_justify_content(main_container, "flex-start"); // Alignement du haut
     ui_set_align_items(main_container, "center"); // Centrage horizontal
-    ui_set_flex_gap(main_container, 20); // Espacement entre les sections
+    //ui_set_flex_gap(main_container, 0); // Espacement entre les sections
     
     // === 1. CONTAINER POUR LE LOGO ===
     char logo_container_id[128];
@@ -92,6 +92,9 @@ UINode* ui_container(UITree* tree, const char* id) {
         atomic_set_custom_data(main_container->element, "content_container", content_container);
         
         APPEND(main_container, content_container);
+        
+        // 🔧 FIX: Forcer un recalcul initial du layout après ajout des enfants
+        atomic_calculate_layout(main_container->element);
         
         ui_log_event("UIComponent", "ContainerSection", id, "Content container created and ready for user content");
     }

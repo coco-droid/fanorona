@@ -17,15 +17,8 @@ typedef struct MenuSceneData {
     GameCore* core;
     UINode* ai_link;  // 🆕 AJOUT: Référence au lien IA pour la connexion
     UINode* multiplayer_link;  // 🆕 AJOUT: Référence au lien multijoueur
+    UINode* wiki_link;  // 🆕 AJOUT: Référence au lien Wiki
 } MenuSceneData;
-
-// Callbacks pour les neon buttons - SUPPRIMÉS car multiplayer devient un lien
-// static void multiplayer_clicked(...) - SUPPRIMÉ
-
-static void wiki_clicked(UINode* node, void* user_data) {
-    printf("📚 Wiki ouvert\n");
-    (void)node; (void)user_data;
-}
 
 // 🆕 Fonction pour styliser le lien comme un neon button
 static void style_link_as_neon_button(UINode* link, int r, int g, int b) {
@@ -68,6 +61,18 @@ static void ai_link_unhovered(void* element, SDL_Event* event) {
     (void)event;
 }
 
+// 🆕 Callback hover pour effet neon sur le lien Wiki
+static void wiki_link_hovered(void* element, SDL_Event* event) {
+    (void)element;
+    (void)event;
+}
+
+// 🆕 Callback unhover pour retour normal sur le lien Wiki
+static void wiki_link_unhovered(void* element, SDL_Event* event) {
+    (void)element;
+    (void)event;
+}
+
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
     printf("📋 Initialisation de la scène Menu avec UI Link vers game_scene\n");
@@ -86,6 +91,7 @@ static void menu_scene_init(Scene* scene) {
     data->core = NULL;
     data->ai_link = NULL;  // 🆕 Initialiser la référence
     data->multiplayer_link = NULL;  // 🆕 Initialiser la référence multijoueur
+    data->wiki_link = NULL;  // 🆕 Initialiser la référence Wiki
     
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -187,21 +193,23 @@ static void menu_scene_init(Scene* scene) {
             printf("🔗✨ UI Link 'IA' créé avec transition vers AI_SCENE en MINI WINDOW + animation slide-in\n");
         }
         
-        // 3. Bouton Wiki avec neon (inchangé)
-        UINode* wiki_btn = ui_neon_button(data->ui_tree, "wiki-btn", "WIKI", wiki_clicked, NULL);
-        if (wiki_btn) {
-            SET_SIZE(wiki_btn, 280, 45);
-            ui_set_text_align(wiki_btn, "center");
+        // 🆕 3. UI LINK pour Wiki avec transition vers WIKI_SCENE
+        data->wiki_link = ui_create_link(data->ui_tree, "wiki-link", "WIKI", "wiki", SCENE_TRANSITION_REPLACE);
+        if (data->wiki_link) {
+            // Styliser comme un neon button bleu ciel
+            style_link_as_neon_button(data->wiki_link, 0, 191, 255); // Bleu ciel neon
             
-            // 🆕 ANIMATION: Pulse infini
-            ui_animate_pulse(wiki_btn, 2.0f);
+            // Animation pulse
+            ui_animate_pulse(data->wiki_link, 2.0f);
             
-            // Configuration spécifique neon
-            ui_neon_button_set_glow_color(wiki_btn, 0, 191, 255); // Bleu ciel neon
-            ui_neon_button_set_animation_speed(wiki_btn, 1.0f);
+            // Effets hover
+            atomic_set_hover_handler(data->wiki_link->element, wiki_link_hovered);
+            atomic_set_unhover_handler(data->wiki_link->element, wiki_link_unhovered);
             
-            APPEND(buttons_container, wiki_btn);
-            printf("✨ Neon Button 'Wiki' créé avec lueur bleu ciel + animation pulse\n");
+            ui_link_set_target_window(data->wiki_link, WINDOW_TYPE_MINI);
+            
+            APPEND(buttons_container, data->wiki_link);
+            printf("🔗✨ UI Link 'Wiki' créé avec transition vers WIKI_SCENE en MINI WINDOW + animation pulse\n");
         }
         
         // 🎯 AJOUTER LE CONTAINER DE BOUTONS AU MODAL AVEC CENTRAGE VERTICAL
@@ -258,6 +266,11 @@ static void menu_scene_update(Scene* scene, float delta_time) {
         // 🆕 Mettre à jour le lien multijoueur
         if (data->multiplayer_link) {
             ui_link_update(data->multiplayer_link, delta_time);
+        }
+        
+        // 🆕 Mettre à jour le lien Wiki
+        if (data->wiki_link) {
+            ui_link_update(data->wiki_link, delta_time);
         }
     }
 }
@@ -412,6 +425,18 @@ void menu_scene_connect_events(Scene* scene, GameCore* core) {
             printf("   ⏱️ Délai de sécurité de 0.5s configuré pour le lien 'IA'\n");
         } else {
             printf("❌ SceneManager non disponible pour le lien IA\n");
+        }
+    }
+    
+    // 🆕 CONNECTER LE LIEN WIKI AU SCENEMANAGER
+    if (data->wiki_link) {
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(core);
+        
+        if (scene_manager) {
+            ui_link_connect_to_manager(data->wiki_link, scene_manager);
+            ui_link_set_activation_delay(data->wiki_link, 0.5f);
+            printf("🔗 UI Link 'Wiki' connecté au SceneManager pour transition vers WIKI_SCENE\n");
         }
     }
 }

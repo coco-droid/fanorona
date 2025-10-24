@@ -360,6 +360,18 @@ void ui_text_input_set_max_length(UINode* input, int max_length);
 const char* ui_text_input_get_text(UINode* input);
 void ui_text_input_set_text(UINode* input, const char* text);
 
+// 🆕 NOUVELLE FONCTION: Définir le placeholder dynamiquement
+void ui_text_input_set_placeholder(UINode* input, const char* placeholder);
+
+// 🆕 NOUVELLE FONCTION: Lier un text input à un ID de scène
+void ui_text_input_set_scene_id(UINode* input, const char* scene_input_id);
+
+// 🆕 NOUVELLE FONCTION: Récupérer le texte par ID de scène (depuis le registre global)
+const char* ui_text_input_get_text_by_id(const char* scene_input_id);
+
+// 🆕 NOUVELLE FONCTION: Nettoyer le registre global des text inputs
+void ui_text_input_cleanup_registry(void);
+
 // === MACROS POUR LES NOUVEAUX COMPOSANTS ===
 
 #define UI_SIDEBAR(tree, id) ui_sidebar(tree, id)

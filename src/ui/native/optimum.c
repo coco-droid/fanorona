@@ -111,6 +111,9 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         return;
     }
     
+    // 🔧 FIX: Recalculer le layout AVANT le rendu pour synchroniser positions
+    atomic_calculate_layout(element);
+    
     // Calculer les rectangles de rendu
     SDL_Rect render_rect = atomic_get_render_rect(element);
     SDL_Rect content_rect = atomic_get_content_rect(element);

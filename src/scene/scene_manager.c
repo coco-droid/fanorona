@@ -88,7 +88,6 @@ bool scene_manager_set_scene(SceneManager* manager, Scene* scene) {
         if (manager->current_scene->cleanup) {
             manager->current_scene->cleanup(manager->current_scene);
         }
-        // 🔧 NE PAS FAIRE free() ici - les scènes sont dans le registre !
         manager->current_scene->active = false;
     }
     
@@ -110,7 +109,6 @@ void scene_manager_transition_to(SceneManager* manager, Scene* new_scene) {
     
     // Ajouter une nouvelle transition
     if (manager->transition_count >= manager->transition_capacity) {
-        // Doubler la capacité
         manager->transition_capacity *= 2;
         manager->transitions = (SceneTransition*)realloc(manager->transitions, sizeof(SceneTransition) * manager->transition_capacity);
     }
@@ -119,7 +117,6 @@ void scene_manager_transition_to(SceneManager* manager, Scene* new_scene) {
     manager->transitions[manager->transition_count].new_scene = new_scene;
     manager->transition_count++;
     
-    // Définir la nouvelle scène comme scène suivante
     manager->next_scene = new_scene;
 }
 
@@ -127,20 +124,15 @@ void scene_manager_transition_to(SceneManager* manager, Scene* new_scene) {
 void scene_manager_update(SceneManager* manager, float delta_time) {
     if (!manager) return;
     
-    // Mettre à jour SEULEMENT la scène actuelle
     if (manager->current_scene && manager->current_scene->active) {
         manager->current_scene->update(manager->current_scene, delta_time);
     }
-    
-    // 🔧 FIX: SUPPRIMER la gestion automatique des transitions avec cleanup
-    // Les transitions sont maintenant immédiates et sans destruction
 }
 
 // Rendre la scène actuelle
 void scene_manager_render(SceneManager* manager) {
     if (!manager) return;
     
-    // Rendre la scène actuelle
     if (manager->current_scene) {
         manager->current_scene->render(manager->current_scene, use_main_window());
     }
@@ -153,11 +145,9 @@ void scene_manager_render_main(SceneManager* manager) {
     GameWindow* main_window = use_main_window();
     if (!main_window) return;
 
-    // Définir le contexte atomic pour la fenêtre principale
     AtomicContext ctx_main = { main_window->renderer, main_window->width, main_window->height, false };
     atomic_set_context(&ctx_main);
 
-    // Utiliser la scène assignée à la fenêtre principale ou la scène courante
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MAIN);
 
     if (scene && scene->active && scene->render) {
@@ -171,11 +161,9 @@ void scene_manager_render_mini(SceneManager* manager) {
     GameWindow* mini_window = use_mini_window();
     if (!mini_window) return;
 
-    // Définir le contexte atomic pour la mini fenêtre
     AtomicContext ctx_mini = { mini_window->renderer, mini_window->width, mini_window->height, false };
     atomic_set_context(&ctx_mini);
 
-    // Utiliser la scène assignée à la mini fenêtre ou la scène courante
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MINI);
 
     if (scene && scene->active && scene->render) {
@@ -194,12 +182,10 @@ Scene* scene_manager_get_active_scene_for_window(SceneManager* manager, WindowTy
         return NULL;
     }
     
-    // Si une scène est explicitement assignée pour ce type de fenêtre, la renvoyer
     if (manager->active_scenes[window_type]) {
         return manager->active_scenes[window_type];
     }
     
-    // Sinon, renvoyer la scène courante comme fallback
     return manager->current_scene;
 }
 
@@ -209,7 +195,6 @@ bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, Win
         return false;
     }
     
-    // Si la scène n'est pas initialisée, l'initialiser
     if (!scene->initialized && scene->init) {
         printf("🔧 Initialisation de la scène '%s' pour la fenêtre %d...\n", 
                scene->name ? scene->name : "sans nom", window_type);
@@ -217,50 +202,12 @@ bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, Win
         scene->initialized = true;
     }
     
-    // Assigner la scène à la fenêtre spécifique
     manager->active_scenes[window_type] = scene;
-    
-    // Activer la scène
     scene->active = true;
     
     printf("✅ Scène '%s' assignée à la fenêtre type %d\n", 
            scene->name ? scene->name : "sans nom", window_type);
     return true;
-}
-
-// Fonction manquante pour ui_link.c - VERSION AMÉLIORÉE
-void scene_manager_transition_to_scene_from_element(UINode* element) {
-    if (!element) {
-        printf("❌ UINode est NULL dans scene_manager_transition_to_scene_from_element\n");
-        return;
-    }
-    
-    // Utiliser void* et accès générique aux données
-    void* component_data = element->component_data;
-    if (!component_data) {
-        printf("❌ Component data est NULL\n");
-        return;
-    }
-    
-    // Utiliser une fonction helper depuis ui_link.c
-    extern const char* ui_link_get_target_scene_id_from_data(void* data);
-    
-    const char* target_scene_id = ui_link_get_target_scene_id_from_data(component_data);
-    if (!target_scene_id) {
-        printf("❌ Target scene ID manquant dans les données de lien\n");
-        return;
-    }
-    
-    printf("🔄 FALLBACK: Transition vers la scène '%s' demandée depuis l'élément UI '%s'\n", 
-           target_scene_id, element->id ? element->id : "unknown");
-    
-    // 🆕 AVERTISSEMENT CRITIQUE POUR INDIQUER QUE LE FALLBACK EST DÉCONSEILLÉ
-    printf("⚠️ ATTENTION CRITIQUE: Cette méthode de transition est dépréciée et peut causer des comportements incorrects\n");
-    printf("📋 Solution: Utilisez ui_link_connect_to_manager() pour configurer correctement les transitions\n");
-    
-    // 🆕 NE PAS FAIRE DE TRANSITION AUTOMATIQUE AU GAME_SCENE!
-    // Ne rien faire d'autre, simplement afficher l'avertissement.
-    printf("❌ Transition annulée pour éviter des comportements incorrects\n");
 }
 
 // Nouvelles fonctions pour l'API étendue
@@ -311,86 +258,52 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
     
     printf("🔄 Transition vers la scène '%s' (option: %d)\n", scene_id, option);
     
-    // 🆕 Déterminer quelle fenêtre source est actuellement active
     WindowType source_window_type = window_get_active_window();
-    // Déterminer la fenêtre cible selon la préférence de la scène
     WindowType target_window = target_scene->target_window;
     
-    // 🆕 LOG DE DIAGNOSTIC DÉTAILLÉ
-    char transit_msg[256];
-    snprintf(transit_msg, sizeof(transit_msg),
-             "[scene_manager.c] Transition: from window %d to scene '%s' (target window %d) with option %d",
-             source_window_type, scene_id, target_window, option);
-    log_console_write("SceneTransition", "Start", "scene_manager.c", transit_msg);
-    
-    // Stocker l'ancienne scène pour référence
     Scene* old_scene = manager->current_scene;
     
-    // 🆕 Gestion des différentes options de transition
     switch (option) {
         case SCENE_TRANSITION_REPLACE:
-            // Désactiver l'ancienne scène pour la fenêtre source
             if (old_scene) {
                 old_scene->active = false;
-                log_console_write("SceneTransition", "DeactivateOld", "scene_manager.c",
-                                 "[scene_manager.c] Deactivated old scene");
             }
             
-            // Définir la nouvelle scène comme courante
             manager->current_scene = target_scene;
             
-            // 🔧 FIX CRITIQUE: Assigner la nouvelle scène à la fenêtre SOURCE ET CIBLE
             scene_manager_set_scene_for_window(manager, target_scene, source_window_type);
             if (target_window != source_window_type) {
                 scene_manager_set_scene_for_window(manager, target_scene, target_window);
             }
             
-            // 🆕 Activer la fenêtre cible
             window_set_active_window(target_window);
             break;
             
         case SCENE_TRANSITION_OPEN_NEW_WINDOW:
-            // Garder l'ancienne scène active et ajouter la nouvelle dans une autre fenêtre
             scene_manager_set_scene_for_window(manager, target_scene, target_window);
-            window_set_active_window(WINDOW_TYPE_BOTH); // Activer les deux fenêtres
+            window_set_active_window(WINDOW_TYPE_BOTH);
             break;
             
         case SCENE_TRANSITION_CLOSE_AND_OPEN:
-            // 🔧 FIX CRITIQUE: Utiliser la nouvelle fonction de transition sécurisée
-            printf("🔄 TRANSITION SÉCURISÉE: Initialisation de la scène cible avant fermeture\n");
-            
-            // 1. Définir la nouvelle scène comme courante
             manager->current_scene = target_scene;
-            
-            // 2. Assigner la scène à sa fenêtre cible
-            printf("🔍 VÉRIFICATION: Assignation de '%s' à la fenêtre %d\n", 
-                   target_scene->name, target_window);
             scene_manager_set_scene_for_window(manager, target_scene, target_window);
             
-            // 3. S'assurer que la scène est initialisée
             if (!target_scene->initialized && target_scene->init) {
-                printf("🔍 INITIALISATION de la scène '%s'\n", target_scene->name);
                 target_scene->init(target_scene);
                 target_scene->initialized = true;
             }
             
-            // 4. Désactiver l'ancienne scène
             if (old_scene) {
-                printf("🔍 DÉSACTIVATION de l'ancienne scène '%s'\n", old_scene->name);
                 old_scene->active = false;
             }
             
-            // 5. Activer la nouvelle scène
             target_scene->active = true;
-            printf("🔍 ACTIVATION de la nouvelle scène '%s'\n", target_scene->name);
             
-            // 6. Effectuer la transition sécurisée des fenêtres
             extern void window_transition_safely(WindowType from_type, WindowType to_type);
             window_transition_safely(source_window_type, target_window);
             break;
             
         case SCENE_TRANSITION_SWAP_WINDOWS:
-            // Échanger les fenêtres des scènes
             if (manager->current_scene) {
                 WindowType old_window = manager->current_scene->target_window;
                 scene_manager_set_scene_for_window(manager, target_scene, old_window);
@@ -399,30 +312,44 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             break;
     }
     
-    // S'assurer que la scène cible est initialisée et active
     if (!target_scene->initialized && target_scene->init) {
-        log_console_write("SceneTransition", "InitTarget", "scene_manager.c",
-                         "[scene_manager.c] Initializing target scene");
         target_scene->init(target_scene);
         target_scene->initialized = true;
     }
     
-    // Activer la scène
     target_scene->active = true;
     
-    // 🆕 Vérifier la configuration des EventManagers après transition
     if (!target_scene->event_manager) {
-        log_console_write("SceneTransition", "CreateEventManager", "scene_manager.c",
-                         "[scene_manager.c] Creating EventManager for target scene");
         target_scene->event_manager = event_manager_create();
     }
     
-    // 🆕 LOG DE CONFIRMATION DÉTAILLÉ
-    char result_msg[256];
-    snprintf(result_msg, sizeof(result_msg),
-             "[scene_manager.c] Transition complete: scene '%s' now active in window %d",
-             scene_id, target_window);
-    log_console_write("SceneTransition", "Complete", "scene_manager.c", result_msg);
+    // 🔧 FIX: Connecter les événements IMMÉDIATEMENT après activation
+    if (manager->core) {
+        printf("🔗 Connexion des événements pour la nouvelle scène '%s'...\n", scene_id);
+        
+        // 🆕 FIX: Utiliser un tableau de correspondance ID → fonction
+        if (strcmp(scene_id, "home") == 0) {
+            home_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "menu") == 0) {
+            menu_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "choice") == 0) {
+            choice_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "ai") == 0) {
+            ai_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "profile") == 0) {
+            profile_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "game") == 0) {
+            game_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "wiki") == 0) {
+            wiki_scene_connect_events(target_scene, manager->core);
+        } else {
+            printf("⚠️ Pas de fonction de connexion pour '%s'\n", scene_id);
+        }
+        
+        printf("✅ Événements connectés pour '%s'\n", scene_id);
+    } else {
+        printf("❌ Core NULL - impossible de connecter les événements\n");
+    }
     
     printf("✅ Transition réussie vers '%s' !\n", scene_id);
     return true;
@@ -457,25 +384,19 @@ Scene* scene_create(const char* id, const char* name, WindowType target_window) 
     return scene;
 }
 
-void scene_destroy(Scene* scene) {
-    if (!scene) return;
-    
-    if (scene->cleanup) {
-        scene->cleanup(scene);
-    }
-    
-    // 🔧 FIX: No need to cast since id and name are now char* (non-const)
-    if (scene->id) free(scene->id);
-    if (scene->name) free(scene->name);
-    
-    free(scene);
-}
-
 void scene_initialize(Scene* scene) {
     if (!scene) return;
     
     if (scene->init) {
         scene->init(scene);
         scene->initialized = true;
+    }
+}
+
+// 🆕 Nouvelle fonction pour associer le core au manager
+void scene_manager_set_core(SceneManager* manager, GameCore* core) {
+    if (manager) {
+        manager->core = core;
+        printf("✅ Core associé au SceneManager\n");
     }
 }

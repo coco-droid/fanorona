@@ -95,15 +95,14 @@ GameCore* game_core_create(void) {
 
 // 🆕 Fonction pour finaliser l'initialisation (SIMPLIFIÉE)
 bool game_core_finalize_init(GameCore* core) {
-    if (!core) {
-        printf("❌ Core est NULL\n");
+    if (!core || !core->scene_manager) {
+        printf("❌ Core ou SceneManager NULL\n");
         return false;
     }
     
-    if (!core->scene_manager) {
-        printf("❌ SceneManager est NULL\n");
-        return false;
-    }
+    // 🆕 FIX CRITIQUE: Associer le core au scene_manager
+    extern void scene_manager_set_core(SceneManager* manager, GameCore* core);
+    scene_manager_set_core(core->scene_manager, core);
     
     // Récupération de la scène courante
     printf("🔍 Récupération de la scène courante...\n");

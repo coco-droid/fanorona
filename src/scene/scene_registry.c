@@ -15,6 +15,7 @@ static SceneFactory factories[] = {
     create_game_scene,
     create_ai_scene,
     create_profile_scene, // 🆕 Ajout de profile_scene
+    create_wiki_scene,   // 🆕 Ajout de wiki_scene
     NULL  // Marqueur de fin
 };
 
@@ -106,59 +107,54 @@ bool scene_registry_connect_all_events(SceneManager* manager, GameCore* core) {
         return false;
     }
 
-    printf("🔗 scene_registry: connexion des événements pour toutes les scènes...\n");
+    // 🔧 FIX: Connect events ONLY for the currently active scene, not all scenes
+    Scene* active_scene = scene_manager_get_current_scene(manager);
+    if (!active_scene) {
+        printf("❌ scene_registry: Aucune scène active à connecter\n");
+        return false;
+    }
+
+    printf("🔗 scene_registry: connexion des événements UNIQUEMENT pour '%s' (ID: %s)\n", 
+           active_scene->name ? active_scene->name : "sans nom", 
+           active_scene->id ? active_scene->id : "no-id");
     
-    int connected = 0;
+    // Initialiser la scène si ce n'est pas déjà fait
+    if (!active_scene->initialized && active_scene->init) {
+        printf("🔧 scene_registry: initialisation de la scène '%s'...\n", active_scene->id);
+        active_scene->init(active_scene);
+        active_scene->initialized = true;
+    }
     
-    // Parcourir toutes les scènes enregistrées
-    for (int i = 0; i < manager->scene_count; i++) {
-        Scene* scene = manager->scenes[i];
-        if (!scene) continue;
-        
-        printf("🔧 scene_registry: connexion des événements pour '%s' (ID: %s)...\n", 
-               scene->name ? scene->name : "sans nom", scene->id ? scene->id : "no-id");
-        
-        // Initialiser la scène si ce n'est pas déjà fait
-        if (!scene->initialized && scene->init) {
-            printf("🔧 scene_registry: initialisation de la scène '%s'...\n", scene->id);
-            scene->init(scene);
-            scene->initialized = true;
-        }
-        
-        // Connecter les événements selon le type de scène
-        if (scene->id) {
-            if (strcmp(scene->id, "home") == 0) {
-                home_scene_connect_events(scene, core);
-                connected++;
-            } else if (strcmp(scene->id, "menu") == 0) {
-                menu_scene_connect_events(scene, core);
-                connected++;
-            } else if (strcmp(scene->id, "game") == 0) {
-                game_scene_connect_events(scene, core);
-                connected++;
-            } else if (strcmp(scene->id, "ai") == 0) {
-                ai_scene_connect_events(scene, core);
-                connected++;
-            } else if (strcmp(scene->id, "profile") == 0) {
-                profile_scene_connect_events(scene, core);
-                connected++;
-            } else if (strcmp(scene->id, "choice") == 0) {
-                choice_scene_connect_events(scene, core);
-                connected++;
-            } else {
-                printf("⚠️ scene_registry: type de scène '%s' inconnu, pas de connexion d'événements spécifique\n", 
-                       scene->id);
-            }
+    // Connecter les événements selon le type de scène
+    if (active_scene->id) {
+        if (strcmp(active_scene->id, "home") == 0) {
+            home_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "menu") == 0) {
+            menu_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "game") == 0) {
+            game_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "ai") == 0) {
+            ai_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "profile") == 0) {
+            profile_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "choice") == 0) {
+            choice_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "wiki") == 0) {
+            wiki_scene_connect_events(active_scene, core);
+        } else {
+            printf("⚠️ scene_registry: type de scène '%s' inconnu, pas de connexion d'événements spécifique\n", 
+                   active_scene->id);
         }
     }
     
-    printf("✅ scene_registry: %d scènes ont leurs événements connectés\n", connected);
+    printf("✅ scene_registry: Événements connectés UNIQUEMENT pour la scène '%s'\n", active_scene->id);
     
     // Log dans la console de debug
     char log_msg[256];
     snprintf(log_msg, sizeof(log_msg), 
-             "[scene_registry.c] Events connected for %d scenes", connected);
+             "[scene_registry.c] Events connected ONLY for active scene '%s'", 
+             active_scene->id);
     log_console_write("SceneRegistry", "EventsConnected", "scene_registry.c", log_msg);
     
-    return connected > 0;
+    return true;
 }

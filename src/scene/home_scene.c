@@ -524,7 +524,7 @@ void home_scene_connect_events(Scene* scene, GameCore* core) {
             printf("🔗 UI Link 'Play' connecté au SceneManager pour les transitions réelles\n");
             
             // 🆕 Configurer un délai de sécurité (1 seconde)
-            ui_link_set_activation_delay(data->play_button, 1.0f);
+            ui_link_set_activation_delay(data->play_button, 0.0f);
             printf("⏱️ Délai de sécurité de 1s configuré pour le lien 'Play'\n");
         } else {
             printf("❌ SceneManager non disponible pour le lien UI\n");

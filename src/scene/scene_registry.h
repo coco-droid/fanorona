@@ -10,4 +10,7 @@ bool scene_registry_register_all(SceneManager* manager);
 // Fonction pour connecter les événements de toutes les scènes enregistrées
 bool scene_registry_connect_all_events(SceneManager* manager, GameCore* core);
 
+// 🆕 Forward declaration for wiki_scene
+void wiki_scene_connect_events(Scene* scene, GameCore* core);
+
 #endif // SCENE_REGISTRY_H

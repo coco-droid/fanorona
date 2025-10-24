@@ -44,6 +44,9 @@ void ui_link_set_activation_delay(UINode* link, float seconds);
 // 🆕 Mettre à jour le lien (gestion des délais)
 void ui_link_update(UINode* link, float delta_time);
 
+// 🆕 MISSING FUNCTION: Activer manuellement la transition du lien
+void ui_link_activate(UINode* link);
+
 // 🔧 FIX: Ajouter les macros manquantes
 #ifndef ALIGN_SELF_X
 #define ALIGN_SELF_X(element) atomic_set_align_self_center_x((element)->element)

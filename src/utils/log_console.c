@@ -43,11 +43,11 @@ static const char* get_event_name(int event_type) {
         case 512: return "SDL_WINDOWEVENT";
         case 256: return "SDL_QUIT";
         case 32768: return "SDL_USEREVENT";
-        default: {
-            static char unknown_event[64];
-            snprintf(unknown_event, sizeof(unknown_event), "UNKNOWN_EVENT_%d", event_type);
+        default:
+            // 🔧 FIX: Use thread-local storage + bounds checking
+            static _Thread_local char unknown_event[32]; // Reduced size
+            snprintf(unknown_event, sizeof(unknown_event), "UNKNOWN_%d", event_type);
             return unknown_event;
-        }
     }
 }
 
@@ -210,31 +210,34 @@ void log_console_cleanup(void) {
     
     printf("🧹 Fermeture de la console d'événements...\n");
     
-    if (log_pipe) {
-        log_console_write("EventConsole", "Cleanup", "system", "🔚 Fermeture de la console d'événements - Merci d'avoir debuggé !");
-        fflush(log_pipe);
-        fclose(log_pipe);
-        log_pipe = NULL;
-    }
-    
+    // 🔧 FIX: Kill child FIRST, wait for termination, THEN close pipe
     if (log_console_pid > 0) {
-        // Envoyer SIGTERM au processus de la console
         kill(log_console_pid, SIGTERM);
         
-        // Attendre un peu puis forcer la fermeture si nécessaire
         int status;
-        pid_t result = waitpid(log_console_pid, &status, WNOHANG);
-        if (result == 0) {
-            // Le processus ne s'est pas terminé, attendre encore un peu
-            usleep(500000); // 500ms
-            result = waitpid(log_console_pid, &status, WNOHANG);
-            if (result == 0) {
-                // Forcer la fermeture
-                kill(log_console_pid, SIGKILL);
-                waitpid(log_console_pid, &status, 0);
+        int wait_attempts = 0;
+        while (wait_attempts < 5) {
+            pid_t result = waitpid(log_console_pid, &status, WNOHANG);
+            if (result == log_console_pid || result == -1) {
+                break; // Process terminated
             }
+            usleep(100000); // 100ms
+            wait_attempts++;
         }
+        
+        // Force kill if still alive
+        if (waitpid(log_console_pid, &status, WNOHANG) == 0) {
+            kill(log_console_pid, SIGKILL);
+            waitpid(log_console_pid, &status, 0);
+        }
+        
         log_console_pid = -1;
+    }
+    
+    // 🔧 FIX: NOW safe to close pipe (child is dead)
+    if (log_pipe) {
+        fclose(log_pipe);
+        log_pipe = NULL;
     }
     
     log_console_enabled = false;

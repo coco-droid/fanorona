@@ -25,6 +25,7 @@ fanoron-sivy/
     │   ├── choice_scene.c # 🆕 Scène de choix de mode (Local/En ligne)
     │   ├── menu_scene.c # Scène de menu
     │   ├── profile_scene.c # 🆕 Scène de création de profil
+    │   ├── wiki_scene.c # 🆕 Scène Wiki du jeu
     │   └── game_scene.c # Scène de jeu
     ├── ui/
     │   ├── animation.h     # 🆕 Système d'animations keyframe-based
@@ -49,6 +50,8 @@ fanoron-sivy/
 
 ### Event Manager
 - Système de souscription d'éléments aux événements par scène
+- **🔧 Architecture par scène**: Chaque scène a son EventManager dédié
+- **🔧 Connexion à la demande**: Événements connectés UNIQUEMENT pour la scène active
 - Gestion par position (x, y, largeur, hauteur) et z-index
 - Attribut `display` pour contrôler la visibilité
 - Fonctions pour souscrire, désinscrire et effacer les handlers
@@ -56,9 +59,11 @@ fanoron-sivy/
 
 ### Scene Manager
 - **🆕 Gestion par scène**: Chaque scène a son propre EventManager
+- **🔧 Connexion isolée**: Seule la scène active a ses événements connectés
 - **🆕 Transitions automatiques**: Via SDL_USEREVENT et ui_link
 - **🆕 Multi-fenêtres**: Support MINI (700x500) et MAIN (800x600)
 - **🆕 Debug**: `scene_manager_debug_active_scenes()` pour diagnostiquer
+- **🔧 Reconnexion automatique**: Lors des transitions, la nouvelle scène connecte ses événements
 
 ### Core
 - **🆕 Thread dédié**: Capture des événements en thread séparé
@@ -73,10 +78,16 @@ fanoron-sivy/
 
 ### Profile Scene (NOUVEAU)
 - **🎭 Sélection d'avatar**: 6 avatars (p1.png à p6.png) avec rond cliquable
-- **📝 Saisie de nom**: Champ de texte pour le nom d'utilisateur
-- **🎨 Avatar principal**: Grand aperçu avec bordure dorée
+- **🖱️ Callbacks fonctionnels**: Clic sur mini-avatar → mise à jour immédiate de l'avatar principal
+- **📝 Saisie de nom**: Champ de texte avec registre global par ID de scène (`input_name`)
+- **🔒 Persistance garantie**: Texte enregistré immédiatement à chaque frappe dans le registre global
+- **🔑 Système d'IDs**: Chaque scène utilise des IDs uniques (ex: `input_name` pour profile_scene)
+- **🎨 Avatar principal**: Grand aperçu avec bordure dorée, mis à jour en temps réel
 - **✨ Animations**: Fade-in, pulse, et slide pour une expérience fluide
 - **✅ Validation**: Bouton neon "CONFIRMER" pour sauvegarder le profil
+- **👥 Support multijoueur local**: Configuration séquentielle des deux joueurs via transitions
+- **💾 Sauvegarde complète**: Nom + Avatar ID sauvegardés dans config globale
+- **🔄 Flux multijoueur**: J1 → confirm → scene reload → J2 → confirm → game (propre et sans crash)
 
 ### Choice Scene (NOUVEAU)
 - **🎮 Choix de mode de jeu**: Local ou En ligne
@@ -215,8 +226,7 @@ printf("Animations actives: %d\n", active_count);
 n élément
 // Vérifier si un élément a des animationsnode_stop_animations(mon_bouton);
 if (ui_node_has_active_animations(mon_bouton)) {```
-    printf("Le bouton est en cours d'animation\n");
-}## Debug du système d'événements
+    printf("Le bouton est en cours d'animation\n");}## Debug du système d'événements
 
 // Arrêter toutes les animations d'un élément**🔧 Logs réduits** : Les logs verbeux ont été considérablement réduits pour une meilleure lisibilité.
 ui_node_stop_animations(mon_bouton);

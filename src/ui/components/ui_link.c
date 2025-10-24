@@ -461,3 +461,19 @@ const char* ui_link_get_target_scene_id_from_data(void* data) {
     UILinkData* link_data = (UILinkData*)data;
     return link_data->target_scene_id;
 }
+
+// 🆕 MISSING FUNCTION IMPLEMENTATION
+void ui_link_activate(UINode* link) {
+    if (!link) return;
+    
+    UILinkData* data = (UILinkData*)link->component_data;
+    if (!data || !data->manager || !data->target_scene_id) {
+        printf("❌ ui_link_activate: invalid link data\n");
+        return;
+    }
+    
+    printf("🔗 Activating link to scene '%s'\n", data->target_scene_id);
+    
+    // 🔧 FIX: Use existing function scene_manager_transition_to_scene()
+    scene_manager_transition_to_scene(data->manager, data->target_scene_id, data->transition);
+}

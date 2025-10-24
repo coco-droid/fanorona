@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <stdbool.h>
+#include "../config.h"  // 🔧 FIX: Include config.h BEFORE using AvatarID
 
 typedef enum { EMPTY = 0, WHITE = 1, BLACK = -1, NOBODY = 2 } Player;
 
@@ -41,11 +42,14 @@ typedef struct Piece {
 
 // 🆕 STRUCTURE PLAYER COMPLÈTE
 typedef struct GamePlayer {
-    char name[64];              // Nom du joueur
-    Player logical_color;       // WHITE ou BLACK (logique de jeu)
-    PieceColor piece_color;     // Couleur visuelle choisie
-    PlayerType type;            // HUMAN, AI, ONLINE
-    int player_number;          // 1 ou 2
+    char name[64];              
+    Player logical_color;       
+    PieceColor piece_color;     
+    PlayerType type;            
+    int player_number;          
+    
+    // 🆕 AVATAR avec ID fixe pour multijoueur
+    AvatarID avatar;            // ID fixe de l'avatar sélectionné
     
     // 🆕 STATISTIQUES
     int pieces_remaining;       // Pions restants
