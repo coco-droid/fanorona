@@ -110,11 +110,12 @@ Scene* create_wiki_scene(void);    // 🆕 Ajout de la déclaration pour wiki_sc
 
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
-void menu_scene_connect_events(Scene* scene, GameCore* core);  // 🔧 AJOUTÉ: Déclaration pour menu_scene
-void game_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 AJOUTÉ: Déclaration pour game_scene
-void ai_scene_connect_events(Scene* scene, GameCore* core);    // 🆕 AJOUTÉ: Déclaration pour ai_scene
-void profile_scene_connect_events(Scene* scene, GameCore* core); // 🆕 AJOUTÉ: Déclaration pour profile_scene
-void choice_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 AJOUTÉ: Déclaration pour choice_scene
+void menu_scene_connect_events(Scene* scene, GameCore* core);
+void game_scene_connect_events(Scene* scene, GameCore* core);
+void ai_scene_connect_events(Scene* scene, GameCore* core);
+void profile_scene_connect_events(Scene* scene, GameCore* core);
+void choice_scene_connect_events(Scene* scene, GameCore* core);
+void wiki_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 ADD: Missing declaration
 
 // 🆕 Associer le core au manager pour les transitions automatiques
 void scene_manager_set_core(SceneManager* manager, GameCore* core);

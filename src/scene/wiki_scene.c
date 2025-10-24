@@ -64,101 +64,92 @@ static void wiki_scene_init(Scene* scene) {
     
     // 🆕 CONTENEUR PARENT POUR TOUT LE CONTENU (remplace l'ajout direct au modal)
     UINode* content_parent = UI_DIV(data->ui_tree, "wiki-content-parent");
-    SET_SIZE(content_parent, 450, 380); // Taille qui rentre dans le modal
+    SET_SIZE(content_parent, 450, 350); // 🔧 AUGMENTÉ: 340 -> 350 pour compenser la marge de 24px
     ui_set_display_flex(content_parent);
     FLEX_COLUMN(content_parent);
     ui_set_justify_content(content_parent, "flex-start");
-    ui_set_align_items(content_parent, "center"); // Centrage horizontal de tous les enfants
-    ui_set_flex_gap(content_parent, 12);
+    ui_set_align_items(content_parent, "center");
+    ui_set_flex_gap(content_parent, 8); // 🔧 RÉDUIT: 12 -> 8
     
     // Ajouter le header personnalisé "WIKI DU JEU" AU CONTENEUR PARENT
     UINode* wiki_header = UI_TEXT(data->ui_tree, "wiki-header", "WIKI DU JEU");
-    ui_set_text_color(wiki_header, "rgb(255, 165, 0)"); // Orange comme les headers
+    ui_set_text_color(wiki_header, "rgb(255, 165, 0)");
     ui_set_text_size(wiki_header, 20);
     ui_set_text_align(wiki_header, "center");
-    ui_set_text_style(wiki_header, true, false); // Bold
+    ui_set_text_style(wiki_header, true, false);
+    atomic_set_margin(wiki_header->element, 24, 0, 0, 0); // 🔧 AJOUT: 24px margin-top pour séparer du sous-titre
     
-    // Sous-titre (réduit pour économiser espace)
-    UINode* subtitle = UI_TEXT(data->ui_tree, "wiki-subtitle", "GUIDE COMPLET");
-    ui_set_text_color(subtitle, "rgb(204, 204, 204)");
-    ui_set_text_size(subtitle, 14); // Réduit
-    ui_set_text_align(subtitle, "center");
-    atomic_set_margin(subtitle->element, 0, 0, 8, 0); // Réduit
+    // 🔧 SUPPRESSION: Sous-titre "GUIDE COMPLET" enlevé complètement
     
-    // Container pour les sections (RÉDUIT pour rentrer)
+    // Container pour les sections (RÉDUIT pour compenser la marge)
     UINode* sections_container = UI_DIV(data->ui_tree, "sections-container");
-    SET_SIZE(sections_container, 440, 280); // Réduit pour rentrer
+    SET_SIZE(sections_container, 440, 180); // 🔧 RÉDUIT: 210 -> 180 (pour compenser +24px marge header)
     ui_set_display_flex(sections_container);
     FLEX_COLUMN(sections_container);
-    ui_set_justify_content(sections_container, "space-between"); // Changé
-    ui_set_align_items(sections_container, "stretch"); // Largeur complète
-    ui_set_flex_gap(sections_container, 10); // Réduit
+    ui_set_justify_content(sections_container, "space-between");
+    ui_set_align_items(sections_container, "stretch");
+    ui_set_flex_gap(sections_container, 0); // 🔧 RÉDUIT: 10 -> 0
     
-    // === SECTION 1: RÈGLES DE BASE (TAILLE RÉDUITE) ===
+    // === SECTION 1: RÈGLES DE BASE (UNIQUEMENT TITRE) ===
     UINode* section1 = UI_DIV(data->ui_tree, "section-rules");
-    SET_SIZE(section1, 440, 80); // Réduit
+    SET_SIZE(section1, 440, 55); // 🔧 RÉDUIT: 60 -> 55
     ui_set_display_flex(section1);
     ui_set_flex_direction(section1, "row");
     ui_set_justify_content(section1, "space-between");
-    ui_set_align_items(section1, "flex-start");
+    ui_set_align_items(section1, "center"); // 🔧 CHANGÉ: flex-start -> center
     atomic_set_background_color(section1->element, 0, 0, 0, 50);
-    atomic_set_padding(section1->element, 10, 10, 10, 10); // Réduit
+    atomic_set_padding(section1->element, 8, 10, 8, 10); // 🔧 RÉDUIT padding vertical
     
-    // Conteneur texte section 1 (RÉDUIT)
+    // Conteneur texte section 1 (SIMPLIFIÉ - titre uniquement)
     UINode* section1_text = UI_DIV(data->ui_tree, "section1-text");
-    SET_SIZE(section1_text, 370, 60); // Réduit
+    SET_SIZE(section1_text, 370, 40); // 🔧 RÉDUIT: 60 -> 40
     ui_set_display_flex(section1_text);
     FLEX_COLUMN(section1_text);
-    ui_set_flex_gap(section1_text, 4); // Réduit
+    ui_set_justify_content(section1_text, "center"); // 🔧 Centrage vertical
     
     UINode* title1 = UI_TEXT(data->ui_tree, "title-rules", "RÈGLES DE BASE");
     ui_set_text_color(title1, "rgb(233, 215, 161)");
-    ui_set_text_size(title1, 14); // Réduit
+    ui_set_text_size(title1, 14);
     ui_set_text_style(title1, true, false);
     
-    UINode* desc1 = UI_TEXT(data->ui_tree, "desc-rules", "Plateau 5x9. Capturez par approche ou retrait.");
-    ui_set_text_color(desc1, "rgb(190, 190, 190)");
-    ui_set_text_size(desc1, 11); // Réduit
+    // 🔧 SUPPRESSION: Description "Plateau 5x9..." enlevée
     
     APPEND(section1_text, title1);
-    APPEND(section1_text, desc1);
+    // 🔧 SUPPRESSION: desc1 n'est plus ajouté
     
-    // Icône section 1 (RÉDUITE)
+    // Icône section 1
     UINode* icon1 = UI_DIV(data->ui_tree, "icon-rules");
-    SET_SIZE(icon1, 40, 40); // Réduit
+    SET_SIZE(icon1, 40, 40);
     atomic_set_background_color(icon1->element, 233, 215, 161, 100);
     atomic_set_border(icon1->element, 2, 233, 215, 161, 255);
     
     APPEND(section1, section1_text);
     APPEND(section1, icon1);
     
-    // === SECTION 2: STRATÉGIES AVANCÉES (MÊME STRUCTURE RÉDUITE) ===
+    // === SECTION 2: STRATÉGIES (UNIQUEMENT TITRE) ===
     UINode* section2 = UI_DIV(data->ui_tree, "section-strategy");
-    SET_SIZE(section2, 440, 80);
+    SET_SIZE(section2, 440, 55); // 🔧 RÉDUIT: 60 -> 55
     ui_set_display_flex(section2);
     ui_set_flex_direction(section2, "row");
     ui_set_justify_content(section2, "space-between");
-    ui_set_align_items(section2, "flex-start");
+    ui_set_align_items(section2, "center");
     atomic_set_background_color(section2->element, 0, 0, 0, 50);
-    atomic_set_padding(section2->element, 10, 10, 10, 10);
+    atomic_set_padding(section2->element, 8, 10, 8, 10);
     
     UINode* section2_text = UI_DIV(data->ui_tree, "section2-text");
-    SET_SIZE(section2_text, 370, 60);
+    SET_SIZE(section2_text, 370, 40);
     ui_set_display_flex(section2_text);
     FLEX_COLUMN(section2_text);
-    ui_set_flex_gap(section2_text, 4);
+    ui_set_justify_content(section2_text, "center");
     
     UINode* title2 = UI_TEXT(data->ui_tree, "title-strategy", "STRATÉGIES");
     ui_set_text_color(title2, "rgb(233, 215, 161)");
     ui_set_text_size(title2, 14);
     ui_set_text_style(title2, true, false);
     
-    UINode* desc2 = UI_TEXT(data->ui_tree, "desc-strategy", "Sacrifices tactiques, contrôle du centre.");
-    ui_set_text_color(desc2, "rgb(190, 190, 190)");
-    ui_set_text_size(desc2, 11);
+    // 🔧 SUPPRESSION: Description "Sacrifices tactiques..." enlevée
     
     APPEND(section2_text, title2);
-    APPEND(section2_text, desc2);
     
     UINode* icon2 = UI_DIV(data->ui_tree, "icon-strategy");
     SET_SIZE(icon2, 40, 40);
@@ -168,33 +159,30 @@ static void wiki_scene_init(Scene* scene) {
     APPEND(section2, section2_text);
     APPEND(section2, icon2);
     
-    // === SECTION 3: HISTOIRE (MÊME STRUCTURE RÉDUITE) ===
+    // === SECTION 3: HISTOIRE (UNIQUEMENT TITRE) ===
     UINode* section3 = UI_DIV(data->ui_tree, "section-history");
-    SET_SIZE(section3, 440, 80);
+    SET_SIZE(section3, 440, 55); // 🔧 RÉDUIT: 60 -> 55
     ui_set_display_flex(section3);
     ui_set_flex_direction(section3, "row");
     ui_set_justify_content(section3, "space-between");
-    ui_set_align_items(section3, "flex-start");
+    ui_set_align_items(section3, "center");
     atomic_set_background_color(section3->element, 0, 0, 0, 50);
-    atomic_set_padding(section3->element, 10, 10, 10, 10);
+    atomic_set_padding(section3->element, 8, 10, 8, 10);
     
     UINode* section3_text = UI_DIV(data->ui_tree, "section3-text");
-    SET_SIZE(section3_text, 370, 60);
+    SET_SIZE(section3_text, 370, 40);
     ui_set_display_flex(section3_text);
     FLEX_COLUMN(section3_text);
-    ui_set_flex_gap(section3_text, 4);
+    ui_set_justify_content(section3_text, "center");
     
     UINode* title3 = UI_TEXT(data->ui_tree, "title-history", "HISTOIRE");
     ui_set_text_color(title3, "rgb(233, 215, 161)");
     ui_set_text_size(title3, 14);
     ui_set_text_style(title3, true, false);
     
-    UINode* desc3 = UI_TEXT(data->ui_tree, "desc-history", "Jeu ancestral de Madagascar.");
-    ui_set_text_color(desc3, "rgb(190, 190, 190)");
-    ui_set_text_size(desc3, 11);
+    // 🔧 SUPPRESSION: Description "Jeu ancestral..." enlevée
     
     APPEND(section3_text, title3);
-    APPEND(section3_text, desc3);
     
     UINode* icon3 = UI_DIV(data->ui_tree, "icon-history");
     SET_SIZE(icon3, 40, 40);
@@ -209,22 +197,22 @@ static void wiki_scene_init(Scene* scene) {
     APPEND(sections_container, section2);
     APPEND(sections_container, section3);
     
-    // Bouton retour (RÉDUIT)
+    // Bouton retour
     data->back_link = ui_create_link(data->ui_tree, "back-link", "RETOUR", "menu", SCENE_TRANSITION_REPLACE);
     if (data->back_link) {
-        SET_SIZE(data->back_link, 150, 35); // Réduit
+        SET_SIZE(data->back_link, 150, 35);
         ui_set_text_align(data->back_link, "center");
         atomic_set_background_color(data->back_link->element, 64, 64, 64, 200);
         atomic_set_border(data->back_link->element, 2, 128, 128, 128, 255);
         atomic_set_text_color_rgba(data->back_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->back_link->element, 6, 10, 6, 10);
-        atomic_set_margin(data->back_link->element, 10, 0, 0, 0);
+        atomic_set_margin(data->back_link->element, 8, 0, 0, 0); // 🔧 RÉDUIT: 10 -> 8
         ui_link_set_target_window(data->back_link, WINDOW_TYPE_MINI);
     }
     
     // 🆕 ASSEMBLER TOUT DANS LE CONTENEUR PARENT
     APPEND(content_parent, wiki_header);
-    APPEND(content_parent, subtitle);
+    // 🔧 SUPPRESSION: subtitle n'est plus ajouté
     APPEND(content_parent, sections_container);
     APPEND(content_parent, data->back_link);
     
@@ -244,7 +232,7 @@ static void wiki_scene_init(Scene* scene) {
     
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface Wiki créée avec conteneur parent flex et éléments contraints\n");
+    printf("✅ Interface Wiki créée - version compacte sans descriptions\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;

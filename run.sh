@@ -72,6 +72,7 @@ SOURCES=(
     "$SRC_DIR/core/core.c"
     "$SRC_DIR/event/event.c"
     "$SRC_DIR/window/window.c"
+    "$SRC_DIR/config.c"
     "$SRC_DIR/scene/scene.c"
     "$SRC_DIR/scene/scene_manager.c"
     "$SRC_DIR/scene/home_scene.c"
@@ -97,7 +98,6 @@ SOURCES=(
     "$SRC_DIR/plateau/plateau.c"
     "$SRC_DIR/pions/pions.c"
     "$SRC_DIR/logic/rules.c"
-    "$SRC_DIR/config.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
 )

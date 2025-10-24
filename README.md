@@ -85,9 +85,7 @@ fanoron-sivy/
 - **🎨 Avatar principal**: Grand aperçu avec bordure dorée, mis à jour en temps réel
 - **✨ Animations**: Fade-in, pulse, et slide pour une expérience fluide
 - **✅ Validation**: Bouton neon "CONFIRMER" pour sauvegarder le profil
-- **👥 Support multijoueur local**: Configuration séquentielle des deux joueurs via transitions
-- **💾 Sauvegarde complète**: Nom + Avatar ID sauvegardés dans config globale
-- **🔄 Flux multijoueur**: J1 → confirm → scene reload → J2 → confirm → game (propre et sans crash)
+- **🔧 Architecture**: File-scoped static globals (no heap, no corruption)
 
 ### Choice Scene (NOUVEAU)
 - **🎮 Choix de mode de jeu**: Local ou En ligne
