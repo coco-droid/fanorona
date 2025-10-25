@@ -48,8 +48,8 @@ typedef struct {
     char player2_name[128];
     AvatarID player1_avatar;
     AvatarID player2_avatar;
-    bool player1_configured;  // 🆕 J1 a terminé sa config
-    bool player2_configured;  // 🆕 J2 a terminé sa config
+    bool player1_configured;    // 🆕 Flag J1 configuré
+    bool player2_configured;    // 🆕 Flag J2 configuré
     bool ai_plays_as_white;
     bool sound_enabled;
     bool animations_enabled;
@@ -82,10 +82,12 @@ const char* config_difficulty_to_string(AIDifficulty difficulty);
 // 🆕 FONCTION RAPIDE pour activer le mode IA
 void config_enable_ai_mode(void);
 
-// 🆕 NOUVELLES FONCTIONS pour gérer les flags
+// 🆕 NOUVELLES FONCTIONS pour vérifier l'état
 bool config_is_player1_configured(void);
 bool config_is_player2_configured(void);
-bool config_is_profile_player2_turn(void);  // 🔧 FIX: Check if profile scene should show J2 form (NOT game turn)
+
+// 🔧 FIX: Check if profile scene should show J2 form (NOT game turn)
+bool config_is_profile_player2_turn(void);
 void config_reset_player_configs(void);
 
 #endif // FANORONA_CONFIG_H

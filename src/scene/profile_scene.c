@@ -11,6 +11,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+// 🆕 STRUCTURE PROFILEDATA pour le multistep form
+typedef struct ProfileData {
+    // Joueur 1
+    char player1_name[128];
+    AvatarID player1_avatar;
+    bool player1_completed;
+    
+    // Joueur 2
+    char player2_name[128];
+    AvatarID player2_avatar;
+    bool player2_completed;
+    
+    // État du form
+    int current_step;  // 1 = Joueur 1, 2 = Joueur 2
+    bool is_local_multiplayer;
+} ProfileData;
+
 // Données pour la scène Profile
 typedef struct ProfileSceneData {
     bool initialized;
@@ -18,26 +35,167 @@ typedef struct ProfileSceneData {
     GameCore* core;
     UINode* avatar_selector;
     UINode* back_link;
-    UINode* next_button;  // 🆕 Nouveau bouton suivant
+    UINode* next_link;
+    UINode* name_input;
+    UINode* profile_header;  // 🆕 Référence au header pour le modifier
+    ProfileData* profile_data;  // 🆕 Données du multistep form
 } ProfileSceneData;
 
-// 🆕 Callback pour le bouton suivant
-static void next_button_clicked(void* element, SDL_Event* event) {
-    (void)event;
+// 🆕 FONCTIONS HELPER pour ProfileData
+static ProfileData* create_profile_data(void) {
+    ProfileData* data = (ProfileData*)calloc(1, sizeof(ProfileData));
+    if (data) {
+        // Initialiser Joueur 1
+        strcpy(data->player1_name, "");
+        data->player1_avatar = AVATAR_WARRIOR;
+        data->player1_completed = false;
+        
+        // Initialiser Joueur 2
+        strcpy(data->player2_name, "");
+        data->player2_avatar = AVATAR_WARRIOR;
+        data->player2_completed = false;
+        
+        // État initial
+        data->current_step = 1;
+        data->is_local_multiplayer = true;  // Pour l'instant, toujours local
+        
+        printf("📋 ProfileData créée - Étape initiale: Joueur 1\n");
+    }
+    return data;
+}
+
+static void log_profile_data(ProfileData* data) {
+    if (!data) return;
     
-    AtomicElement* atomic = (AtomicElement*)element;
-    ProfileSceneData* data = (ProfileSceneData*)atomic->user_data;
+    printf("\n=== 📊 PROFILE DATA STATUS ===\n");
+    printf("Current Step: %d (%s)\n", 
+           data->current_step, 
+           data->current_step == 1 ? "Joueur 1" : "Joueur 2");
+    printf("Mode: %s\n", data->is_local_multiplayer ? "Local Multiplayer" : "Autre");
     
-    if (data && data->avatar_selector) {
-        // Réinitialiser le composant avatar
-        ui_avatar_selector_reset_to_defaults(data->avatar_selector);
-        printf("🔄 Avatar selector réinitialisé via bouton SUIVANT\n");
+    printf("\n👤 JOUEUR 1:\n");
+    printf("   Nom: '%s'\n", data->player1_name[0] ? data->player1_name : "[VIDE]");
+    printf("   Avatar: %d (%s)\n", data->player1_avatar, avatar_id_to_filename(data->player1_avatar));
+    printf("   Complété: %s\n", data->player1_completed ? "✅ OUI" : "❌ NON");
+    
+    printf("\n👤 JOUEUR 2:\n");
+    printf("   Nom: '%s'\n", data->player2_name[0] ? data->player2_name : "[VIDE]");
+    printf("   Avatar: %d (%s)\n", data->player2_avatar, avatar_id_to_filename(data->player2_avatar));
+    printf("   Complété: %s\n", data->player2_completed ? "✅ OUI" : "❌ NON");
+    printf("==============================\n\n");
+}
+
+// 🆕 METTRE À JOUR L'UI selon l'étape actuelle
+static void update_ui_for_current_step(ProfileSceneData* scene_data) {
+    if (!scene_data || !scene_data->profile_data) return;
+    
+    ProfileData* data = scene_data->profile_data;
+    
+    if (data->current_step == 1) {
+        // Étape Joueur 1
+        atomic_set_text(scene_data->profile_header->element, "CRÉATION DE PROFIL - JOUEUR 1");
+        ui_text_input_set_placeholder(scene_data->name_input, "Nom du Joueur 1");
+        atomic_set_text(scene_data->next_link->element, "SUIVANT");
+        
+        // 🔧 FIX: Restaurer le design du bouton après changement de texte
+        atomic_set_background_color(scene_data->next_link->element, 0, 128, 0, 200);
+        atomic_set_border(scene_data->next_link->element, 2, 0, 255, 0, 255);
+        atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
+        atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
+        
+        printf("🔄 UI mise à jour pour Joueur 1\n");
+    } else {
+        // Étape Joueur 2
+        atomic_set_text(scene_data->profile_header->element, "CRÉATION DE PROFIL - JOUEUR 2");
+        ui_text_input_set_placeholder(scene_data->name_input, "Nom du Joueur 2");
+        atomic_set_text(scene_data->next_link->element, "START");
+        
+        // 🔧 FIX: Restaurer le design avec une couleur différente pour START
+        atomic_set_background_color(scene_data->next_link->element, 0, 64, 128, 200);  // Bleu foncé
+        atomic_set_border(scene_data->next_link->element, 2, 0, 150, 255, 255);
+        atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
+        atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
+        
+        printf("🔄 UI mise à jour pour Joueur 2 (bouton START)\n");
     }
 }
 
+// 🔧 FIX: Callback pour le UI Link suivant avec logique multistep
+static void next_link_callback(UINode* link) {
+    (void)link;
+    
+    UITree* tree = link->tree;
+    if (!tree) return;
+    
+    // Trouver les éléments nécessaires
+    UINode* avatar_selector = ui_tree_find_node(tree, "profile-avatar-selector");
+    UINode* name_input = ui_tree_find_node(tree, "profile-name-input");
+    
+    // Récupérer les données de scène via l'arbre global
+    extern UITree* ui_get_global_tree(void);
+    ProfileSceneData* scene_data = NULL;
+    
+    // 🔧 HACK: Utiliser une variable globale pour accéder aux données de scène
+    extern ProfileSceneData* g_current_profile_scene_data;
+    scene_data = g_current_profile_scene_data;
+    
+    if (!scene_data || !scene_data->profile_data) {
+        printf("❌ Impossible de récupérer les données de scène\n");
+        return;
+    }
+    
+    ProfileData* data = scene_data->profile_data;
+    
+    // Récupérer les valeurs actuelles
+    const char* current_name = ui_text_input_get_text(name_input);
+    AvatarID current_avatar = avatar_selector ? ui_avatar_selector_get_selected(avatar_selector) : AVATAR_WARRIOR;
+    
+    if (data->current_step == 1) {
+        // Sauvegarder les données du Joueur 1
+        strncpy(data->player1_name, current_name ? current_name : "", sizeof(data->player1_name) - 1);
+        data->player1_name[sizeof(data->player1_name) - 1] = '\0';
+        data->player1_avatar = current_avatar;
+        data->player1_completed = true;
+        
+        printf("💾 Données Joueur 1 sauvegardées\n");
+        log_profile_data(data);
+        
+        // Passer à l'étape 2
+        data->current_step = 2;
+        
+        // Vider les champs pour le Joueur 2
+        ui_text_input_set_text(name_input, "");
+        ui_avatar_selector_reset_to_defaults(avatar_selector);
+        
+        // Mettre à jour l'UI
+        update_ui_for_current_step(scene_data);
+        
+        printf("➡️ Passage à l'étape Joueur 2\n");
+        
+    } else {
+        // Sauvegarder les données du Joueur 2 et terminer
+        strncpy(data->player2_name, current_name ? current_name : "", sizeof(data->player2_name) - 1);
+        data->player2_name[sizeof(data->player2_name) - 1] = '\0';
+        data->player2_avatar = current_avatar;
+        data->player2_completed = true;
+        
+        printf("💾 Données Joueur 2 sauvegardées\n");
+        log_profile_data(data);
+        
+        printf("🏁 MULTISTEP FORM COMPLÉTÉ!\n");
+        printf("🚀 Prêt à démarrer la partie...\n");
+        
+        // TODO: Ici on pourrait déclencher une transition vers le jeu
+        // ou sauvegarder dans la config globale
+    }
+}
+
+// Variable globale pour l'accès aux données de scène (HACK temporaire)
+ProfileSceneData* g_current_profile_scene_data = NULL;
+
 // Initialisation de la scène Profile
 static void profile_scene_init(Scene* scene) {
-    printf("👤 Initialisation de la scène Profile\n");
+    printf("👤 Initialisation de la scène Profile (Multistep Form)\n");
     
     ui_set_hitbox_visualization(false);
     
@@ -51,7 +209,13 @@ static void profile_scene_init(Scene* scene) {
     data->core = NULL;
     data->avatar_selector = NULL;
     data->back_link = NULL;
-    data->next_button = NULL;  // 🆕 Initialiser
+    data->next_link = NULL;
+    data->name_input = NULL;
+    data->profile_header = NULL;  // 🆕 Initialiser
+    data->profile_data = create_profile_data();  // 🆕 Créer les données du form
+    
+    // 🔧 HACK: Stocker globalement pour accès depuis le callback
+    g_current_profile_scene_data = data;
 
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -90,19 +254,31 @@ static void profile_scene_init(Scene* scene) {
     ui_set_align_items(content_parent, "center");
     ui_set_flex_gap(content_parent, 20);
     
-    // Header "CRÉATION DE PROFIL"
-    UINode* profile_header = UI_TEXT(data->ui_tree, "profile-header", "CRÉATION DE PROFIL");
-    ui_set_text_color(profile_header, "rgb(255, 165, 0)");
-    ui_set_text_size(profile_header, 20);
-    ui_set_text_align(profile_header, "center");
-    ui_set_text_style(profile_header, true, false);
-    atomic_set_margin(profile_header->element, 24, 0, 0, 0);
+    // Header "CRÉATION DE PROFIL" (maintenant modifiable)
+    data->profile_header = UI_TEXT(data->ui_tree, "profile-header", "CRÉATION DE PROFIL - JOUEUR 1");
+    ui_set_text_color(data->profile_header, "rgb(255, 165, 0)");
+    ui_set_text_size(data->profile_header, 20);
+    ui_set_text_align(data->profile_header, "center");
+    ui_set_text_style(data->profile_header, true, false);
+    atomic_set_margin(data->profile_header->element, 24, 0, 0, 0);
     
     // Avatar Selector
     data->avatar_selector = UI_AVATAR_SELECTOR(data->ui_tree, "profile-avatar-selector");
     if (data->avatar_selector) {
         AVATAR_RESET_DEFAULTS(data->avatar_selector);
         printf("✨ Avatar selector créé et réinitialisé\n");
+    }
+    
+    // 🆕 Text Input pour le nom (placeholder initial Joueur 1)
+    data->name_input = ui_text_input(data->ui_tree, "profile-name-input", "Nom du Joueur 1");
+    if (data->name_input) {
+        SET_SIZE(data->name_input, 300, 40);
+        ui_set_text_align(data->name_input, "left");
+        atomic_set_background_color(data->name_input->element, 255, 255, 255, 220);
+        atomic_set_border(data->name_input->element, 2, 255, 165, 0, 255);
+        ui_text_input_set_max_length(data->name_input, 50);
+        ui_text_input_set_scene_id(data->name_input, "input_name");
+        printf("📝 Text input créé avec placeholder Joueur 1\n");
     }
     
     // 🆕 Container pour les boutons (RETOUR + SUIVANT)
@@ -126,27 +302,31 @@ static void profile_scene_init(Scene* scene) {
         APPEND(buttons_container, data->back_link);
     }
     
-    // 🆕 Bouton suivant
-    data->next_button = ui_button(data->ui_tree, "next-button", "SUIVANT", NULL, NULL);
-    if (data->next_button) {
-        SET_SIZE(data->next_button, 150, 35);
-        ui_set_text_align(data->next_button, "center");
-        atomic_set_background_color(data->next_button->element, 0, 128, 0, 200);
-        atomic_set_border(data->next_button->element, 2, 0, 255, 0, 255);
-        atomic_set_text_color_rgba(data->next_button->element, 255, 255, 255, 255);
-        atomic_set_padding(data->next_button->element, 6, 10, 6, 10);
+    // 🔧 FIX: UI Link SUIVANT avec design préservé
+    data->next_link = ui_create_link(data->ui_tree, "next-link", "SUIVANT", NULL, SCENE_TRANSITION_REPLACE);
+    if (data->next_link) {
+        SET_SIZE(data->next_link, 150, 35);
+        ui_set_text_align(data->next_link, "center");
         
-        // Connecter le callback de clic
-        atomic_set_click_handler(data->next_button->element, next_button_clicked);
-        data->next_button->element->user_data = data;
+        // 🎨 Design initial (sera restauré dans update_ui_for_current_step)
+        atomic_set_background_color(data->next_link->element, 0, 128, 0, 200);
+        atomic_set_border(data->next_link->element, 2, 0, 255, 0, 255);
+        atomic_set_text_color_rgba(data->next_link->element, 255, 255, 255, 255);
+        atomic_set_padding(data->next_link->element, 6, 10, 6, 10);
         
-        APPEND(buttons_container, data->next_button);
+        ui_link_set_target(data->next_link, NULL);
+        ui_link_set_click_handler(data->next_link, next_link_callback);
+        ui_link_set_activation_delay(data->next_link, 0.0f);
+        
+        APPEND(buttons_container, data->next_link);
+        printf("🔗 UI Link 'SUIVANT' créé avec design préservé\n");
     }
     
     // Assembler dans le conteneur parent
-    APPEND(content_parent, profile_header);
+    APPEND(content_parent, data->profile_header);  // 🔧 FIX: Utiliser la référence stockée
     APPEND(content_parent, data->avatar_selector);
-    APPEND(content_parent, buttons_container);  // 🔧 Remplacer data->back_link par buttons_container
+    APPEND(content_parent, data->name_input);
+    APPEND(content_parent, buttons_container);
 
     // Ajouter au modal
     ui_container_add_content(modal_container, content_parent);
@@ -161,7 +341,7 @@ static void profile_scene_init(Scene* scene) {
     
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface Profile créée avec avatar selector\n");
+    printf("✅ Interface Profile créée avec multistep form (Étape 1/2)\n");
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;
@@ -186,7 +366,10 @@ static void profile_scene_update(Scene* scene, float delta_time) {
             ui_link_update(data->back_link, delta_time);
         }
         
-        // 🆕 Pas besoin d'update pour le button next (géré par ui_tree_update)
+        // 🔧 FIX: Mettre à jour le UI Link suivant
+        if (data->next_link) {
+            ui_link_update(data->next_link, delta_time);
+        }
     }
 }
 
@@ -210,6 +393,18 @@ static void profile_scene_cleanup(Scene* scene) {
     if (!scene || !scene->data) return;
     
     ProfileSceneData* data = (ProfileSceneData*)scene->data;
+    
+    // 🆕 Nettoyer les données du multistep form
+    if (data->profile_data) {
+        printf("🗑️ Nettoyage ProfileData\n");
+        free(data->profile_data);
+        data->profile_data = NULL;
+    }
+    
+    // 🔧 HACK: Nettoyer la référence globale
+    if (g_current_profile_scene_data == data) {
+        g_current_profile_scene_data = NULL;
+    }
     
     if (data->ui_tree) {
         ui_tree_destroy(data->ui_tree);
@@ -307,7 +502,16 @@ void profile_scene_connect_events(Scene* scene, GameCore* core) {
         }
     }
     
-    // 🆕 Le bouton SUIVANT est automatiquement enregistré via ui_tree_register_all_events()
+    // 🔧 FIX: Connecter le UI Link suivant (même si pas de transition)
+    if (data->next_link) {
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(core);
+        
+        if (scene_manager) {
+            ui_link_connect_to_manager(data->next_link, scene_manager);
+            printf("🔗 UI Link 'SUIVANT' connecté (callback seulement)\n");
+        }
+    }
     
-    printf("✅ Scène Profile prête avec avatar selector et bouton SUIVANT\n");
+    printf("✅ Scène Profile prête avec avatar selector, text input et UI Link SUIVANT\n");
 }
