@@ -3,6 +3,7 @@
 
 #include "ui_tree.h"
 #include "animation.h"  // 🆕 AJOUT: Support pour les animations
+#include "../config.h"  // 🔧 FIX: Include config.h for AvatarID type
 #include <SDL2/SDL_ttf.h>
 
 // Forward declarations
@@ -431,5 +432,38 @@ void ui_plateau_animate_initial_wave(UINode* plateau);
 #define ANIMATE_VICTORY(plateau, player) ui_plateau_animate_victory_dance(plateau, player)
 #define ANIMATE_DEFEAT(plateau, player) ui_plateau_animate_defeat_fade(plateau, player)
 #define ANIMATE_INITIAL_WAVE(plateau) ui_plateau_animate_initial_wave(plateau)
+
+// === AVATAR SELECTOR COMPONENT ===
+
+// Créer un sélecteur d'avatar avec avatar principal et 6 mini-avatars cliquables
+UINode* ui_avatar_selector(UITree* tree, const char* id);
+
+// Définir un callback appelé lors du changement d'avatar
+void ui_avatar_selector_set_callback(UINode* selector, 
+                                     void (*callback)(AvatarID avatar, void* user_data),
+                                     void* user_data);
+
+// Obtenir l'avatar actuellement sélectionné
+AvatarID ui_avatar_selector_get_selected(UINode* selector);
+
+// Définir l'avatar sélectionné programmatiquement
+void ui_avatar_selector_set_selected(UINode* selector, AvatarID avatar);
+
+// Remettre la sélection à AVATAR_WARRIOR
+void ui_avatar_selector_reset(UINode* selector);
+
+// 🆕 NOUVEAU HELPER: Réinitialiser aux paramètres par défaut
+void ui_avatar_selector_reset_to_defaults(UINode* selector);
+
+// Enregistrer tous les événements des mini-avatars dans l'EventManager
+void ui_avatar_selector_register_events(UINode* selector, EventManager* event_manager);
+
+// Mettre à jour les animations du composant
+void ui_avatar_selector_update(UINode* selector, float delta_time);
+
+// === MACROS POUR AVATAR SELECTOR ===
+
+#define UI_AVATAR_SELECTOR(tree, id) ui_avatar_selector(tree, id)
+#define AVATAR_RESET_DEFAULTS(selector) ui_avatar_selector_reset_to_defaults(selector)
 
 #endif // UI_COMPONENTS_H

@@ -472,4 +472,7 @@ void atomic_cleanup_custom_data(AtomicElement* element);
 // 🆕 CUSTOM RENDER FUNCTION
 void atomic_set_custom_render(AtomicElement* element, void (*custom_render)(AtomicElement*, SDL_Renderer*));
 
+// 🆕 INTERACTIVITY CONTROL FUNCTION
+void atomic_set_interactive(AtomicElement* element, bool interactive);
+
 #endif // ATOMIC_H
