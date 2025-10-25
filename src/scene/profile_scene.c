@@ -187,21 +187,21 @@ static void next_link_callback(UINode* link) {
         config_set_player2_full_profile(data->player2_name, data->player2_avatar);
         
         printf("🏁 MULTISTEP FORM COMPLÉTÉ!\n");
-        printf("🚀 Transition vers game_scene...\n");
+        printf("🚀 Transition vers pieces_scene...\n");
         
-        // 🆕 TRANSITION vers game_scene avec CLOSE_AND_OPEN
+        // 🔧 FIX: Rediriger vers pieces_scene au lieu de game_scene
         if (scene_data->next_link) {
-            ui_link_set_target(scene_data->next_link, "game");
-            ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_CLOSE_AND_OPEN);
-            ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MAIN);
+            ui_link_set_target(scene_data->next_link, "pieces");
+            ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_REPLACE);
+            ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MINI);
             
             // Déclencher la transition immédiatement
             extern SceneManager* game_core_get_scene_manager(GameCore* core);
             if (scene_data->core) {
                 SceneManager* scene_manager = game_core_get_scene_manager(scene_data->core);
                 if (scene_manager) {
-                    scene_manager_transition_to_scene(scene_manager, "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
-                    printf("✅ Transition vers game_scene déclenchée\n");
+                    scene_manager_transition_to_scene(scene_manager, "pieces", SCENE_TRANSITION_REPLACE);
+                    printf("✅ Transition vers pieces_scene déclenchée\n");
                 }
             }
         }

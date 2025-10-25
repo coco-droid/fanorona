@@ -914,58 +914,47 @@ Cette architecture garantit une **simplicité maximale** tout en maintenant **to
 - ✅ **Plus stable** : Élimination des problèmes de threading
 - ✅ **Plus simple** : Code divisé par 10 en complexité
 
-### 🎯 Animations de pièces du plateau
+### 🎯 Animations de pièces du plateau (MAINTENANT IMPLÉMENTÉES)
 
-Le système d'animation support maintenant les animations spécifiques aux pièces du jeu Fanorona :
-
-```c
-// Animation de déplacement d'une pièce
-ANIMATE_PIECE_MOVE(plateau, from_intersection_id, to_intersection_id);
-
-// Animation de capture (disparition avec fade-out)
-ANIMATE_PIECE_CAPTURE(plateau, piece_intersection_id);
-
-// Animation de placement (apparition avec fade-in)
-ANIMATE_PIECE_PLACE(plateau, intersection_id);
-
-// Animation de sélection (pulsation)
-ANIMATE_PIECE_SELECT(plateau, piece_intersection_id);
-
-// Animations de fin de jeu
-ANIMATE_VICTORY(plateau, winning_player);  // Toutes les pièces gagnantes sautent
-ANIMATE_DEFEAT(plateau, losing_player);    // Toutes les pièces perdantes s'estompent
-
-// Animation d'apparition initiale en vague
-ANIMATE_INITIAL_WAVE(plateau);
-```
-
-### 🔄 Nouveau flux de navigation IA
-
-Le système de navigation vers le jeu contre l'IA a été simplifié :
-
-1. **Menu Principal** → Bouton "JOUER CONTRE L'IA" → **Scène Configuration IA** (MINI window)
-2. **Scène Configuration IA** → Configuration utilisateur → Bouton "DÉMARRER" → **Scène de Jeu** (MAIN window)
+Le système d'animation supporte maintenant les animations spécifiques aux pièces du jeu Fanorona avec implémentations fonctionnelles :
 
 ```c
-// Dans menu_scene.c - Lien vers configuration IA
-ui_create_link(tree, "ai-link", "JOUER CONTRE L'IA", "ai", SCENE_TRANSITION_REPLACE);
-// Reste dans la MINI window, va vers ai_scene
+// ✅ Fonctions d'animation maintenant implémentées dans plateau_cnt.c
 
-// Dans ai_scene.c - Lien vers le jeu
-ui_create_link(tree, "start-game-link", "DÉMARRER LA PARTIE", "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
-// Transition MINI → MAIN window vers game_scene
-// AUCUNE configuration forcée - respecte les choix utilisateur
+// Animation de déplacement d'une pièce (avec logs de debug)
+animate_piece_move(plateau_data, from_intersection_id, to_intersection_id);
+
+// Animation de capture (avec logs de debug)
+animate_piece_capture(plateau_data, piece_intersection_id);
+
+// Animation de placement (avec logs de debug)
+animate_piece_placement(plateau_data, intersection_id);
+
+// Animation de sélection (avec logs de debug)
+animate_piece_selection(plateau_data, piece_intersection_id);
+
+// Animations de fin de jeu (avec logs de debug)
+animate_victory_dance(plateau_data, winning_player);
+animate_defeat_fade(plateau_data, losing_player);
+
+// Animation d'apparition initiale en vague (avec logs de debug)
+animate_initial_piece_wave(plateau_data);
 ```
 
-**🎯 Avantages du nouveau flux :**
-- ✅ **Choix utilisateur respectés** : Aucune configuration forcée lors du démarrage
-- ✅ **Navigation claire** : Menu → Configuration → Jeu
-- ✅ **Flexibilité** : L'utilisateur configure avant de jouer
-- ✅ **Cohérence** : Même pattern pour toutes les options de jeu
+### 🔧 Corrections apportées
 
-### Wiki Scene (NOUVEAU)
-- **📚 Contenu structuré**: Titre, sous-titre et 3 sections thématiques
-- **🎨 Design épuré**: Couleurs dorées (#E9D7A1) pour les titres, gris clair (#BEBEBE) pour le texte
-- **🖼️ Icônes décoratives**: Placeholders dorés avec bordures pour chaque section
-- **✨ Animations**: Slide alternées pour chaque section (gauche/droite)
-- **🔗 Navigation**: Lien de retour vers le menu principal
+**✅ Animations plateau :**
+- ✅ **Fonctions implémentées** : Toutes les fonctions d'animation ont des implémentations de base
+- ✅ **Logs de debug** : Chaque animation affiche des informations utiles
+- ✅ **Structure prête** : Base pour implémenter les vraies animations visuelles
+
+**✅ Système plateau complet :**
+- ✅ **Éléments d'intersection individuels** : Chaque intersection a son propre UINode avec événements
+- ✅ **Gestionnaires d'événements connectés** : Hover, unhover, click fonctionnels
+- ✅ **Feedback visuel** : Système de rendu pour hover, sélection, destinations valides
+- ✅ **Intégration GameLogic** : Connexion avec la logique de jeu pour validation des coups
+
+**✅ GameLogic intégré :**
+- ✅ **Fonctions de base** : create, destroy, initialize_from_config, start_new_game, switch_turn
+- ✅ **Gestion des tours** : Alternance automatique entre joueurs
+- ✅ **État de jeu** : Suivi du plateau, joueur actuel, nombre de tours

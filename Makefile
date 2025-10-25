@@ -23,6 +23,7 @@ SOURCES = main.c \
           src/scene/profile_scene.c \
           src/scene/game_scene.c \
           src/scene/ai_scene.c \
+          src/logic/logic.c \
           src/ui/ui_tree.c \
           src/ui/ui_components.c \
           src/ui/animation.c \

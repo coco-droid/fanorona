@@ -10,12 +10,13 @@ typedef Scene* (*SceneFactory)(void);
 // Liste des usines de scènes disponibles
 static SceneFactory factories[] = {
     create_home_scene,
-    create_choice_scene,  // 🆕 Ajout de choice_scene
+    create_choice_scene,
     create_menu_scene,
     create_game_scene,
     create_ai_scene,
-    create_profile_scene, // 🆕 Ajout de profile_scene
-    create_wiki_scene,   // 🆕 Ajout de wiki_scene
+    create_profile_scene,
+    create_wiki_scene,
+    create_pieces_scene,  // 🆕 Ajout de pieces_scene
     NULL  // Marqueur de fin
 };
 
@@ -141,6 +142,8 @@ bool scene_registry_connect_all_events(SceneManager* manager, GameCore* core) {
             choice_scene_connect_events(active_scene, core);
         } else if (strcmp(active_scene->id, "wiki") == 0) {
             wiki_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "pieces") == 0) {  // 🆕 Ajout de pieces_scene
+            pieces_scene_connect_events(active_scene, core);
         } else {
             printf("⚠️ scene_registry: type de scène '%s' inconnu, pas de connexion d'événements spécifique\n", 
                    active_scene->id);

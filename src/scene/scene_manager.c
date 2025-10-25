@@ -342,6 +342,8 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             game_scene_connect_events(target_scene, manager->core);
         } else if (strcmp(scene_id, "wiki") == 0) {
             wiki_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "pieces") == 0) {  // 🆕 Ajout de pieces_scene
+            pieces_scene_connect_events(target_scene, manager->core);
         } else {
             printf("⚠️ Pas de fonction de connexion pour '%s'\n", scene_id);
         }
