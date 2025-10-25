@@ -182,11 +182,29 @@ static void next_link_callback(UINode* link) {
         printf("💾 Données Joueur 2 sauvegardées\n");
         log_profile_data(data);
         
-        printf("🏁 MULTISTEP FORM COMPLÉTÉ!\n");
-        printf("🚀 Prêt à démarrer la partie...\n");
+        // 🆕 ENREGISTRER dans la configuration globale
+        config_set_player1_full_profile(data->player1_name, data->player1_avatar);
+        config_set_player2_full_profile(data->player2_name, data->player2_avatar);
         
-        // TODO: Ici on pourrait déclencher une transition vers le jeu
-        // ou sauvegarder dans la config globale
+        printf("🏁 MULTISTEP FORM COMPLÉTÉ!\n");
+        printf("🚀 Transition vers game_scene...\n");
+        
+        // 🆕 TRANSITION vers game_scene avec CLOSE_AND_OPEN
+        if (scene_data->next_link) {
+            ui_link_set_target(scene_data->next_link, "game");
+            ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_CLOSE_AND_OPEN);
+            ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MAIN);
+            
+            // Déclencher la transition immédiatement
+            extern SceneManager* game_core_get_scene_manager(GameCore* core);
+            if (scene_data->core) {
+                SceneManager* scene_manager = game_core_get_scene_manager(scene_data->core);
+                if (scene_manager) {
+                    scene_manager_transition_to_scene(scene_manager, "game", SCENE_TRANSITION_CLOSE_AND_OPEN);
+                    printf("✅ Transition vers game_scene déclenchée\n");
+                }
+            }
+        }
     }
 }
 
