@@ -10,6 +10,9 @@ fanoron-sivy/
 ├── run.sh              # Script de compilation et d'exécution
 ├── Makefile            # Makefile pour la compilation
 ├── build/              # Dossier de compilation (créé automatiquement)
+├── assets/             # 🆕 Ressources graphiques (images, SVG)
+│   ├── bg-bg.png       # 🆕 Fond de la sidebar
+│   └── profile-card.svg # 🆕 Fond des cartes joueur
 └── src/
     ├── core/
     │   ├── core.h      # Interface du core du jeu
@@ -30,15 +33,28 @@ fanoron-sivy/
     ├── ui/
     │   ├── animation.h     # 🆕 Système d'animations keyframe-based
     │   ├── animation.c     # 🆕 Implémentation des animations
+    │   ├── sidebar.c       # 🆕 Composant sidebar avec fonds graphiques
     │   ├── components/
     │   │   └── ui_link.c # Composant de liens de navigation
     │   └── ui_components.h # Interface des composants UI
+    ├── utils/
+    │   └── asset_manager.h # 🆕 Gestionnaire d'assets (textures, images)
     └── window/
         ├── window.h    # Interface du window manager
         └── window.c    # Gestion des fenêtres SDL2
 ```
 
 ## Fonctionnalités
+
+### ✨ Sidebar de jeu (NOUVEAU)
+- **🎨 Fond graphique**: Image `bg-bg.png` pour un style immersif
+- **👥 Cartes joueur**: Design SVG `profile-card.svg` (hauteur augmentée de 25px)
+- **📊 Informations en temps réel**: Avatars, noms, captures, chronomètres
+- **🎮 Contrôles de jeu**: Grille 2×2 positionnée en bas avec `Rectangle.svg` pour le fond
+  - Boutons normaux: `btn.svg`
+  - Bouton QUIT: `btn-brun.svg` (style spécial)
+  - Texte réduit (8px) pour meilleure lisibilité
+- **⚡ Asset Manager**: Chargement optimisé des textures avec fallback couleur
 
 ### ✨ Système d'animations (NOUVEAU)
 - **🎬 Animations keyframe-based**: Système inspiré de CSS avec support complet des keyframes

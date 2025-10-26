@@ -4,3 +4,4 @@ gdb ./build/fanorona
 # Quand ça crash :
 (gdb) bt
 (gdb) info registers
+

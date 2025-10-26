@@ -40,16 +40,13 @@ static void game_scene_init(Scene* scene) {
     data->core = NULL;
     data->sidebar = NULL;
     data->playable_area = NULL;
-    data->game_logic = NULL;      // 🆕 Initialiser à NULL
+    data->game_logic = NULL;
     
     // 🆕 Créer la logique de jeu depuis la configuration
     data->game_logic = game_logic_create();
     if (data->game_logic) {
-        // 🔧 FIX: Une seule fonction suffit pour tout initialiser
         game_logic_start_new_game(data->game_logic);
         printf("✅ GameLogic initialisée en mode: %s\n", config_mode_to_string(config_get_mode()));
-        
-        // 🆕 AFFICHER L'ÉTAT COMPLET DU JEU
         game_logic_debug_print(data->game_logic);
     }
     
@@ -57,7 +54,11 @@ static void game_scene_init(Scene* scene) {
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // Container principal (plein écran pour main window)
+    // 🔧 FIX: Récupérer les dimensions depuis la main window
+    int app_width = DEFAULT_MAIN_WINDOW_WIDTH;
+    int app_height = DEFAULT_MAIN_WINDOW_HEIGHT;
+    
+    // Container principal (dimensions de main window)
     UINode* app = UI_DIV(data->ui_tree, "game-app");
     if (!app) {
         printf("❌ Erreur: Impossible de créer le container principal\n");
@@ -65,41 +66,34 @@ static void game_scene_init(Scene* scene) {
         return;
     }
     
-    // Taille pour main window (plus grande)
     SET_POS(app, 0, 0);
-    SET_SIZE(app, 800, 600);
+    SET_SIZE(app, app_width, app_height);
     
     // Fond neutre pour la scène de jeu
-    atomic_set_background_color(app->element, 45, 45, 45, 255); // Gris foncé
+    atomic_set_background_color(app->element, 45, 45, 45, 255);
     
-    // Configuration flexbox horizontale (sidebar à gauche, jeu à droite)
+    // Configuration flexbox horizontale
     ui_set_display_flex(app);
     ui_set_flex_direction(app, "row");
     ui_set_justify_content(app, "flex-start");
-    ui_set_align_items(app, "stretch"); // Étirer sur toute la hauteur
+    ui_set_align_items(app, "stretch");
     
     // === SIDEBAR (1/3 de l'écran) ===
+    int sidebar_width = app_width / 3;
     data->sidebar = UI_SIDEBAR(data->ui_tree, "game-sidebar");
     if (data->sidebar) {
-        SET_SIZE(data->sidebar, 266, 600); // 1/3 de 800px = ~266px
-        
-        // 🆕 ANIMATION: Slide-in depuis la gauche à l'ouverture
+        SET_SIZE(data->sidebar, sidebar_width, app_height);
         ui_animate_slide_in_left(data->sidebar, 0.6f, 300.0f);
-        
-        // Connecter les callbacks des boutons
-        // TODO: Connecter les vrais callbacks quand le système d'événements sera prêt
-        
         APPEND(app, data->sidebar);
-        printf("📋 Sidebar créée (266x600) avec animation slide-in et tous les composants\n");
+        printf("📋 Sidebar créée (%dx%d) depuis config.h\n", sidebar_width, app_height);
     }
     
     // === ZONE DE JEU (2/3 de l'écran) ===
-    data->playable_area = ui_cnt_playable_with_size(data->ui_tree, "game-playable", 534, 600); // 2/3 de 800px = 534px
+    int playable_width = (app_width * 2) / 3;
+    data->playable_area = ui_cnt_playable_with_size(data->ui_tree, "game-playable", playable_width, app_height);
     if (data->playable_area) {
-        // 🆕 ANIMATION: Fade-in de la zone de jeu
         ui_animate_fade_in(data->playable_area, 1.2f);
         
-        // 🆕 Récupérer le plateau et lui assigner la game logic
         UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
         if (plateau && data->game_logic) {
             ui_plateau_set_game_logic(plateau, data->game_logic);
@@ -108,20 +102,16 @@ static void game_scene_init(Scene* scene) {
         }
         
         APPEND(app, data->playable_area);
-        printf("🎮 Zone de jeu créée (534x600) avec animation fade-in et plateau centré\n");
+        printf("🎮 Zone de jeu créée (%dx%d) depuis config.h\n", playable_width, app_height);
     }
     
-    // Construire la hiérarchie
     APPEND(data->ui_tree->root, app);
-    
-    // Calculer les z-index implicites
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface de jeu créée avec :\n");
-    printf("   📏 Layout horizontal: sidebar (1/3) + zone de jeu (2/3)\n");
-    printf("   📋 Sidebar complète avec titre, joueurs et contrôles\n");
-    printf("   🎮 Zone de jeu avec plateau Fanorona centré\n");
-    printf("   🖼️ Optimisé pour main window (800x600)\n");
+    printf("✅ Interface de jeu créée avec dimensions depuis config.h:\n");
+    printf("   📏 Layout horizontal: sidebar (%d/%d) + zone de jeu (%d/%d)\n", 
+           sidebar_width, app_width, playable_width, app_width);
+    printf("   🖼️ Optimisé pour main window (%dx%d)\n", app_width, app_height);
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;

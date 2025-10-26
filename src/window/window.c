@@ -176,18 +176,18 @@ SDL_Renderer* window_get_renderer(GameWindow* window) {
 
 // Créer la mini fenêtre
 GameWindow* create_mini_window(void) {
-    GameWindow* window = window_create("Fanorona - Mini Window", 700, 500);  // Menu scenes
+    GameWindow* window = window_create("Fanorona - Mini Window", DEFAULT_MINI_WINDOW_WIDTH, DEFAULT_MINI_WINDOW_HEIGHT);
     if (window) {
-        printf("🖼️ Mini window créée: 700x500 (pour home_scene et menu_scene)\n");
+        printf("🖼️ Mini window créée: %dx%d (depuis config.h)\n", DEFAULT_MINI_WINDOW_WIDTH, DEFAULT_MINI_WINDOW_HEIGHT);
     }
     return window;
 }
 
 // Créer la large fenêtre
 GameWindow* create_large_window(void) {
-    GameWindow* window = window_create("Fanorona - Game Window", 800, 600);  // Game scene
+    GameWindow* window = window_create("Fanorona - Game Window", DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT);
     if (window) {
-        printf("🖼️ Main window créée: 800x600 (pour game_scene avec sidebar)\n");
+        printf("🖼️ Main window créée: %dx%d (depuis config.h)\n", DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT);
     }
     return window;
 }
@@ -604,7 +604,7 @@ WindowDimensions window_get_active_dimensions(void) {
 }
 
 WindowDimensions window_get_dimensions_for_type(WindowType type) {
-    WindowDimensions dims = {700, 500, type}; // Par défaut
+    WindowDimensions dims = {DEFAULT_MINI_WINDOW_WIDTH, DEFAULT_MINI_WINDOW_HEIGHT, type}; // Utiliser config.h
     
     switch (type) {
         case WINDOW_TYPE_MAIN:
@@ -612,8 +612,8 @@ WindowDimensions window_get_dimensions_for_type(WindowType type) {
                 dims.width = g_main_window->width;
                 dims.height = g_main_window->height;
             } else {
-                dims.width = 800;  // Taille par défaut de la grande fenêtre
-                dims.height = 600;
+                dims.width = DEFAULT_MAIN_WINDOW_WIDTH;  // Utiliser config.h
+                dims.height = DEFAULT_MAIN_WINDOW_HEIGHT;
             }
             break;
             
@@ -622,8 +622,8 @@ WindowDimensions window_get_dimensions_for_type(WindowType type) {
                 dims.width = g_mini_window->width;
                 dims.height = g_mini_window->height;
             } else {
-                dims.width = 700;  // Taille par défaut de la mini fenêtre
-                dims.height = 500;
+                dims.width = DEFAULT_MINI_WINDOW_WIDTH;  // Utiliser config.h
+                dims.height = DEFAULT_MINI_WINDOW_HEIGHT;
             }
             break;
             
