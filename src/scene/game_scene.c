@@ -106,17 +106,21 @@ static void game_scene_init(Scene* scene) {
     int playable_width = (app_width * 2) / 3;
     data->playable_area = ui_cnt_playable_with_size(data->ui_tree, "game-playable", playable_width, app_height);
     if (data->playable_area) {
-        ui_set_z_index(data->playable_area, 5);  // 🔧 FIX: Lower z-index than sidebar
+        ui_set_z_index(data->playable_area, 5);
         ui_animate_fade_in(data->playable_area, 1.2f);
         
         UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
         if (plateau && data->game_logic) {
             ui_plateau_set_game_logic(plateau, data->game_logic);
             ui_plateau_set_players(plateau, data->game_logic->player1, data->game_logic->player2);
+            
+            // 🆕 CONNECTER LES GESTIONNAIRES D'ÉVÉNEMENTS DU PLATEAU
+            ui_plateau_set_mouse_handlers(plateau);
+            printf("🖱️ Gestionnaires de souris connectés au plateau\n");
         }
         
         APPEND(app, data->playable_area);
-        printf("🎮 Zone de jeu créée (%dx%d) sans overlap sidebar\n", playable_width, app_height);
+        printf("🎮 Zone de jeu créée (%dx%d) avec événements plateau\n", playable_width, app_height);
     }
     
     APPEND(data->ui_tree->root, app);
@@ -137,9 +141,17 @@ static void game_scene_update(Scene* scene, float delta_time) {
     
     GameSceneData* data = (GameSceneData*)scene->data;
     
-    // 🆕 Mettre à jour la logique de jeu
+    // Mettre à jour la logique de jeu
     if (data->game_logic) {
         game_logic_update(data->game_logic, delta_time);
+        
+        // 🆕 Mettre à jour l'indicateur de tour
+        if (data->sidebar) {
+            GamePlayer* current = game_logic_get_current_player_info(data->game_logic);
+            if (current) {
+                ui_sidebar_update_current_turn(data->sidebar, current);
+            }
+        }
     }
     
     // 🆕 AJOUT: Mettre à jour les animations (inclut les animations de pièces)
@@ -155,6 +167,21 @@ static void game_scene_update(Scene* scene, float delta_time) {
         // - Animations de capture avec fade-out
         // - Pulsations de sélection
         // - Animations de victoire/défaite
+    }
+    
+    // 🆕 DEBUG PÉRIODIQUE des événements plateau (toutes les 5 secondes)
+    static float debug_timer = 0.0f;
+    debug_timer += delta_time;
+    
+    if (debug_timer >= 5.0f) {
+        debug_timer = 0.0f;
+        
+        if (data->playable_area) {
+            UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
+            if (plateau) {
+                ui_plateau_debug_current_selection(plateau);
+            }
+        }
     }
     
     // TODO: Mettre à jour la logique de jeu
@@ -300,5 +327,23 @@ void game_scene_connect_events(Scene* scene, GameCore* core) {
     // Stocker la référence du core
     data->core = core;
     
-    printf("✅ Scène de jeu prête avec éléments connectés\n");
+    // 🆕 VÉRIFIER ET CONNECTER LES ÉVÉNEMENTS DU PLATEAU (COMME avatar_selector)
+    if (data->playable_area) {
+        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
+        if (plateau) {
+            // 🆕 DEBUG INITIAL des intersections
+            ui_plateau_debug_intersections(plateau);
+            ui_plateau_debug_visual_state(plateau);
+            
+            // Les événements du plateau sont enregistrés EXPLICITEMENT
+            ui_plateau_register_events(plateau, scene->event_manager);
+            printf("✅ Événements plateau enregistrés dans EventManager de game_scene\n");
+            
+            // 🆕 VÉRIFICATION post-enregistrement
+            printf("🔍 [GAME_SCENE] Vérification post-enregistrement:\n");
+            ui_plateau_debug_current_selection(plateau);
+        }
+    }
+    
+    printf("✅ Scène de jeu prête avec plateau interactif ET debug activé\n");
 }

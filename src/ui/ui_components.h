@@ -226,6 +226,12 @@ void ui_button_remove_all_effects(UINode* button);
 // 🆕 Mouse event handlers for plateau
 void ui_plateau_set_mouse_handlers(UINode* plateau);
 void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);
+void ui_plateau_register_events(UINode* plateau, EventManager* event_manager);
+
+// 🆕 DEBUG FUNCTIONS for plateau events
+void ui_plateau_debug_intersections(UINode* plateau);
+void ui_plateau_debug_current_selection(UINode* plateau);
+void ui_plateau_debug_visual_state(UINode* plateau);
 
 // 🆕 Game state integration
 void ui_plateau_set_game_logic(UINode* plateau, void* game_logic);
@@ -307,6 +313,9 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
 void ui_sidebar_add_control_buttons(UINode* sidebar);
 UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const char* icon, const char* text, bool is_prominent);
 
+// 🆕 Mise à jour de l'indicateur de tour
+void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player);
+
 // === CNT_PLAYABLE COMPONENT ===
 
 // Créer une zone de jeu (2/3 de l'écran)
@@ -346,6 +355,12 @@ GamePlayer* ui_plateau_get_player2(UINode* plateau);
 // 🆕 Mouse event handlers for plateau
 void ui_plateau_set_mouse_handlers(UINode* plateau);
 void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);
+void ui_plateau_register_events(UINode* plateau, EventManager* event_manager);
+
+// 🆕 DEBUG FUNCTIONS for plateau events
+void ui_plateau_debug_intersections(UINode* plateau);
+void ui_plateau_debug_current_selection(UINode* plateau);
+void ui_plateau_debug_visual_state(UINode* plateau);
 
 // 🆕 Game state integration
 void ui_plateau_set_game_logic(UINode* plateau, void* game_logic);

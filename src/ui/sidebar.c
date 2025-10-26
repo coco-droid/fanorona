@@ -208,7 +208,6 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
     UINode* player_container = ui_div(tree, id);
     if (!player_container) return NULL;
     
-    // 🔧 FIX: 100% largeur parent, hauteur réduite
     SET_SIZE(player_container, 218, 80);
     
     SDL_Texture* card_texture = NULL;
@@ -220,13 +219,20 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
         }
     }
     
-    // 🔧 FIX: Stretch background pour profile-card.svg
     if (card_texture) {
         atomic_set_background_image(player_container->element, card_texture);
         atomic_set_background_size_str(player_container->element, "stretch");
     } else {
         atomic_set_background_color(player_container->element, 245, 245, 220, 255);
     }
+    
+    // 🆕 Indicateur de tour actif (bordure dorée)
+    if (player && player->is_current_turn) {
+        atomic_set_border(player_container->element, 3, 255, 215, 0, 255);
+    } else {
+        atomic_set_border(player_container->element, 1, 200, 200, 200, 128);
+    }
+    
     atomic_set_border_radius(player_container->element, 8);
     atomic_set_padding(player_container->element, 5, 5, 5, 5);
     
@@ -395,7 +401,7 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
     
     if (container_bg) {
         atomic_set_background_image(controls_container->element, container_bg);
-        atomic_set_background_size_str(controls_container->element, "cover");
+        atomic_set_background_size_str(controls_container->element, "stretch");  // 🔧 CHANGED: cover -> stretch
     } else {
         atomic_set_background_color(controls_container->element, 64, 64, 64, 255);
     }
@@ -508,4 +514,30 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     }
     
     return button;
+}
+
+// 🆕 Fonction pour mettre à jour l'indicateur de tour
+void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player) {
+    if (!sidebar || !current_player) return;
+    
+    UINode* player1_node = ui_tree_find_node(sidebar->tree, "player1");
+    UINode* player2_node = ui_tree_find_node(sidebar->tree, "player2");
+    
+    if (player1_node) {
+        bool is_active = (current_player->player_number == 1);
+        if (is_active) {
+            atomic_set_border(player1_node->element, 3, 255, 215, 0, 255);
+        } else {
+            atomic_set_border(player1_node->element, 1, 200, 200, 200, 128);
+        }
+    }
+    
+    if (player2_node) {
+        bool is_active = (current_player->player_number == 2);
+        if (is_active) {
+            atomic_set_border(player2_node->element, 3, 255, 215, 0, 255);
+        } else {
+            atomic_set_border(player2_node->element, 1, 200, 200, 200, 128);
+        }
+    }
 }

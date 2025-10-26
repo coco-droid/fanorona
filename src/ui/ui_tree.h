@@ -88,6 +88,9 @@ void ui_node_remove_event_listener(UINode* node, const char* event, void (*callb
 void ui_tree_update(UITree* tree, float delta_time);
 void ui_tree_render(UITree* tree, SDL_Renderer* renderer);
 
+// 🆕 NOUVELLE FONCTION: Enregistrer tous les éléments avec l'EventManager
+void ui_tree_register_all_events(UITree* tree);
+
 // === HELPERS POUR SYNTAXE SIMPLIFIÉE ===
 
 // Création fluide (chaînable)

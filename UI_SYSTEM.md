@@ -317,7 +317,8 @@ ui_set_hitbox_visualization(true);  // Activé par défaut
 // Les hitboxes apparaissent automatiquement après la synchronisation post-calculs :
 // - Rectangle rouge transparent (alpha: 30)
 // - Bordure bleue opaque (2px d'épaisseur)
-// - Position exacte finale après tous les calculs de layout
+// - Position exacte finale après tous les calculs de flexbox, align-self, etc.
+// - Support de la sélection avec un cercle vert et une croix blanche
 ```
 
 **🎨 Caractéristiques des hitboxes synchronisées :**
@@ -326,6 +327,7 @@ ui_set_hitbox_visualization(true);  // Activé par défaut
 - 📊 **Position post-calculs** : Utilise `atomic_get_final_render_rect()` après tous les ajustements
 - ⚡ **Synchronisation unifiée** : Une seule passe après tous les calculs de l'arbre
 - 🔧 **Précision garantie** : Les hitboxes correspondent exactement aux éléments visibles
+- ✅ **Système de sélection visuelle** : Cercle vert épais + croix blanche pour la sélection, cercle doré fin pour le hover
 
 ### Migration transparente
 
@@ -445,7 +447,8 @@ ui_set_overflow(element, "auto");     // Automatique
 
 ```c
 // Container avec contraintes strictes
-UINode* dialog = UI_CONTAINER_CENTERED(tree, "dialog", 400, 300);
+UINode* dialog = UI_CONTAINER(tree, "my-modal");
+SET_SIZE(dialog, 400, 300);
 OVERFLOW_HIDDEN(dialog); // Les enfants ne peuvent pas déborder
 
 // Ajouter du contenu - sera automatiquement contraint
@@ -528,8 +531,10 @@ ALIGN_SELF_BOTH(modal); // Centrage automatique
 ### Ajout de contenu avec align-self automatique
 
 ```c
-// Container centré avec contenu par défaut
-UINode* dialog = UI_CONTAINER_CENTERED(tree, "dialog", 500, 400);
+// Container centré avec contraintes strictes
+UINode* dialog = UI_CONTAINER(tree, "my-modal");
+SET_SIZE(dialog, 400, 300);
+OVERFLOW_HIDDEN(dialog); // Les enfants ne peuvent pas déborder
 
 // Ajouter un en-tête orange
 ui_container_add_header(dialog, "CONFIGURATION");
@@ -564,9 +569,9 @@ ui_set_align_self(element, "auto");         // Désactiver
 UINode* modal = UI_CONTAINER_CENTERED(tree, "dialog", 400, 300);
 UINode* content = UI_DIV(tree, "content");
 SET_SIZE(content, 300, 200);
+ALIGN_SELF_Y(content);                     // Ajouter le centrage Y
 
 ui_container_add_content(modal, content);  // Centrage X automatique
-ALIGN_SELF_Y(content);                     // Ajouter le centrage Y
 
 // Le contenu sera maintenant parfaitement centré dans le modal !
 // Centrage X : align-self center-x (automatique)
@@ -916,45 +921,88 @@ Cette architecture garantit une **simplicité maximale** tout en maintenant **to
 
 ## 🎯 Animations de pièces du plateau (MAINTENANT IMPLÉMENTÉES)
 
-Le système d'animation supporte maintenant les animations spécifiques aux pièces du jeu Fanorona avec implémentations fonctionnelles :
+Le système d'animation supporte maintenant les animations spécifiques aux pièces du jeu Fanorona avec **rendu complet du plateau** :
+
+### ✅ Rendu du plateau
 
 ```c
-// ✅ Fonctions d'animation maintenant implémentées dans plateau_cnt.c
+// Le plateau trace automatiquement :
+// - Les lignes du damier (horizontales, verticales, diagonales)
+// - Les intersections (cercles indiquant les positions)
+// - Les pions avec textures PNG (piece_black.png / piece_brun.png)
 
-// Animation de déplacement d'une pièce (avec logs de debug)
-animate_piece_move(plateau_data, from_intersection_id, to_intersection_id);
-
-// Animation de capture (avec logs de debug)
-animate_piece_capture(plateau_data, piece_intersection_id);
-
-// Animation de placement (avec logs de debug)
-animate_piece_placement(plateau_data, intersection_id);
-
-// Animation de sélection (avec logs de debug)
-animate_piece_selection(plateau_data, piece_intersection_id);
-
-// Animations de fin de jeu (avec logs de debug)
-animate_victory_dance(plateau_data, winning_player);
-animate_defeat_fade(plateau_data, losing_player);
-
-// Animation d'apparition initiale en vague (avec logs de debug)
-animate_initial_piece_wave(plateau_data);
+UINode* plateau = ui_plateau_container_with_players(tree, "plateau", player1, player2);
+// Le rendu custom dessine tout automatiquement via plateau_custom_render()
 ```
 
-### 🔧 Corrections apportées
+### 🎨 Logique de tracé
 
-**✅ Animations plateau :**
-- ✅ **Fonctions implémentées** : Toutes les fonctions d'animation ont des implémentations de base
-- ✅ **Logs de debug** : Chaque animation affiche des informations utiles
-- ✅ **Structure prête** : Base pour implémenter les vraies animations visuelles
+**Conversion coordonnées logiques → écran :**
+```c
+plateau_logical_to_screen(data, row, col, &x, &y);
+// Calcule la position pixel depuis la grille 5x9
+```
 
-**✅ Système plateau complet :**
-- ✅ **Éléments d'intersection individuels** : Chaque intersection a son propre UINode avec événements
-- ✅ **Gestionnaires d'événements connectés** : Hover, unhover, click fonctionnels
-- ✅ **Feedback visuel** : Système de rendu pour hover, sélection, destinations valides
-- ✅ **Intégration GameLogic** : Connexion avec la logique de jeu pour validation des coups
+**Dessin des lignes :**
+```c
+plateau_draw_line(data, r1, c1, r2, c2);
+// Trace une ligne entre deux intersections
+// Utilise LINE_THICKNESS pour épaisseur
+```
 
-**✅ GameLogic intégré :**
-- ✅ **Fonctions de base** : create, destroy, initialize_from_config, start_new_game, switch_turn
-- ✅ **Gestion des tours** : Alternance automatique entre joueurs
-- ✅ **État de jeu** : Suivi du plateau, joueur actuel, nombre de tours
+**Dessin des intersections :**
+```c
+plateau_draw_intersection(data, r, c, is_strong);
+// Cercle plus grand si strong (diagonales autorisées)
+// Cercle plus petit si diamond (orthogonal uniquement)
+```
+
+**Dessin des pions :**
+```c
+plateau_draw_piece(data, r, c, owner);
+// Texture noire/brune selon config_get_player_piece_colors()
+// Fallback sur cercles colorés si textures manquantes
+// 🆕 SYSTÈME DE SÉLECTION VISUELLE :
+// - Cercle vert épais + croix blanche pour la sélection
+// - Cercle doré fin pour le hover
+// - Support sélection/déselection par clic
+```
+
+### 🎯 Système de sélection d'intersections
+
+Le plateau supporte maintenant la sélection interactive des intersections :
+
+**🖱️ Interactions supportées :**
+- **Clic sur intersection vide** : Sélectionne l'intersection (cercle vert + croix)
+- **Clic sur intersection avec pièce** : Sélectionne la pièce (cercle vert + croix)
+- **Clic sur intersection déjà sélectionnée** : Déselectionne (supprime les effets visuels)
+- **Hover** : Effet doré temporaire (ne persiste pas)
+
+**🎨 Effets visuels :**
+- **Sélection** : Cercle vert épais (5px) + croix blanche centrale
+- **Hover** : Cercle doré fin (3px) semi-transparent
+- **Priorité** : Sélection prend le dessus sur hover
+
+**🔧 API de sélection :**
+```c
+// Obtenir l'intersection sélectionnée
+int selected_id = data->visual_state->selected_intersection; // -1 si rien
+
+// Forcer la sélection programmatiquement  
+data->visual_state->selected_intersection = intersection_id;
+
+// Déselectionner tout
+data->visual_state->selected_intersection = -1;
+
+// Debug de l'état de sélection
+ui_plateau_debug_current_selection(plateau);
+```
+
+**📊 Logs de sélection :**
+```
+🎯 [PLATEAU_CLICK] Intersection 15 sélectionnée (r=1, c=6)
+🔵 [PLATEAU_CLICK] PIÈCE sélectionnée - Propriétaire: Blanc
+🔄 [PLATEAU_CLICK] Déselection intersection 15
+⚫ [PLATEAU_CLICK] Intersection VIDE sélectionnée - Destination possible
+✅ [PLATEAU_CLICK] État de sélection mis à jour
+```
