@@ -914,7 +914,7 @@ Cette architecture garantit une **simplicité maximale** tout en maintenant **to
 - ✅ **Plus stable** : Élimination des problèmes de threading
 - ✅ **Plus simple** : Code divisé par 10 en complexité
 
-### 🎯 Animations de pièces du plateau (MAINTENANT IMPLÉMENTÉES)
+## 🎯 Animations de pièces du plateau (MAINTENANT IMPLÉMENTÉES)
 
 Le système d'animation supporte maintenant les animations spécifiques aux pièces du jeu Fanorona avec implémentations fonctionnelles :
 

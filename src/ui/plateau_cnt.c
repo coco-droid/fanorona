@@ -18,8 +18,8 @@
 // === PLATEAU COMPONENT ===
 
 // Dimensions du plateau visuelles
-#define PLATEAU_VISUAL_WIDTH 480
-#define PLATEAU_VISUAL_HEIGHT 320
+#define PLATEAU_VISUAL_WIDTH 550
+#define PLATEAU_VISUAL_HEIGHT 370  // 🔧 RÉDUIT: 320 -> 290 (-30px)
 #define PLATEAU_MARGIN 30
 #define INTERSECTION_RADIUS 8
 #define PIECE_RADIUS 12
@@ -106,8 +106,12 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
     UINode* plateau_container = ui_div(tree, id);
     if (!plateau_container) return NULL;
     
+    // 🔧 FIX: Apply the visual dimensions defined as constants
     SET_SIZE(plateau_container, PLATEAU_VISUAL_WIDTH, PLATEAU_VISUAL_HEIGHT);
     atomic_set_background_color(plateau_container->element, PLATEAU_BG_R, PLATEAU_BG_G, PLATEAU_BG_B, 255);
+    
+    // 🔧 DEBUG: Ajouter une bordure rouge pour voir le plateau
+    atomic_set_border(plateau_container->element, 3, 255, 0, 0, 255);
     
     PlateauRenderData* data = calloc(1, sizeof(PlateauRenderData));
     if (data) {

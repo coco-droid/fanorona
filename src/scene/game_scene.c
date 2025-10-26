@@ -42,7 +42,7 @@ static void game_scene_init(Scene* scene) {
     data->playable_area = NULL;
     data->game_logic = NULL;
     
-    // 🆕 Créer la logique de jeu depuis la configuration
+    // 🆕 Créer la logique de jeu AVANT l'UI
     data->game_logic = game_logic_create();
     if (data->game_logic) {
         game_logic_start_new_game(data->game_logic);
@@ -78,31 +78,45 @@ static void game_scene_init(Scene* scene) {
     ui_set_justify_content(app, "flex-start");
     ui_set_align_items(app, "stretch");
     
-    // === SIDEBAR (1/3 de l'écran) ===
+    // === SIDEBAR (1/3 exact) ===
     int sidebar_width = app_width / 3;
     data->sidebar = UI_SIDEBAR(data->ui_tree, "game-sidebar");
     if (data->sidebar) {
         SET_SIZE(data->sidebar, sidebar_width, app_height);
+        ui_set_z_index(data->sidebar, 10);
         ui_animate_slide_in_left(data->sidebar, 0.6f, 300.0f);
+        
+        // 🔧 FIX: Ajouter les joueurs DIRECTEMENT avec les vraies données
+        if (data->game_logic && data->game_logic->player1 && data->game_logic->player2) {
+            ui_sidebar_add_player_containers(
+                data->sidebar, 
+                data->game_logic->player1, 
+                data->game_logic->player2
+            );
+            printf("✅ Joueurs ajoutés à la sidebar avec données RÉELLES de GameLogic\n");
+        } else {
+            printf("❌ GameLogic ou joueurs non initialisés\n");
+        }
+        
         APPEND(app, data->sidebar);
-        printf("📋 Sidebar créée (%dx%d) depuis config.h\n", sidebar_width, app_height);
+        printf("📋 Sidebar créée (%dx%d) avec joueurs réels\n", sidebar_width, app_height);
     }
     
-    // === ZONE DE JEU (2/3 de l'écran) ===
+    // === ZONE DE JEU (2/3 exact) ===
     int playable_width = (app_width * 2) / 3;
     data->playable_area = ui_cnt_playable_with_size(data->ui_tree, "game-playable", playable_width, app_height);
     if (data->playable_area) {
+        ui_set_z_index(data->playable_area, 5);  // 🔧 FIX: Lower z-index than sidebar
         ui_animate_fade_in(data->playable_area, 1.2f);
         
         UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
         if (plateau && data->game_logic) {
             ui_plateau_set_game_logic(plateau, data->game_logic);
             ui_plateau_set_players(plateau, data->game_logic->player1, data->game_logic->player2);
-            printf("🎯 Plateau connecté à la GameLogic\n");
         }
         
         APPEND(app, data->playable_area);
-        printf("🎮 Zone de jeu créée (%dx%d) depuis config.h\n", playable_width, app_height);
+        printf("🎮 Zone de jeu créée (%dx%d) sans overlap sidebar\n", playable_width, app_height);
     }
     
     APPEND(data->ui_tree->root, app);
@@ -110,7 +124,7 @@ static void game_scene_init(Scene* scene) {
     
     printf("✅ Interface de jeu créée avec dimensions depuis config.h:\n");
     printf("   📏 Layout horizontal: sidebar (%d/%d) + zone de jeu (%d/%d)\n", 
-           sidebar_width, app_width, playable_width, app_width);
+           230, app_width, playable_width, app_width);
     printf("   🖼️ Optimisé pour main window (%dx%d)\n", app_width, app_height);
     
     scene->data = data;

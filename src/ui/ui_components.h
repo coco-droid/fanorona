@@ -302,8 +302,8 @@ void ui_button_scale_normal(UINode* button);    // Scale 100% (taille normale)
 UINode* ui_sidebar(UITree* tree, const char* id);
 
 // Fonctions helper pour les sections de la sidebar
-void ui_sidebar_add_player_containers(UINode* sidebar);
-UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, const char* name, int captures, const char* time);
+void ui_sidebar_add_player_containers(UINode* sidebar, GamePlayer* player1, GamePlayer* player2);
+UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* player);
 void ui_sidebar_add_control_buttons(UINode* sidebar);
 UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const char* icon, const char* text, bool is_prominent);
 

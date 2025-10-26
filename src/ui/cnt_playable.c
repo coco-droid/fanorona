@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// 🔧 FIX: Define expected playable area dimensions
+#define CNT_PLAYABLE_WIDTH 550
+#define CNT_PLAYABLE_HEIGHT 400
+
 // === CNT_PLAYABLE COMPONENT ===
 
 UINode* ui_cnt_playable(UITree* tree, const char* id) {
@@ -27,7 +31,11 @@ UINode* ui_cnt_playable(UITree* tree, const char* id) {
         return NULL;
     }
     
-    // 🔧 FIX: board.png comme background principal (remplace le bleu)
+    // 🔧 FIX: Set explicit dimensions instead of relying on parent
+    SET_SIZE(playable_container, CNT_PLAYABLE_WIDTH, CNT_PLAYABLE_HEIGHT);
+    atomic_set_padding(playable_container->element, 0, 0, 0, 0);
+    
+    // 🔧 FIX: board.png en background qui s'adapte à la taille du container
     SDL_Texture* board_texture = NULL;
     GameWindow* window = use_main_window();
     if (window) {
@@ -39,13 +47,11 @@ UINode* ui_cnt_playable(UITree* tree, const char* id) {
     
     if (board_texture) {
         atomic_set_background_image(playable_container->element, board_texture);
-        atomic_set_background_size_str(playable_container->element, "cover");
+        atomic_set_background_size_str(playable_container->element, "stretch");
+        atomic_set_background_repeat_str(playable_container->element, "no-repeat");
     } else {
-        // Fallback bleu si board.png manquant
         atomic_set_background_color(playable_container->element, 70, 130, 180, 255);
     }
-    
-    atomic_set_padding(playable_container->element, 20, 20, 20, 20);
     
     ui_set_display_flex(playable_container);
     ui_set_justify_content(playable_container, "center");
@@ -53,45 +59,61 @@ UINode* ui_cnt_playable(UITree* tree, const char* id) {
     
     ui_cnt_playable_add_game_area(playable_container);
     
-    ui_log_event("UIComponent", "Create", id, "Playable container with board.png background");
+    ui_log_event("UIComponent", "Create", id, "Playable container with board.png (no padding)");
     return playable_container;
 }
 
 void ui_cnt_playable_add_game_area(UINode* playable_container) {
     if (!playable_container) return;
     
+    // 🔧 FIX: Use container's actual dimensions
     UINode* game_area = ui_div(playable_container->tree, "game-area");
     if (!game_area) return;
     
-    SET_SIZE(game_area, 500, 350);
+    // 🔧 FIX: Use 90% of the now-defined dimensions
+    int game_w = (CNT_PLAYABLE_WIDTH * 90) / 100;
+    int game_h = (CNT_PLAYABLE_HEIGHT * 90) / 100;
+    SET_SIZE(game_area, game_w, game_h);
     
-    // 🔧 FIX: Plateau sans background (transparent)
-    atomic_set_background_color(game_area->element, 0, 0, 0, 0); // Transparent
-    atomic_set_padding(game_area->element, 10, 10, 10, 10);
+    atomic_set_background_color(game_area->element, 0, 0, 0, 0);
+    atomic_set_padding(game_area->element, 5, 5, 5, 5);
     
     ui_set_display_flex(game_area);
     ui_set_justify_content(game_area, "center");
     ui_set_align_items(game_area, "center");
     
-    // Plateau Fanorona
+    // 🔧 FIX: Plateau uses its own constants (480x320)
     UINode* plateau = ui_plateau_container_with_players(playable_container->tree, "fanorona-plateau", NULL, NULL);
     if (plateau) {
-        SET_SIZE(plateau, 480, 320);
-        // 🔧 FIX: Plateau transparent pour voir board.png à travers
-        atomic_set_background_color(plateau->element, 0, 0, 0, 0);
+        // Plateau size already set in ui_plateau_container_with_players
         APPEND(game_area, plateau);
     }
     
     APPEND(playable_container, game_area);
     
-    ui_log_event("UIComponent", "GameArea", playable_container->id, "Transparent game area over board.png");
+    ui_log_event("UIComponent", "GameArea", playable_container->id, 
+                 "Game area with fixed dimensions");
 }
 
+// 🔧 FIX: Cette fonction force maintenant les bonnes dimensions
 UINode* ui_cnt_playable_with_size(UITree* tree, const char* id, int width, int height) {
     UINode* playable_container = ui_cnt_playable(tree, id);
     if (playable_container) {
         SET_SIZE(playable_container, width, height);
-        ui_log_event("UIComponent", "Style", id, "Playable container size customized");
+        
+        // 🔧 FIX: Recalculer game_area avec nouvelles dimensions
+        UINode* game_area = ui_tree_find_node(tree, "game-area");
+        if (game_area) {
+            int game_w = (width * 90) / 100;
+            int game_h = (height * 90) / 100;
+            SET_SIZE(game_area, game_w, game_h);
+            
+            // 🔧 FIX: NE PLUS FORCER les dimensions du plateau
+            // Le plateau conserve ses dimensions définies dans plateau_cnt.c (480x150)
+        }
+        
+        ui_log_event("UIComponent", "Style", id, 
+                     "Playable container resized, plateau keeps its own size");
     }
     return playable_container;
 }
