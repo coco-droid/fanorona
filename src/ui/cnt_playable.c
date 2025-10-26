@@ -5,7 +5,10 @@
 #include "../utils/log_console.h"
 #include "../window/window.h"
 #include "../utils/asset_manager.h"
-#include "../plateau/plateau.h"  // Add missing include for PLATEAU_MARGIN, COLS, ROWS, NODES
+#include "../plateau/plateau.h"
+#include "../types.h"           // 🔧 FIX: Import types
+#include "../config.h"          // 🔧 FIX: Import config
+#include "../pions/pions.h"     // 🔧 FIX: Import pions
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,7 +79,7 @@ void ui_cnt_playable_add_game_area(UINode* playable_container) {
         
         printf("   🎯 Plateau Fanorona avec événements individuels (480x320) :\n");
         printf("      • %d éléments d'intersection avec hover/click séparés\n", NODES);
-        printf("      • Hover seulement sur pions utilisateur\n");
+        printf("      • Joueurs initialisés depuis la configuration globale\n");
         printf("      • Validation de coups en temps réel\n");
         printf("      • Feedback visuel amélioré\n");
     }

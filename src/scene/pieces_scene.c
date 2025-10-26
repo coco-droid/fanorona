@@ -22,21 +22,31 @@ typedef struct PiecesSceneData {
     UINode* next_link;  // 🆕 Ajout du bouton SUIVANT
 } PiecesSceneData;
 
-// 🆕 Callbacks pour sauvegarder le choix de pièces
+// 🔧 FIX: Callbacks COMPLETS pour sauvegarder les couleurs
 static void black_pieces_clicked(void* element, SDL_Event* event) {
     (void)element;
     (void)event;
     
-    // TODO: Sauvegarder le choix "pièces noires" dans la config
-    printf("🖤 Pièces NOIRES sélectionnées\n");
+    printf("🖤 Joueur 1 choisit les pièces NOIRES\n");
+    printf("🤎 Joueur 2 aura automatiquement les pièces BRUNES\n");
+    
+    // 🆕 SAUVEGARDER dans la config globale
+    config_set_player_piece_colors(PIECE_COLOR_BLACK, PIECE_COLOR_BROWN);
+    
+    printf("💾 Couleurs sauvegardées: J1=NOIR, J2=BRUN\n");
 }
 
 static void brown_pieces_clicked(void* element, SDL_Event* event) {
     (void)element;
     (void)event;
     
-    // TODO: Sauvegarder le choix "pièces brunes" dans la config
-    printf("🤎 Pièces BRUNES sélectionnées\n");
+    printf("🤎 Joueur 1 choisit les pièces BRUNES\n");
+    printf("🖤 Joueur 2 aura automatiquement les pièces NOIRES\n");
+    
+    // 🆕 SAUVEGARDER dans la config globale  
+    config_set_player_piece_colors(PIECE_COLOR_BROWN, PIECE_COLOR_BLACK);
+    
+    printf("💾 Couleurs sauvegardées: J1=BRUN, J2=NOIR\n");
 }
 
 // Initialisation de la scène Pieces
@@ -159,6 +169,18 @@ static void pieces_scene_init(Scene* scene) {
         
         // Animation pulse pour attirer l'attention
         ui_animate_pulse(data->next_link, 2.0f);
+    }
+    
+    // 🆕 BOUTON RETOUR vers profile_scene
+    data->back_link = ui_create_link(data->ui_tree, "back-profile-link", "RETOUR", "profile", SCENE_TRANSITION_REPLACE);
+    if (data->back_link) {
+        SET_SIZE(data->back_link, 150, 35);
+        ui_set_text_align(data->back_link, "center");
+        atomic_set_background_color(data->back_link->element, 64, 64, 64, 200);
+        atomic_set_border(data->back_link->element, 2, 128, 128, 128, 255);
+        atomic_set_text_color_rgba(data->back_link->element, 255, 255, 255, 255);
+        atomic_set_padding(data->back_link->element, 6, 10, 6, 10);
+        ui_link_set_target_window(data->back_link, WINDOW_TYPE_MINI);
     }
     
     // Container pour les boutons de navigation (RETOUR + SUIVANT)

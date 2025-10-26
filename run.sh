@@ -82,12 +82,12 @@ SOURCES=(
     "$SRC_DIR/scene/game_scene.c"
     "$SRC_DIR/scene/ai_scene.c"
     "$SRC_DIR/scene/wiki_scene.c"
-    "$SRC_DIR/scene/pieces_scene.c"  # 🆕 Ajout de pieces_scene.c
+    "$SRC_DIR/scene/pieces_scene.c"
     "$SRC_DIR/scene/scene_registry.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
     "$SRC_DIR/ui/animation.c"
-    "$SRC_DIR/ui/avatar.c"  # 🆕 Ajout de avatar.c
+    "$SRC_DIR/ui/avatar.c"
     "$SRC_DIR/ui/cnt_ui.c"
     "$SRC_DIR/ui/cnt_playable.c"
     "$SRC_DIR/ui/sidebar.c"
@@ -100,6 +100,7 @@ SOURCES=(
     "$SRC_DIR/plateau/plateau.c"
     "$SRC_DIR/pions/pions.c"
     "$SRC_DIR/logic/rules.c"
+    "$SRC_DIR/logic/mode.c"  # 🆕 AJOUT: mode.c was missing
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
 )

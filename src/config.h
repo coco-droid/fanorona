@@ -2,43 +2,13 @@
 #define FANORONA_CONFIG_H
 
 #include <stdbool.h>
+#include "types.h"  // 🔧 FIX: Import types instead of redefining
 
 // Tailles par défaut centralisées
-#define DEFAULT_MAIN_WINDOW_WIDTH  800
-#define DEFAULT_MAIN_WINDOW_HEIGHT 600
+#define DEFAULT_MAIN_WINDOW_WIDTH  950
+#define DEFAULT_MAIN_WINDOW_HEIGHT 450
 #define DEFAULT_MINI_WINDOW_WIDTH  700
 #define DEFAULT_MINI_WINDOW_HEIGHT 500
-
-// 🆕 MODES DE JEU
-typedef enum {
-    GAME_MODE_NONE = 0,           // Aucun mode sélectionné
-    GAME_MODE_LOCAL_MULTIPLAYER,  // Multijoueur sur le même PC
-    GAME_MODE_ONLINE_MULTIPLAYER, // Multijoueur en ligne
-    GAME_MODE_VS_AI               // Contre l'IA
-} GameMode;
-
-// 🆕 NIVEAUX DE DIFFICULTÉ IA
-typedef enum {
-    AI_DIFFICULTY_EASY = 1,    // Facile
-    AI_DIFFICULTY_MEDIUM = 2,  // Moyen
-    AI_DIFFICULTY_HARD = 3     // Difficile
-} AIDifficulty;
-
-// 🆕 SYSTÈME D'AVATARS AVEC IDS FIXES
-typedef enum {
-    AVATAR_WARRIOR = 1,      // p1.png - Guerrier
-    AVATAR_STRATEGIST = 2,   // p2.png - Stratège
-    AVATAR_DIPLOMAT = 3,     // p3.png - Diplomate
-    AVATAR_EXPLORER = 4,     // p4.png - Explorateur
-    AVATAR_MERCHANT = 5,     // p5.png - Marchand
-    AVATAR_SAGE = 6          // p6.png - Sage
-} AvatarID;
-
-// 🆕 Mapper ID → Nom de fichier
-const char* avatar_id_to_filename(AvatarID id);
-
-// 🆕 Mapper Nom de fichier → ID
-AvatarID avatar_filename_to_id(const char* filename);
 
 // 🆕 CONFIGURATION GLOBALE DU JEU
 typedef struct {
@@ -48,8 +18,10 @@ typedef struct {
     char player2_name[128];
     AvatarID player1_avatar;
     AvatarID player2_avatar;
-    bool player1_configured;    // 🆕 Flag J1 configuré
-    bool player2_configured;    // 🆕 Flag J2 configuré
+    PieceColor player1_piece_color;    // 🆕 Couleur des pièces J1
+    PieceColor player2_piece_color;    // 🆕 Couleur des pièces J2
+    bool player1_configured;
+    bool player2_configured;
     bool ai_plays_as_white;
     bool sound_enabled;
     bool animations_enabled;
@@ -75,9 +47,17 @@ AvatarID config_get_player2_avatar(void);
 void config_set_player1_full_profile(const char* name, AvatarID avatar);
 void config_set_player2_full_profile(const char* name, AvatarID avatar);
 
+// 🆕 FONCTIONS POUR LES COULEURS DE PIÈCES
+void config_set_player_piece_colors(PieceColor player1_color, PieceColor player2_color);
+PieceColor config_get_player1_piece_color(void);
+PieceColor config_get_player2_piece_color(void);
+
 // 🆕 FONCTIONS UTILITAIRES
 const char* config_mode_to_string(GameMode mode);
 const char* config_difficulty_to_string(AIDifficulty difficulty);
+
+// 🔧 FIX: Forward declare, implemented in pions.c
+extern const char* piece_color_to_string(PieceColor color);
 
 // 🆕 FONCTION RAPIDE pour activer le mode IA
 void config_enable_ai_mode(void);
@@ -89,5 +69,8 @@ bool config_is_player2_configured(void);
 // 🔧 FIX: Check if profile scene should show J2 form (NOT game turn)
 bool config_is_profile_player2_turn(void);
 void config_reset_player_configs(void);
+
+// 🆕 Mapper ID → Nom de fichier
+const char* avatar_id_to_filename(AvatarID id);
 
 #endif // FANORONA_CONFIG_H

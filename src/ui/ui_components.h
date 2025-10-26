@@ -343,6 +343,14 @@ void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* pl
 GamePlayer* ui_plateau_get_player1(UINode* plateau);
 GamePlayer* ui_plateau_get_player2(UINode* plateau);
 
+// 🆕 Mouse event handlers for plateau
+void ui_plateau_set_mouse_handlers(UINode* plateau);
+void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);
+
+// 🆕 Game state integration
+void ui_plateau_set_game_logic(UINode* plateau, void* game_logic);
+void* ui_plateau_get_game_logic(UINode* plateau);
+
 // Nettoyage des ressources
 void ui_plateau_cleanup(UINode* plateau);
 

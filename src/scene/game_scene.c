@@ -3,6 +3,10 @@
 #include "../ui/ui_components.h"
 #include "../utils/log_console.h"
 #include "../utils/asset_manager.h"
+#include "../types.h"           // 🔧 FIX: Import types
+#include "../config.h"          // 🔧 FIX: Import config
+#include "../pions/pions.h"     // 🔧 FIX: Import pions
+#include "../logic/logic.h"     // 🔧 FIX: Import logic
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,13 +20,13 @@ typedef struct GameSceneData {
     GameCore* core;
     UINode* sidebar;
     UINode* playable_area;
+    GameLogic* game_logic;       // 🆕 Ajout de la logique de jeu
 } GameSceneData;
 
 // Initialisation de la scène de jeu
 static void game_scene_init(Scene* scene) {
     printf("🎮 Initialisation de la scène de jeu avec layout sidebar + zone de jeu\n");
     
-    // Désactiver la visualisation des hitboxes pour la scène de jeu
     ui_set_hitbox_visualization(false);
     printf("🚫 Visualisation des hitboxes DÉSACTIVÉE pour la scène de jeu\n");
     
@@ -36,6 +40,18 @@ static void game_scene_init(Scene* scene) {
     data->core = NULL;
     data->sidebar = NULL;
     data->playable_area = NULL;
+    data->game_logic = NULL;      // 🆕 Initialiser à NULL
+    
+    // 🆕 Créer la logique de jeu depuis la configuration
+    data->game_logic = game_logic_create();
+    if (data->game_logic) {
+        // 🔧 FIX: Une seule fonction suffit pour tout initialiser
+        game_logic_start_new_game(data->game_logic);
+        printf("✅ GameLogic initialisée en mode: %s\n", config_mode_to_string(config_get_mode()));
+        
+        // 🆕 AFFICHER L'ÉTAT COMPLET DU JEU
+        game_logic_debug_print(data->game_logic);
+    }
     
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
@@ -83,6 +99,14 @@ static void game_scene_init(Scene* scene) {
         // 🆕 ANIMATION: Fade-in de la zone de jeu
         ui_animate_fade_in(data->playable_area, 1.2f);
         
+        // 🆕 Récupérer le plateau et lui assigner la game logic
+        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
+        if (plateau && data->game_logic) {
+            ui_plateau_set_game_logic(plateau, data->game_logic);
+            ui_plateau_set_players(plateau, data->game_logic->player1, data->game_logic->player2);
+            printf("🎯 Plateau connecté à la GameLogic\n");
+        }
+        
         APPEND(app, data->playable_area);
         printf("🎮 Zone de jeu créée (534x600) avec animation fade-in et plateau centré\n");
     }
@@ -108,6 +132,11 @@ static void game_scene_update(Scene* scene, float delta_time) {
     if (!scene || !scene->data) return;
     
     GameSceneData* data = (GameSceneData*)scene->data;
+    
+    // 🆕 Mettre à jour la logique de jeu
+    if (data->game_logic) {
+        game_logic_update(data->game_logic, delta_time);
+    }
     
     // 🆕 AJOUT: Mettre à jour les animations (inclut les animations de pièces)
     ui_update_animations(delta_time);
@@ -153,6 +182,13 @@ static void game_scene_cleanup(Scene* scene) {
     }
     
     GameSceneData* data = (GameSceneData*)scene->data;
+    
+    // 🆕 Nettoyer la logique de jeu AVANT le plateau
+    if (data->game_logic) {
+        printf("🗑️ [GAME_CLEANUP] Nettoyage GameLogic\n");
+        game_logic_destroy(data->game_logic);
+        data->game_logic = NULL;
+    }
     
     // 🔧 FIX: Nettoyer explicitement le plateau avant de détruire l'UI tree
     if (data->playable_area) {

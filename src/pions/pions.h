@@ -3,16 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <stdbool.h>
-#include "../config.h"  // 🔧 FIX: Include config.h BEFORE using AvatarID
-
-typedef enum { EMPTY = 0, WHITE = 1, BLACK = -1, NOBODY = 2 } Player;
-
-// 🆕 TYPES DE PIONS (couleur visuelle)
-typedef enum {
-    PIECE_COLOR_WHITE = 0,    // Pions blancs
-    PIECE_COLOR_BLACK = 1,    // Pions noirs
-    PIECE_COLOR_BROWN = 2     // Pions bruns (variante)
-} PieceColor;
+#include "../types.h"  // 🔧 FIX: Use types.h instead of redefining Player
 
 // 🆕 TYPES DE JOUEUR
 typedef enum {

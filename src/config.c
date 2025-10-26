@@ -1,6 +1,6 @@
 #include "config.h"
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 // 🆕 CONFIGURATION GLOBALE STATIQUE
 static GameConfig g_config = {
@@ -8,14 +8,38 @@ static GameConfig g_config = {
     .ai_difficulty = AI_DIFFICULTY_MEDIUM,
     .player1_name = "Joueur 1",
     .player2_name = "Joueur 2",
-    .player1_avatar = AVATAR_WARRIOR,      // 🆕 Avatar par défaut joueur 1
-    .player2_avatar = AVATAR_STRATEGIST,   // 🆕 Avatar par défaut joueur 2
-    .player1_configured = false,  // 🆕 Flag J1 configuré
-    .player2_configured = false,  // 🆕 Flag J2 configuré
-    .ai_plays_as_white = false,  // IA joue les noirs par défaut
+    .player1_avatar = AVATAR_WARRIOR,
+    .player2_avatar = AVATAR_STRATEGIST,
+    .player1_piece_color = PIECE_COLOR_WHITE,  // 🆕 Défaut: blanc
+    .player2_piece_color = PIECE_COLOR_BLACK,  // 🆕 Défaut: noir
+    .player1_configured = false,
+    .player2_configured = false,
+    .ai_plays_as_white = false,
     .sound_enabled = true,
     .animations_enabled = true
 };
+
+// 🔧 FIX: Move utility functions BEFORE first use
+const char* config_mode_to_string(GameMode mode) {
+    switch (mode) {
+        case GAME_MODE_NONE:              return "Aucun mode";
+        case GAME_MODE_LOCAL_MULTIPLAYER: return "Multijoueur local";
+        case GAME_MODE_ONLINE_MULTIPLAYER:return "Multijoueur en ligne";
+        case GAME_MODE_VS_AI:             return "Contre IA";
+        default:                          return "Mode inconnu";
+    }
+}
+
+const char* config_difficulty_to_string(AIDifficulty difficulty) {
+    switch (difficulty) {
+        case AI_DIFFICULTY_EASY:   return "Facile";
+        case AI_DIFFICULTY_MEDIUM: return "Moyen";
+        case AI_DIFFICULTY_HARD:   return "Difficile";
+        default:                   return "Inconnue";
+    }
+}
+
+// 🔧 REMOVED: piece_color_to_string - now in pions.c only
 
 // 🆕 INITIALISATION DE LA CONFIGURATION
 void config_init(void) {
@@ -119,26 +143,6 @@ GameConfig* config_get_current(void) {
     return &g_config;
 }
 
-// 🆕 FONCTIONS UTILITAIRES DE CONVERSION
-const char* config_mode_to_string(GameMode mode) {
-    switch (mode) {
-        case GAME_MODE_NONE:              return "Aucun mode";
-        case GAME_MODE_LOCAL_MULTIPLAYER: return "Multijoueur local";
-        case GAME_MODE_ONLINE_MULTIPLAYER:return "Multijoueur en ligne";
-        case GAME_MODE_VS_AI:             return "Contre IA";
-        default:                          return "Mode inconnu";
-    }
-}
-
-const char* config_difficulty_to_string(AIDifficulty difficulty) {
-    switch (difficulty) {
-        case AI_DIFFICULTY_EASY:   return "Facile";
-        case AI_DIFFICULTY_MEDIUM: return "Moyen";
-        case AI_DIFFICULTY_HARD:   return "Difficile";
-        default:                   return "Inconnue";
-    }
-}
-
 // 🆕 FONCTION RAPIDE pour activer le mode IA
 void config_enable_ai_mode(void) {
     config_set_mode(GAME_MODE_VS_AI);
@@ -146,15 +150,16 @@ void config_enable_ai_mode(void) {
 }
 
 // 🆕 IMPLÉMENTATION DU SYSTÈME D'AVATARS
+// 🆕 Mapper ID → Nom de fichier
 const char* avatar_id_to_filename(AvatarID id) {
     switch (id) {
-        case AVATAR_WARRIOR:     return "p1.png";
-        case AVATAR_STRATEGIST:  return "p2.png";
-        case AVATAR_DIPLOMAT:    return "p3.png";
-        case AVATAR_EXPLORER:    return "p4.png";
-        case AVATAR_MERCHANT:    return "p5.png";
-        case AVATAR_SAGE:        return "p6.png";
-        default:                 return "p1.png";
+        case AVATAR_WARRIOR: return "p1.png";
+        case AVATAR_STRATEGIST: return "p2.png";
+        case AVATAR_DIPLOMAT: return "p3.png";
+        case AVATAR_EXPLORER: return "p4.png";
+        case AVATAR_MERCHANT: return "p5.png";
+        case AVATAR_SAGE: return "p6.png";
+        default: return "p1.png";
     }
 }
 
@@ -232,4 +237,22 @@ void config_reset_player_configs(void) {
     g_config.player1_configured = false;
     g_config.player2_configured = false;
     printf("🔄 Flags de configuration J1/J2 réinitialisés\n");
+}
+
+// 🆕 GESTION DES COULEURS DE PIÈCES
+void config_set_player_piece_colors(PieceColor player1_color, PieceColor player2_color) {
+    g_config.player1_piece_color = player1_color;
+    g_config.player2_piece_color = player2_color;
+    
+    printf("🎨 Couleurs de pièces configurées:\n");
+    printf("   👤 Joueur 1 (%s): %s\n", g_config.player1_name, piece_color_to_string(player1_color));
+    printf("   👤 Joueur 2 (%s): %s\n", g_config.player2_name, piece_color_to_string(player2_color));
+}
+
+PieceColor config_get_player1_piece_color(void) {
+    return g_config.player1_piece_color;
+}
+
+PieceColor config_get_player2_piece_color(void) {
+    return g_config.player2_piece_color;
 }

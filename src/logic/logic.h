@@ -2,8 +2,8 @@
 #define LOGIC_H
 
 #include <stdbool.h>
+#include "../types.h"        // 🔧 FIX: Import types first
 #include "../plateau/plateau.h"
-#include "../config.h"
 #include "../pions/pions.h"
 
 // 🆕 ÉTAT DE JEU
@@ -20,9 +20,9 @@ typedef enum {
 typedef struct {
     GameState state;
     GameMode mode;
-    GamePlayer* white_player;  // Pointer vers GamePlayer
-    GamePlayer* black_player;  // Pointer vers GamePlayer
-    Player current_player;
+    GamePlayer* player1;       // 🔧 FIX: Premier joueur (joue en premier)
+    GamePlayer* player2;       // 🔧 FIX: Deuxième joueur
+    Player current_player;     // 🔧 FIX: Maintenant 1 ou 2, pas WHITE/BLACK
     Board* board;
     int turn_number;
     bool game_finished;
@@ -33,7 +33,6 @@ typedef struct {
 // 🆕 FONCTIONS DE GESTION DE LA LOGIQUE DE JEU
 GameLogic* game_logic_create(void);
 void game_logic_destroy(GameLogic* logic);
-void game_logic_initialize_for_mode(GameLogic* logic, GameMode mode);
 void game_logic_start_new_game(GameLogic* logic);
 
 // 🆕 FONCTIONS DE GESTION DES TOURS
@@ -56,20 +55,5 @@ const char* game_logic_player_type_to_string(PlayerType type);
 void game_logic_debug_print(GameLogic* logic);
 
 #endif // LOGIC_H
-bool game_logic_is_remote_turn(GameLogic* logic);
-GamePlayer* game_logic_get_current_player_info(GameLogic* logic);
-GamePlayer* game_logic_get_other_player_info(GameLogic* logic);
-void game_logic_switch_turn(GameLogic* logic);
-
-// 🆕 FONCTIONS DE VALIDATION ET ÉTAT
-bool game_logic_can_player_move(GameLogic* logic, Player player);
-bool game_logic_is_game_over(GameLogic* logic);
-Player game_logic_check_winner(GameLogic* logic);
-void game_logic_update(GameLogic* logic, float delta_time);
-
-// 🆕 FONCTIONS UTILITAIRES
-const char* game_logic_state_to_string(GameState state);
-const char* game_logic_player_type_to_string(PlayerType type);
-void game_logic_debug_print(GameLogic* logic);
 
 

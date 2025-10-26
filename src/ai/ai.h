@@ -1,10 +1,10 @@
 #ifndef AI_H
 #define AI_H
 
+#include "../types.h"        // 🔧 FIX: Import types first
 #include "../plateau/plateau.h"
 #include "../pions/pions.h"
 #include "../logic/rules.h"
-#include "../config.h"
 #include <stdbool.h>
 #include <stdint.h>
 
