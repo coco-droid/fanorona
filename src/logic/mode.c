@@ -243,6 +243,94 @@ void game_logic_update(GameLogic* logic, float delta_time) {
     }
 }
 
+// 🆕 VALIDATION D'INTERACTION SELON LE MODE ET LE TOUR
+bool game_logic_can_player_interact(GameLogic* logic, Player piece_owner) {
+    if (!logic || logic->game_finished) {
+        return false;
+    }
+    
+    GameMode mode = logic->mode;
+    GamePlayer* current_player = game_logic_get_current_player_info(logic);
+    
+    if (!current_player) return false;
+    
+    // 🎮 MODE MULTIJOUEUR LOCAL : Alterner selon le tour
+    if (mode == GAME_MODE_LOCAL_MULTIPLAYER) {
+        // Seul le joueur dont c'est le tour peut interagir avec ses pièces
+        bool is_player1_turn = (logic->current_player == PLAYER_1);
+        bool is_player1_piece = (piece_owner == logic->player1->logical_color);
+        bool is_player2_turn = (logic->current_player == PLAYER_2);
+        bool is_player2_piece = (piece_owner == logic->player2->logical_color);
+        
+        if (is_player1_turn && is_player1_piece) {
+            return true;
+        }
+        if (is_player2_turn && is_player2_piece) {
+            return true;
+        }
+        return false;
+    }
+    
+    // 🤖 MODE VS IA : Seul le joueur humain (J1) peut interagir, et seulement à son tour
+    if (mode == GAME_MODE_VS_AI) {
+        bool is_human_player1 = (logic->player1->type == PLAYER_TYPE_HUMAN);
+        bool is_human_player2 = (logic->player2->type == PLAYER_TYPE_HUMAN);
+        
+        if (is_human_player1) {
+            bool is_player1_turn = (logic->current_player == PLAYER_1);
+            bool is_player1_piece = (piece_owner == logic->player1->logical_color);
+            return is_player1_turn && is_player1_piece;
+        } else if (is_human_player2) {
+            bool is_player2_turn = (logic->current_player == PLAYER_2);
+            bool is_player2_piece = (piece_owner == logic->player2->logical_color);
+            return is_player2_turn && is_player2_piece;
+        }
+        return false;
+    }
+    
+    // 🌐 MODE MULTIJOUEUR EN LIGNE : Seul le joueur local peut interagir à son tour
+    if (mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        bool is_local_player1 = (logic->player1->type == PLAYER_TYPE_HUMAN);
+        bool is_local_player2 = (logic->player2->type == PLAYER_TYPE_HUMAN);
+        
+        if (is_local_player1) {
+            bool is_player1_turn = (logic->current_player == PLAYER_1);
+            bool is_player1_piece = (piece_owner == logic->player1->logical_color);
+            return is_player1_turn && is_player1_piece;
+        } else if (is_local_player2) {
+            bool is_player2_turn = (logic->current_player == PLAYER_2);
+            bool is_player2_piece = (piece_owner == logic->player2->logical_color);
+            return is_player2_turn && is_player2_piece;
+        }
+        return false;
+    }
+    
+    return false;
+}
+
+// 🆕 VÉRIFIER SI C'EST LE TOUR D'UN JOUEUR LOCAL
+bool game_logic_is_local_player_turn(GameLogic* logic, int player_number) {
+    if (!logic || logic->game_finished) return false;
+    
+    bool is_correct_turn = (player_number == 1 && logic->current_player == PLAYER_1) ||
+                           (player_number == 2 && logic->current_player == PLAYER_2);
+    
+    if (!is_correct_turn) return false;
+    
+    GamePlayer* player = (player_number == 1) ? logic->player1 : logic->player2;
+    return player && player->type == PLAYER_TYPE_HUMAN;
+}
+
+// 🆕 VÉRIFIER SI ON PEUT HOVER UNE PIÈCE
+bool game_logic_can_hover_piece(GameLogic* logic, Player piece_owner) {
+    return game_logic_can_player_interact(logic, piece_owner);
+}
+
+// 🆕 VÉRIFIER SI ON PEUT SÉLECTIONNER UNE PIÈCE
+bool game_logic_can_select_piece(GameLogic* logic, Player piece_owner) {
+    return game_logic_can_player_interact(logic, piece_owner);
+}
+
 // 🆕 FONCTIONS UTILITAIRES
 const char* game_logic_state_to_string(GameState state) {
     switch (state) {

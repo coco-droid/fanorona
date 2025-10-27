@@ -726,59 +726,6 @@ Avec le système de logs activé, vous verrez :
 [14:32:17] [UIComponent] [VisualState] [play-button] : Button normal state restored from hover
 ```
 
-## 🎯 Événements visuels connectés
-
-Les boutons supportent maintenant 3 types d'événements avec feedback automatique :
-
-```c
-// Connexion complète des événements visuels
-atomic_set_click_handler(button->element, button_clicked);      // Clic avec compression
-atomic_set_hover_handler(button->element, button_hovered);      // Survol avec agrandissement
-atomic_set_unhover_handler(button->element, button_unhovered);  // Sortie avec restauration
-```
-
-## ⚡ API de feedback visuel
-
-### Fonctions principales
-
-```c
-// États de base
-void ui_button_set_pressed_state(UINode* button, bool pressed);
-void ui_button_set_hover_state(UINode* button, bool hovered);
-void ui_button_reset_visual_state(UINode* button);
-
-// Styles contextuels
-void ui_button_apply_success_style(UINode* button);   // Vert
-void ui_button_apply_danger_style(UINode* button);    // Rouge
-void ui_button_apply_info_style(UINode* button);      // Bleu
-void ui_button_apply_warning_style(UINode* button);   // Orange
-
-// Animations (base pour extensions futures)
-void ui_button_animate_click(UINode* button, int duration_ms);
-void ui_button_animate_hover(UINode* button, bool entering);
-```
-
-### Exemple d'utilisation complète
-
-```c
-// Créer un bouton avec feedback visuel complet
-UINode* save_btn = ui_button(tree, "save", "SAUVEGARDER", on_save_clicked, NULL);
-SET_SIZE(save_btn, 200, 60);
-ui_button_set_background_image(save_btn, "save_button.png");
-
-// Connecter tous les événements visuels
-atomic_set_click_handler(save_btn->element, save_button_clicked);
-atomic_set_hover_handler(save_btn->element, save_button_hovered);
-atomic_set_unhover_handler(save_btn->element, save_button_unhovered);
-
-// Le bouton réagira automatiquement avec :
-// - Agrandissement au survol
-// - Compression au clic avec couleur verte
-// - Restauration automatique à l'état normal
-```
-
-Cette amélioration rend les boutons beaucoup plus interactifs et donne un feedback visuel immédiat à l'utilisateur ! 🎨✨
-
 ## 🚨 Diagnostic du problème d'événements - RÉSOLU ✅
 
 ### ✅ Problèmes identifiés et corrigés :
@@ -970,39 +917,43 @@ plateau_draw_piece(data, r, c, owner);
 
 ### 🎯 Système de sélection d'intersections
 
-Le plateau supporte maintenant la sélection interactive des intersections :
+Le plateau supporte maintenant la sélection interactive des intersections avec **validation du tour selon le mode de jeu** :
+
+**🎮 Règles d'interaction selon le mode :**
+
+- **MODE MULTIJOUEUR LOCAL** : Les interactions alternent selon le tour
+  - Tour du Joueur 1 : Seules les pièces du J1 peuvent être hover/sélectionnées
+  - Tour du Joueur 2 : Seules les pièces du J2 peuvent être hover/sélectionnées
+  - L'autre joueur ne peut pas interagir pendant ce temps
+
+- **MODE VS IA** : Seul le joueur humain peut interagir
+  - Tour du joueur humain : Peut hover/sélectionner ses pièces uniquement
+  - Tour de l'IA : Aucune interaction possible (l'IA joue automatiquement)
+
+- **MODE MULTIJOUEUR EN LIGNE** : Seul le joueur local peut interagir
+  - Tour du joueur local : Peut hover/sélectionner ses pièces uniquement
+  - Tour du joueur distant : Aucune interaction (en attente du coup réseau)
 
 **🖱️ Interactions supportées :**
-- **Clic sur intersection vide** : Sélectionne l'intersection (cercle vert + croix)
-- **Clic sur intersection avec pièce** : Sélectionne la pièce (cercle vert + croix)
+- **Clic sur intersection vide** : Sélectionne l'intersection (si autorisé)
+- **Clic sur intersection avec pièce** : Sélectionne la pièce (si c'est le tour du propriétaire)
 - **Clic sur intersection déjà sélectionnée** : Déselectionne (supprime les effets visuels)
-- **Hover** : Effet doré temporaire (ne persiste pas)
+- **Hover** : Effet doré temporaire (seulement si autorisé par le tour)
 
-**🎨 Effets visuels :**
-- **Sélection** : Cercle vert épais (5px) + croix blanche centrale
-- **Hover** : Cercle doré fin (3px) semi-transparent
-- **Priorité** : Sélection prend le dessus sur hover
-
-**🔧 API de sélection :**
+**🔒 Validation des interactions :**
 ```c
-// Obtenir l'intersection sélectionnée
-int selected_id = data->visual_state->selected_intersection; // -1 si rien
+// Vérifier si un joueur peut interagir avec une pièce
+bool can_interact = game_logic_can_player_interact(logic, piece_owner);
 
-// Forcer la sélection programmatiquement  
-data->visual_state->selected_intersection = intersection_id;
+// Vérifier si c'est le tour d'un joueur local
+bool is_turn = game_logic_is_local_player_turn(logic, player_number);
 
-// Déselectionner tout
-data->visual_state->selected_intersection = -1;
+// Vérifier si on peut hover une pièce
+bool can_hover = game_logic_can_hover_piece(logic, piece_owner);
 
-// Debug de l'état de sélection
-ui_plateau_debug_current_selection(plateau);
+// Vérifier si on peut sélectionner une pièce
+bool can_select = game_logic_can_select_piece(logic, piece_owner);
 ```
 
-**📊 Logs de sélection :**
-```
-🎯 [PLATEAU_CLICK] Intersection 15 sélectionnée (r=1, c=6)
-🔵 [PLATEAU_CLICK] PIÈCE sélectionnée - Propriétaire: Blanc
-🔄 [PLATEAU_CLICK] Déselection intersection 15
-⚫ [PLATEAU_CLICK] Intersection VIDE sélectionnée - Destination possible
-✅ [PLATEAU_CLICK] État de sélection mis à jour
+**📊 Logs de validation :**
 ```

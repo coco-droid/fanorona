@@ -431,7 +431,7 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
     }
 }
 
-// 🔧 FIX: Callback pour le clic - logique de sélection améliorée avec debug et feedback immédiat
+// 🔧 FIX: Callback pour le clic avec validation du tour
 static void on_intersection_click(void* element, SDL_Event* event) {
     (void)event;
     
@@ -449,21 +449,35 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         return;
     }
     
+    Piece* piece = data->board->nodes[intersection_id].piece;
+    
+    // 🆕 VALIDATION DU TOUR - Vérifier si le joueur peut interagir
+    if (piece && piece->alive) {
+        GameLogic* game_logic = (GameLogic*)data->game_logic;
+        if (game_logic) {
+            if (!game_logic_can_select_piece(game_logic, piece->owner)) {
+                printf("🚫 [PLATEAU_CLICK] Interaction refusée - Ce n'est pas le tour du propriétaire de cette pièce\n");
+                printf("   📍 Pièce: %s, Tour actuel: Joueur %d\n",
+                       piece->owner == WHITE ? "Blanc" : "Noir",
+                       game_logic->current_player);
+                return;
+            }
+        }
+    }
+    
     printf("🎯 [PLATEAU_CLICK] DÉBUT - Intersection %d cliquée\n", intersection_id);
     printf("   📍 Position: (r=%d, c=%d)\n", 
            data->board->nodes[intersection_id].r,
            data->board->nodes[intersection_id].c);
     printf("   📊 Sélection actuelle AVANT: %d\n", data->visual_state->selected_intersection);
     
-    Piece* piece = data->board->nodes[intersection_id].piece;
-    
-    // 🆕 NOUVELLE LOGIQUE DE SÉLECTION avec DEBUG détaillé
+    // 🆕 NOUVELLE LOGIQUE DE SÉLECTION avec validation
     if (data->visual_state->selected_intersection == intersection_id) {
         // Déselectionner si on clique sur la même intersection
         data->visual_state->selected_intersection = -1;
         printf("🔄 [PLATEAU_CLICK] DÉSELECTION intersection %d\n", intersection_id);
     } else {
-        // Sélectionner la nouvelle intersection
+        // Sélectionner la nouvelle intersection (déjà validée ci-dessus)
         int old_selection = data->visual_state->selected_intersection;
         data->visual_state->selected_intersection = intersection_id;
         
@@ -481,7 +495,7 @@ static void on_intersection_click(void* element, SDL_Event* event) {
     printf("✅ [PLATEAU_CLICK] FIN - État de sélection mis à jour\n\n");
 }
 
-// 🔧 FIX: Callback pour le hover - utiliser l'ID stocké
+// 🔧 FIX: Callback pour le hover avec validation du tour
 static void on_intersection_hover(void* element, SDL_Event* event) {
     (void)event;
     
@@ -491,6 +505,19 @@ static void on_intersection_hover(void* element, SDL_Event* event) {
     
     if (!data || intersection_id < 0 || intersection_id >= NODES) return;
     
+    Piece* piece = data->board->nodes[intersection_id].piece;
+    
+    // 🆕 VALIDATION DU TOUR - Vérifier si le joueur peut hover
+    if (piece && piece->alive) {
+        GameLogic* game_logic = (GameLogic*)data->game_logic;
+        if (game_logic) {
+            if (!game_logic_can_hover_piece(game_logic, piece->owner)) {
+                // Hover refusé - ne pas mettre à jour l'état visuel
+                return;
+            }
+        }
+    }
+    
     if (data->visual_state) {
         data->visual_state->hovered_intersection = intersection_id;
         
@@ -499,9 +526,8 @@ static void on_intersection_hover(void* element, SDL_Event* event) {
                data->board->nodes[intersection_id].r,
                data->board->nodes[intersection_id].c);
         
-        Piece* piece = data->board->nodes[intersection_id].piece;
         if (piece && piece->alive) {
-            printf("   📍 [PLATEAU_HOVER] Contient une pièce %s\n", 
+            printf("   📍 [PLATEAU_HOVER] Contient une pièce %s (autorisée)\n", 
                    piece->owner == WHITE ? "Blanche" : "Noire");
         }
     }

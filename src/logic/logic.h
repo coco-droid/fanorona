@@ -49,6 +49,12 @@ bool game_logic_is_game_over(GameLogic* logic);
 Player game_logic_check_winner(GameLogic* logic);
 void game_logic_update(GameLogic* logic, float delta_time);
 
+// 🆕 FONCTIONS DE VALIDATION D'INTERACTION (NOUVEAU)
+bool game_logic_can_player_interact(GameLogic* logic, Player piece_owner);
+bool game_logic_is_local_player_turn(GameLogic* logic, int player_number);
+bool game_logic_can_hover_piece(GameLogic* logic, Player piece_owner);
+bool game_logic_can_select_piece(GameLogic* logic, Player piece_owner);
+
 // 🆕 FONCTIONS UTILITAIRES
 const char* game_logic_state_to_string(GameState state);
 const char* game_logic_player_type_to_string(PlayerType type);
