@@ -31,6 +31,10 @@ typedef struct Piece {
     bool is_highlighted;   // Pour montrer les coups possibles
 } Piece;
 
+// Forward declarations
+typedef struct GamePlayer GamePlayer;
+struct PlayerStats; // 🔧 FIX: Use struct forward declaration instead of typedef
+
 // 🆕 STRUCTURE PLAYER COMPLÈTE
 typedef struct GamePlayer {
     char name[64];              
@@ -46,7 +50,10 @@ typedef struct GamePlayer {
     int pieces_remaining;       // Pions restants
     int captures_made;          // Captures effectuées
     float total_time;           // Temps total de jeu
-    float thinking_time;        // 🔧 FIX: Add missing thinking_time field
+    float thinking_time;        // Temps du tour actuel (affiché dans sidebar)
+    
+    // 🆕 RÉFÉRENCE AUX STATS PERSISTANTES
+    struct PlayerStats* stats;  // 🔧 FIX: Use struct pointer
     
     // 🆕 ÉTAT DU TOUR
     bool is_current_turn;

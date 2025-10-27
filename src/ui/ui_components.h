@@ -316,6 +316,9 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
 // 🆕 Mise à jour de l'indicateur de tour
 void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player);
 
+// 🆕 NOUVELLE FONCTION: Mettre à jour le timer d'un joueur
+void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player);
+
 // === CNT_PLAYABLE COMPONENT ===
 
 // Créer une zone de jeu (2/3 de l'écran)

@@ -120,7 +120,7 @@ static void update_ui_for_current_step(ProfileSceneData* scene_data) {
     }
 }
 
-// 🔧 FIX: Callback pour le UI Link suivant avec logique multistep
+// 🔧 FIX: Callback pour le UI Link suivant avec logique adaptée selon le mode
 static void next_link_callback(UINode* link) {
     (void)link;
     
@@ -131,13 +131,8 @@ static void next_link_callback(UINode* link) {
     UINode* avatar_selector = ui_tree_find_node(tree, "profile-avatar-selector");
     UINode* name_input = ui_tree_find_node(tree, "profile-name-input");
     
-    // Récupérer les données de scène via l'arbre global
-    extern UITree* ui_get_global_tree(void);
-    ProfileSceneData* scene_data = NULL;
-    
-    // 🔧 HACK: Utiliser une variable globale pour accéder aux données de scène
     extern ProfileSceneData* g_current_profile_scene_data;
-    scene_data = g_current_profile_scene_data;
+    ProfileSceneData* scene_data = g_current_profile_scene_data;
     
     if (!scene_data || !scene_data->profile_data) {
         printf("❌ Impossible de récupérer les données de scène\n");
@@ -145,11 +140,52 @@ static void next_link_callback(UINode* link) {
     }
     
     ProfileData* data = scene_data->profile_data;
+    GameMode current_mode = config_get_mode();
     
     // Récupérer les valeurs actuelles
     const char* current_name = ui_text_input_get_text(name_input);
     AvatarID current_avatar = avatar_selector ? ui_avatar_selector_get_selected(avatar_selector) : AVATAR_WARRIOR;
     
+    // 🆕 MODE VS IA: Un seul profil puis transition vers ai_scene
+    if (current_mode == GAME_MODE_VS_AI) {
+        // Sauvegarder le profil du joueur humain
+        strncpy(data->player1_name, current_name ? current_name : "", sizeof(data->player1_name) - 1);
+        data->player1_name[sizeof(data->player1_name) - 1] = '\0';
+        data->player1_avatar = current_avatar;
+        data->player1_completed = true;
+        
+        // Configurer un profil IA par défaut pour le joueur 2
+        strcpy(data->player2_name, "IA");
+        data->player2_avatar = AVATAR_SAGE;  // Avatar par défaut pour l'IA
+        data->player2_completed = true;
+        
+        // Sauvegarder dans la config
+        config_set_player1_full_profile(data->player1_name, data->player1_avatar);
+        config_set_player2_full_profile(data->player2_name, data->player2_avatar);
+        
+        printf("🤖 Profil VS IA sauvegardé:\n");
+        printf("   👤 Joueur: %s (Avatar %d)\n", data->player1_name, data->player1_avatar);
+        printf("   🤖 IA: %s (Avatar %d)\n", data->player2_name, data->player2_avatar);
+        
+        // 🆕 Transition vers ai_scene pour configurer la difficulté
+        if (scene_data->next_link) {
+            ui_link_set_target(scene_data->next_link, "ai");
+            ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_REPLACE);
+            ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MINI);
+            
+            extern SceneManager* game_core_get_scene_manager(GameCore* core);
+            if (scene_data->core) {
+                SceneManager* scene_manager = game_core_get_scene_manager(scene_data->core);
+                if (scene_manager) {
+                    scene_manager_transition_to_scene(scene_manager, "ai", SCENE_TRANSITION_REPLACE);
+                    printf("✅ Transition vers ai_scene pour configuration IA\n");
+                }
+            }
+        }
+        return;
+    }
+    
+    // 🔧 MODE MULTIJOUEUR LOCAL: Logique multistep existante
     if (data->current_step == 1) {
         // Sauvegarder les données du Joueur 1
         strncpy(data->player1_name, current_name ? current_name : "", sizeof(data->player1_name) - 1);
@@ -213,7 +249,7 @@ ProfileSceneData* g_current_profile_scene_data = NULL;
 
 // Initialisation de la scène Profile
 static void profile_scene_init(Scene* scene) {
-    printf("👤 Initialisation de la scène Profile (Multistep Form)\n");
+    printf("👤 Initialisation de la scène Profile\n");
     
     ui_set_hitbox_visualization(false);
     
@@ -229,8 +265,8 @@ static void profile_scene_init(Scene* scene) {
     data->back_link = NULL;
     data->next_link = NULL;
     data->name_input = NULL;
-    data->profile_header = NULL;  // 🆕 Initialiser
-    data->profile_data = create_profile_data();  // 🆕 Créer les données du form
+    data->profile_header = NULL;
+    data->profile_data = create_profile_data();
     
     // 🔧 HACK: Stocker globalement pour accès depuis le callback
     g_current_profile_scene_data = data;
@@ -238,6 +274,14 @@ static void profile_scene_init(Scene* scene) {
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
+    
+    // 🆕 Adapter l'interface selon le mode de jeu
+    GameMode current_mode = config_get_mode();
+    if (current_mode == GAME_MODE_VS_AI) {
+        printf("🤖 Mode VS IA détecté - interface simplifiée (1 joueur)\n");
+    } else {
+        printf("👥 Mode multijoueur détecté - interface complète (2 joueurs)\n");
+    }
     
     // Charger le background
     SDL_Texture* background_texture = NULL;
@@ -272,8 +316,12 @@ static void profile_scene_init(Scene* scene) {
     ui_set_align_items(content_parent, "center");
     ui_set_flex_gap(content_parent, 20);
     
-    // Header "CRÉATION DE PROFIL" (maintenant modifiable)
-    data->profile_header = UI_TEXT(data->ui_tree, "profile-header", "CRÉATION DE PROFIL - JOUEUR 1");
+    // Header "CRÉATION DE PROFIL" (adapté selon le mode)
+    const char* initial_header = (current_mode == GAME_MODE_VS_AI) ? 
+                                "VOTRE PROFIL - CONTRE IA" : 
+                                "CRÉATION DE PROFIL - JOUEUR 1";
+    
+    data->profile_header = UI_TEXT(data->ui_tree, "profile-header", initial_header);
     ui_set_text_color(data->profile_header, "rgb(255, 165, 0)");
     ui_set_text_size(data->profile_header, 20);
     ui_set_text_align(data->profile_header, "center");
@@ -287,8 +335,12 @@ static void profile_scene_init(Scene* scene) {
         printf("✨ Avatar selector créé et réinitialisé\n");
     }
     
-    // 🆕 Text Input pour le nom (placeholder initial Joueur 1)
-    data->name_input = ui_text_input(data->ui_tree, "profile-name-input", "Nom du Joueur 1");
+    // 🆕 Text Input avec placeholder adapté
+    const char* initial_placeholder = (current_mode == GAME_MODE_VS_AI) ? 
+                                     "Votre nom" : 
+                                     "Nom du Joueur 1";
+    
+    data->name_input = ui_text_input(data->ui_tree, "profile-name-input", initial_placeholder);
     if (data->name_input) {
         SET_SIZE(data->name_input, 300, 40);
         ui_set_text_align(data->name_input, "left");
@@ -296,7 +348,7 @@ static void profile_scene_init(Scene* scene) {
         atomic_set_border(data->name_input->element, 2, 255, 165, 0, 255);
         ui_text_input_set_max_length(data->name_input, 50);
         ui_text_input_set_scene_id(data->name_input, "input_name");
-        printf("📝 Text input créé avec placeholder Joueur 1\n");
+        printf("📝 Text input créé avec placeholder adapté au mode\n");
     }
     
     // 🆕 Container pour les boutons (RETOUR + SUIVANT)
@@ -320,15 +372,27 @@ static void profile_scene_init(Scene* scene) {
         APPEND(buttons_container, data->back_link);
     }
     
-    // 🔧 FIX: UI Link SUIVANT avec design préservé
-    data->next_link = ui_create_link(data->ui_tree, "next-link", "SUIVANT", NULL, SCENE_TRANSITION_REPLACE);
+    // UI Link avec texte adapté selon le mode
+    const char* initial_button_text = (current_mode == GAME_MODE_VS_AI) ? 
+                                     "CONFIGURATION IA" : 
+                                     "SUIVANT";
+    
+    data->next_link = ui_create_link(data->ui_tree, "next-link", initial_button_text, NULL, SCENE_TRANSITION_REPLACE);
     if (data->next_link) {
         SET_SIZE(data->next_link, 150, 35);
         ui_set_text_align(data->next_link, "center");
         
-        // 🎨 Design initial (sera restauré dans update_ui_for_current_step)
-        atomic_set_background_color(data->next_link->element, 0, 128, 0, 200);
-        atomic_set_border(data->next_link->element, 2, 0, 255, 0, 255);
+        // Style adapté selon le mode
+        if (current_mode == GAME_MODE_VS_AI) {
+            // Style orange pour mode IA
+            atomic_set_background_color(data->next_link->element, 255, 140, 0, 200);
+            atomic_set_border(data->next_link->element, 2, 255, 165, 0, 255);
+        } else {
+            // Style vert pour multijoueur
+            atomic_set_background_color(data->next_link->element, 0, 128, 0, 200);
+            atomic_set_border(data->next_link->element, 2, 0, 255, 0, 255);
+        }
+        
         atomic_set_text_color_rgba(data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->next_link->element, 6, 10, 6, 10);
         
@@ -337,7 +401,8 @@ static void profile_scene_init(Scene* scene) {
         ui_link_set_activation_delay(data->next_link, 0.0f);
         
         APPEND(buttons_container, data->next_link);
-        printf("🔗 UI Link 'SUIVANT' créé avec design préservé\n");
+        printf("🔗 UI Link créé avec style adapté au mode %s\n", 
+               current_mode == GAME_MODE_VS_AI ? "VS_AI" : "MULTIPLAYER");
     }
     
     // Assembler dans le conteneur parent
@@ -359,7 +424,8 @@ static void profile_scene_init(Scene* scene) {
     
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface Profile créée avec multistep form (Étape 1/2)\n");
+    printf("✅ Interface Profile créée et adaptée au mode: %s\n", 
+           config_mode_to_string(current_mode));
     
     scene->data = data;
     scene->ui_tree = data->ui_tree;

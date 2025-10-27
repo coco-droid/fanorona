@@ -5,7 +5,8 @@
 #include "../utils/log_console.h"
 #include "../window/window.h"      
 #include "../utils/asset_manager.h" 
-#include "../pions/pions.h"  // 🆕 AJOUT: Import pour GamePlayer
+#include "../pions/pions.h"  // 🆕 Import pour GamePlayer
+#include "../stats/game_stats.h"  // 🔧 FIX: Add missing include for PlayerStats
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,12 +53,12 @@ UINode* ui_sidebar(UITree* tree, const char* id) {
     // === 1. TITRE DU JEU ===
     UINode* title = ui_text(tree, "sidebar-title", "FANORONA");
     if (title) {
-        ui_set_text_color(title, "rgb(255, 255, 255)");
+        ui_set_text_color(title, "rgb(0, 0, 0)"); // 🔧 CHANGED: blanc->noir
         ui_set_text_size(title, 24);
         ui_set_text_align(title, "center");
-        ui_set_text_style(title, true, false); // Gras
+        ui_set_text_style(title, true, false);
         APPEND(sidebar, title);
-        ui_log_event("UIComponent", "SidebarTitle", id, "Game title added");
+        ui_log_event("UIComponent", "SidebarTitle", id, "Game title added in black");
     }
     
     // === 2. CONTENEURS JOUEURS (avec valeurs par défaut) ===
@@ -307,8 +308,8 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
         // Nom du joueur
         UINode* player_name_node = ui_text(tree, "player-name", player_name);
         if (player_name_node) {
-            ui_set_text_color(player_name_node, "rgb(0, 0, 0)");
-            ui_set_text_size(player_name_node, 11);
+            atomic_set_text_color(player_name_node->element, 0, 0, 0, 255); // Use atomic function directly
+            atomic_set_text_size(player_name_node->element, 11);
             ui_set_text_style(player_name_node, true, false);
             APPEND(info_container, player_name_node);
         }
@@ -318,8 +319,8 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
         snprintf(captures_text, sizeof(captures_text), "Captures: %d", captures);
         UINode* captures_label = ui_text(tree, "captures", captures_text);
         if (captures_label) {
-            ui_set_text_color(captures_label, "rgb(64, 64, 64)");
-            ui_set_text_size(captures_label, 8);
+            atomic_set_text_color(captures_label->element, 64, 64, 64, 255);
+            atomic_set_text_size(captures_label->element, 8);
             APPEND(info_container, captures_label);
         }
     }
@@ -352,9 +353,16 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
             }
         }
         
-        // Temps écoulé (calculé depuis thinking_time si disponible)
+        // Temps écoulé (maintenant calculé depuis stats->current_turn_time)
         char time_text[16];
-        if (player) {
+        if (player && player->stats) {
+            // 🔧 FIX: Utiliser current_turn_time au lieu de thinking_time total
+            float display_time = player->stats->current_turn_time;
+            int minutes = ((int)display_time) / 60;
+            int seconds = ((int)display_time) % 60;
+            snprintf(time_text, sizeof(time_text), "%02d:%02d", minutes, seconds);
+        } else if (player) {
+            // Fallback sur thinking_time si stats non disponible
             int minutes = ((int)player->thinking_time) / 60;
             int seconds = ((int)player->thinking_time) % 60;
             snprintf(time_text, sizeof(time_text), "%02d:%02d", minutes, seconds);
@@ -364,8 +372,8 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
         
         UINode* time_text_node = ui_text(tree, "time-text", time_text);
         if (time_text_node) {
-            ui_set_text_color(time_text_node, "rgb(0, 0, 0)");
-            ui_set_text_size(time_text_node, 9);
+            atomic_set_text_color(time_text_node->element, 0, 0, 0, 255);
+            atomic_set_text_size(time_text_node->element, 9);
             ui_set_text_style(time_text_node, true, false);
             APPEND(time_container, time_text_node);
         }
@@ -453,8 +461,7 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     UINode* button = ui_div(tree, id);
     if (!button) return NULL;
     
-    // 🔧 FIX: Boutons bien dimensionnés
-    SET_SIZE(button, 95, 55); // 🔧 FIX: Hauteur réduite (60->55)
+    SET_SIZE(button, 95, 55);
     
     SDL_Texture* btn_bg = NULL;
     GameWindow* window = use_main_window();
@@ -468,7 +475,7 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     
     if (btn_bg) {
         atomic_set_background_image(button->element, btn_bg);
-        atomic_set_background_size_str(button->element, "stretch");  // 🔧 FIX: stretch au lieu de cover
+        atomic_set_background_size_str(button->element, "stretch");
     } else {
         if (is_prominent) {
             atomic_set_background_color(button->element, 218, 165, 32, 255);
@@ -479,14 +486,12 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     
     atomic_set_border_radius(button->element, 4);
     
-    // 🔧 FIX: Flexbox ROW pour alignement horizontal icône + texte
     ui_set_display_flex(button);
-    ui_set_flex_direction(button, "row");  // 🔧 CHANGED: row au lieu de column
+    ui_set_flex_direction(button, "row");
     ui_set_justify_content(button, "center");
     ui_set_align_items(button, "center");
-    ui_set_flex_gap(button, 4);  // 🔧 Gap horizontal entre icône et texte
+    ui_set_flex_gap(button, 4); // Gap between icon and text
     
-    // Icône SVG plus petite
     SDL_Texture* icon_texture = NULL;
     if (window) {
         SDL_Renderer* renderer = window_get_renderer(window);
@@ -495,21 +500,29 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
         }
     }
     
+    // 🔧 CALCULATION: Button=95px, gap=4px, icon=16px, text~50px => Total=70px (fits with 25px margin)
     if (icon_texture) {
         UINode* icon_img = ui_image(tree, "btn-icon", icon_texture);
         if (icon_img) {
-            SET_SIZE(icon_img, 18, 18);  // 🔧 REDUCED: 24->18
+            SET_SIZE(icon_img, 16, 16); // Balanced size
             APPEND(button, icon_img);
         }
     }
     
-    // Texte du bouton
+    // 🔧 CALCULATION: Text size 9px is readable and fits in ~50px width
+    TTF_Font* button_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9);
+    
     UINode* text_node = ui_text(tree, "btn-text", text);
     if (text_node) {
-        ui_set_text_size(text_node, 7); // 🔧 FIX: Taille réduite (8->7)
+        if (button_font) {
+            atomic_set_text_font(text_node->element, button_font);
+        }
+        
+        atomic_set_text_size(text_node->element, 9); // Readable size
+        atomic_set_text_color(text_node->element, 0, 0, 0, 255);
         ui_set_text_style(text_node, true, false);
         ui_set_text_align(text_node, "center");
-        ui_set_text_color(text_node, "rgb(255, 255, 255)");
+        
         APPEND(button, text_node);
     }
     
@@ -522,6 +535,14 @@ void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player)
     
     UINode* player1_node = ui_tree_find_node(sidebar->tree, "player1");
     UINode* player2_node = ui_tree_find_node(sidebar->tree, "player2");
+    
+    // 🆕 NOUVEAU: Automatically manage timer state based on turn
+    static int last_current_player = -1;
+    if (last_current_player != current_player->player_number) {
+        printf("🔄 [SIDEBAR] Turn change detected: Player %d -> Player %d\n", 
+               last_current_player, current_player->player_number);
+        last_current_player = current_player->player_number;
+    }
     
     if (player1_node) {
         bool is_active = (current_player->player_number == 1);
@@ -538,6 +559,63 @@ void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player)
             atomic_set_border(player2_node->element, 3, 255, 215, 0, 255);
         } else {
             atomic_set_border(player2_node->element, 1, 200, 200, 200, 128);
+        }
+    }
+}
+
+// 🆕 NOUVELLE FONCTION: Mettre à jour l'affichage du timer en temps réel
+void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player) {
+    if (!sidebar || !player) return;
+    
+    // Trouver le nœud du joueur
+    char player_id[32];
+    snprintf(player_id, sizeof(player_id), "player%d", player->player_number);
+    UINode* player_node = ui_tree_find_node(sidebar->tree, player_id);
+    
+    if (!player_node || player_node->children_count < 3) return;
+    
+    // Le time_container est le 3ème enfant (index 2)
+    UINode* time_container = player_node->children[2];
+    if (!time_container || time_container->children_count < 2) return;
+    
+    // Le time_text est le 2ème enfant du time_container (index 1)
+    UINode* time_text_node = time_container->children[1];
+    if (!time_text_node || !time_text_node->element) return;
+    
+    // 🔧 CRITICAL FIX: Force text update every frame
+    char time_text[16];
+    float display_time = 0.0f;
+    
+    if (player->is_current_turn && player->stats && player->stats->is_timer_running) {
+        display_time = player->stats->current_turn_time;
+    }
+    
+    int minutes = ((int)display_time) / 60;
+    int seconds = ((int)display_time) % 60;
+    snprintf(time_text, sizeof(time_text), "%02d:%02d", minutes, seconds);
+    
+    // 🔧 CRITICAL FIX: Force atomic text update
+    atomic_set_text(time_text_node->element, time_text);
+    
+    // 🆕 ALSO UPDATE CAPTURES COUNT
+    UINode* info_container = player_node->children[1]; // Info container
+    if (info_container && info_container->children_count >= 2) {
+        UINode* captures_node = info_container->children[1]; // Captures text
+        if (captures_node && captures_node->element) {
+            char captures_text[32];
+            snprintf(captures_text, sizeof(captures_text), "Captures: %d", player->captures_made);
+            atomic_set_text(captures_node->element, captures_text);
+        }
+    }
+    
+    // Debug log every 2 seconds for active player
+    static float last_debug = 0.0f;
+    if (player->is_current_turn) {
+        last_debug += 0.016f; // Approximate frame time
+        if (last_debug >= 2.0f) {
+            printf("🔄 [SIDEBAR_UPDATE] %s: %s, Captures: %d\n", 
+                   player->name, time_text, player->captures_made);
+            last_debug = 0.0f;
         }
     }
 }

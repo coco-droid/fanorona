@@ -2,6 +2,7 @@
 #include "../config.h"
 #include "../utils/log_console.h"
 #include "../logic/rules.h"
+#include "../stats/game_stats.h"  // 🆕 AJOUT
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,13 +23,27 @@ GameLogic* game_logic_create(void) {
     logic->game_finished = false;
     logic->winner = NOBODY;
     
-    printf("🧠 GameLogic créée\n");
+    // 🆕 Créer le gestionnaire de statistiques
+    logic->stats_manager = game_stats_create();
+    if (!logic->stats_manager) {
+        printf("❌ Impossible de créer le gestionnaire de statistiques\n");
+        free(logic);
+        return NULL;
+    }
+    
+    printf("🧠 GameLogic créée avec système de stats\n");
     return logic;
 }
 
 void game_logic_destroy(GameLogic* logic) {
     if (logic) {
         printf("🧹 Destruction de GameLogic\n");
+        
+        // 🆕 Détruire le gestionnaire de stats
+        if (logic->stats_manager) {
+            game_stats_destroy(logic->stats_manager);
+        }
+        
         free(logic);
     }
 }
@@ -115,6 +130,23 @@ void game_logic_start_new_game(GameLogic* logic) {
     logic->player2->thinking_time = 0.0f;
     logic->player2->is_current_turn = false;
     
+    // 🆕 Initialiser les statistiques des joueurs
+    if (logic->stats_manager && logic->player1 && logic->player2) { // 🔧 FIX: Check players exist
+        game_stats_init_player(logic->stats_manager, 1, logic->player1->name);
+        game_stats_init_player(logic->stats_manager, 2, logic->player2->name);
+        
+        // Lier les stats aux joueurs
+        logic->player1->stats = game_stats_get_player(logic->stats_manager, 1);
+        logic->player2->stats = game_stats_get_player(logic->stats_manager, 2);
+        
+        // Démarrer le timer du premier joueur
+        game_stats_start_turn_timer(logic->stats_manager, 1);
+        
+        printf("✅ Système de statistiques initialisé pour les deux joueurs\n");
+    } else {
+        printf("⚠️ Impossible d'initialiser les statistiques (stats_manager ou joueurs NULL)\n");
+    }
+    
     // Déterminer l'état initial selon le mode
     if (logic->player1->type == PLAYER_TYPE_AI) {
         logic->state = GAME_STATE_AI_THINKING;
@@ -172,15 +204,33 @@ void game_logic_switch_turn(GameLogic* logic) {
     GamePlayer* current = game_logic_get_current_player_info(logic);
     GamePlayer* next = game_logic_get_other_player_info(logic);
     
+    if (!current || !next) {
+        printf("❌ Impossible de changer de tour: joueur NULL\n");
+        return;
+    }
+    
     printf("🔄 Changement de tour: %s → %s\n", current->name, next->name);
+    
+    // 🆕 NOUVEAU: Arrêter le timer du joueur actuel ET enregistrer le temps du tour
+    if (logic->stats_manager) {
+        game_stats_stop_turn_timer(logic->stats_manager, current->player_number);
+        printf("⏸️ Timer arrêté pour %s après %.2fs de réflexion\n", 
+               current->name, current->stats ? current->stats->current_turn_time : 0.0f);
+    }
     
     // Changer le joueur actuel
     logic->current_player = (logic->current_player == PLAYER_1) ? PLAYER_2 : PLAYER_1;
     logic->turn_number++;
     
-    // Mettre à jour les flags de tour
+    // 🔧 FIX: Mettre à jour les états AVANT de démarrer le nouveau timer
     current->is_current_turn = false;
     next->is_current_turn = true;
+    
+    // 🆕 NOUVEAU: Démarrer le timer du prochain joueur (reset automatique à 0)
+    if (logic->stats_manager) {
+        game_stats_start_turn_timer(logic->stats_manager, next->player_number);
+        printf("▶️ Timer démarré pour %s (nouveau tour)\n", next->name);
+    }
     
     // 🆕 Vérifier fin de partie après chaque tour
     if (logic->board) {
@@ -189,6 +239,13 @@ void game_logic_switch_turn(GameLogic* logic) {
             logic->game_finished = true;
             logic->winner = winner;
             logic->state = GAME_STATE_GAME_OVER;
+            
+            // 🆕 ARRÊTER TOUS LES TIMERS en fin de partie
+            if (logic->stats_manager) {
+                game_stats_stop_turn_timer(logic->stats_manager, 1);
+                game_stats_stop_turn_timer(logic->stats_manager, 2);
+                printf("⏹️ Tous les timers arrêtés - Partie terminée\n");
+            }
             
             GamePlayer* winner_player = (winner == logic->player1->logical_color) ? logic->player1 : logic->player2;
             printf("🏆 PARTIE TERMINÉE! Vainqueur: %s\n", winner_player->name);
@@ -200,19 +257,18 @@ void game_logic_switch_turn(GameLogic* logic) {
     switch (next->type) {
         case PLAYER_TYPE_HUMAN:
             logic->state = GAME_STATE_WAITING_INPUT;
-            printf("⌨️ C'est au tour de %s (Humain, %s)\n", 
+            printf("⌨️ C'est au tour de %s (Humain, %s) - Timer démarré\n", 
                    next->name, next->logical_color == WHITE ? "Blanc" : "Noir");
             break;
             
         case PLAYER_TYPE_AI:
             logic->state = GAME_STATE_AI_THINKING;
-            printf("🤖 L'IA %s commence à réfléchir (Difficulté: %s)...\n", 
-                   next->name, config_difficulty_to_string(config_get_ai_difficulty()));
+            printf("🤖 L'IA %s commence à réfléchir (Timer IA démarré)...\n", next->name);
             break;
             
         case PLAYER_TYPE_ONLINE:
             logic->state = GAME_STATE_ONLINE_WAITING;
-            printf("📡 En attente du joueur distant %s...\n", next->name);
+            printf("📡 En attente du joueur distant %s (Timer réseau démarré)...\n", next->name);
             break;
     }
 }
@@ -223,33 +279,46 @@ void game_logic_update(GameLogic* logic, float delta_time) {
     
     logic->total_game_time += delta_time;
     
-    // Mettre à jour le temps de réflexion du joueur actuel
-    GamePlayer* current = game_logic_get_current_player_info(logic);
-    if (current) {
-        current->thinking_time += delta_time;
+    // 🆕 PRIORITÉ: Mettre à jour les timers dans le système de stats EN PREMIER
+    if (logic->stats_manager) {
+        game_stats_update_timers(logic->stats_manager, delta_time);
+        
+        // 🔧 FIX: Synchroniser thinking_time avec current_turn_time pour compatibilité
+        GamePlayer* current = game_logic_get_current_player_info(logic);
+        if (current && current->stats && current->is_current_turn) {
+            current->thinking_time = current->stats->current_turn_time;
+        }
     }
     
     // Gestion des actions selon l'état
     switch (logic->state) {
         case GAME_STATE_AI_THINKING:
-            // 🆕 SIMULATION SIMPLE IA
-            if (current && current->thinking_time > 2.0f) { // IA réfléchit 2 secondes
-                printf("💡 [IA SIMULATION] L'IA a trouvé son coup optimal !\n");
-                printf("🎮 [IA SIMULATION] L'IA joue son coup...\n");
-                
-                // Simuler que l'IA a joué, passer au tour suivant
-                game_logic_switch_turn(logic);
+            // 🆕 SIMULATION IA avec timer géré par le système de stats
+            if (logic->stats_manager) {
+                GamePlayer* current = game_logic_get_current_player_info(logic);
+                if (current && current->stats && current->stats->current_turn_time > 2.0f) {
+                    printf("💡 [IA SIMULATION] L'IA a trouvé son coup optimal après %.2fs !\n", 
+                           current->stats->current_turn_time);
+                    printf("🎮 [IA SIMULATION] L'IA joue son coup...\n");
+                    
+                    // Simuler que l'IA a joué, passer au tour suivant
+                    game_logic_switch_turn(logic);
+                }
             }
             break;
             
         case GAME_STATE_ONLINE_WAITING:
-            // 🆕 SIMULATION MULTIJOUEUR
-            if (current && current->thinking_time > 5.0f) { // Timeout après 5 secondes
-                printf("⏰ [MULTIJOUEUR SIMULATION] Simulation d'un coup reçu du serveur\n");
-                printf("📥 [MULTIJOUEUR SIMULATION] Coup du joueur distant appliqué\n");
-                
-                // Simuler qu'on a reçu un coup, passer au tour suivant
-                game_logic_switch_turn(logic);
+            // 🆕 SIMULATION MULTIJOUEUR avec timer géré par le système de stats
+            if (logic->stats_manager) {
+                GamePlayer* current = game_logic_get_current_player_info(logic);
+                if (current && current->stats && current->stats->current_turn_time > 5.0f) {
+                    printf("⏰ [MULTIJOUEUR SIMULATION] Timeout après %.2fs\n", 
+                           current->stats->current_turn_time);
+                    printf("📥 [MULTIJOUEUR SIMULATION] Coup du joueur distant appliqué\n");
+                    
+                    // Simuler qu'on a reçu un coup, passer au tour suivant
+                    game_logic_switch_turn(logic);
+                }
             }
             break;
             

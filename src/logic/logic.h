@@ -6,6 +6,9 @@
 #include "../plateau/plateau.h"
 #include "../pions/pions.h"
 
+// Forward declaration
+struct GameStatsManager; // 🔧 FIX: Use struct forward declaration
+
 // 🆕 ÉTAT DE JEU
 typedef enum {
     GAME_STATE_MENU,           // Dans les menus
@@ -28,6 +31,7 @@ typedef struct {
     bool game_finished;
     Player winner;
     float total_game_time;
+    struct GameStatsManager* stats_manager;  // 🔧 FIX: Use struct pointer
 } GameLogic;
 
 // 🆕 FONCTIONS DE GESTION DE LA LOGIQUE DE JEU

@@ -101,6 +101,7 @@ SOURCES=(
     "$SRC_DIR/pions/pions.c"
     "$SRC_DIR/logic/rules.c"
     "$SRC_DIR/logic/mode.c"
+    "$SRC_DIR/stats/game_stats.c"  # 🔧 FIX: Add missing stats module
     "$SRC_DIR/types/plateau_types.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"

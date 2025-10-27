@@ -1,4 +1,5 @@
 #include "pions.h"
+#include "../stats/game_stats.h"  // 🔧 FIX: Add missing include for complete PlayerStats definition
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -122,6 +123,9 @@ GamePlayer* player_create(const char* name, Player logical_color, PieceColor pie
     player->is_connected = false;
     player->remote_id[0] = '\0';
     
+    // 🔧 FIX: Initialize stats pointer
+    player->stats = NULL;
+    
     printf("✅ Joueur créé: '%s' (%s %s, %s, Joueur %d)\n",
            player->name,
            logical_color == WHITE ? "Blanc" : "Noir",
@@ -224,6 +228,11 @@ void player_add_capture(GamePlayer* player) {
     player->captures_made++;
     printf("🎯 Capture pour '%s': %d captures au total\n", 
            player->name, player->captures_made);
+           
+    // 🆕 CRITICAL FIX: Update stats manager too
+    if (player->stats) {
+        player->stats->captures_made = player->captures_made;
+    }
 }
 
 void player_set_turn(GamePlayer* player, bool is_turn) {

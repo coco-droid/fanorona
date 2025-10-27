@@ -7,6 +7,7 @@
 #include "../config.h"          // 🔧 FIX: Import config
 #include "../pions/pions.h"     // 🔧 FIX: Import pions
 #include "../logic/logic.h"     // 🔧 FIX: Import logic
+#include "../stats/game_stats.h" // 🔧 FIX: Add missing include for PlayerStats
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -145,11 +146,19 @@ static void game_scene_update(Scene* scene, float delta_time) {
     if (data->game_logic) {
         game_logic_update(data->game_logic, delta_time);
         
-        // 🆕 Mettre à jour l'indicateur de tour
+        // 🔧 FIX: Update timer display every frame, not just on turn change
         if (data->sidebar) {
             GamePlayer* current = game_logic_get_current_player_info(data->game_logic);
             if (current) {
                 ui_sidebar_update_current_turn(data->sidebar, current);
+            }
+            
+            // 🆕 CRITICAL FIX: Update timers every frame for real-time display
+            if (data->game_logic->player1) {
+                ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player1);
+            }
+            if (data->game_logic->player2) {
+                ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player2);
             }
         }
     }

@@ -73,6 +73,19 @@ static void wiki_link_unhovered(void* element, SDL_Event* event) {
     (void)event;
 }
 
+// Callback pour activer le mode IA et rediriger vers profile_scene
+static void ai_mode_activated_callback(UINode* link) {
+    (void)link;
+    
+    // Activer le mode VS IA AVANT la transition
+    config_set_mode(GAME_MODE_VS_AI);
+    config_reset_player_configs();  // Réinitialiser les flags J1/J2
+    
+    printf("🤖 Mode VS IA activé - transition vers profile_scene\n");
+    printf("   👤 Seul le joueur humain créera son profil\n");
+    printf("   🎯 Après profile_scene → ai_scene pour difficulté\n");
+}
+
 // Initialisation de la scène menu
 static void menu_scene_init(Scene* scene) {
     printf("📋 Initialisation de la scène Menu avec UI Link vers game_scene\n");
@@ -173,8 +186,8 @@ static void menu_scene_init(Scene* scene) {
             printf("🔗✨ UI Link 'Multijoueur' créé avec transition vers CHOICE_SCENE en MINI WINDOW + animation fade-in\n");
         }
         
-        // 🆕 2. UI LINK pour IA avec transition vers AI_SCENE (pas game_scene)
-        data->ai_link = ui_create_link(data->ui_tree, "ai-link", "JOUER CONTRE L'IA", "ai", SCENE_TRANSITION_REPLACE);
+        // 🆕 2. UI LINK pour IA avec transition vers PROFILE_SCENE (plus ai_scene)
+        data->ai_link = ui_create_link(data->ui_tree, "ai-link", "JOUER CONTRE L'IA", "profile", SCENE_TRANSITION_REPLACE);
         if (data->ai_link) {
             // Styliser comme un neon button violet
             style_link_as_neon_button(data->ai_link, 255, 0, 255); // Violet neon
@@ -182,15 +195,18 @@ static void menu_scene_init(Scene* scene) {
             // 🆕 ANIMATION: Slide-in depuis la gauche avec délai
             ui_animate_slide_in_left(data->ai_link, 1.0f, 300.0f);
             
+            // 🆕 NOUVEAU: Callback pour activer le mode IA
+            ui_link_set_click_handler(data->ai_link, ai_mode_activated_callback);
+            
             // Ajouter les effets hover/unhover pour l'effet neon
             atomic_set_hover_handler(data->ai_link->element, ai_link_hovered);
             atomic_set_unhover_handler(data->ai_link->element, ai_link_unhovered);
             
-            // 🆕 RESTER DANS LA MINI WINDOW pour aller vers ai_scene
+            // 🆕 RESTER DANS LA MINI WINDOW pour aller vers profile_scene
             ui_link_set_target_window(data->ai_link, WINDOW_TYPE_MINI);
             
             APPEND(buttons_container, data->ai_link);
-            printf("🔗✨ UI Link 'IA' créé avec transition vers AI_SCENE en MINI WINDOW + animation slide-in\n");
+            printf("🔗✨ UI Link 'IA' créé avec activation VS_AI mode + transition vers PROFILE_SCENE\n");
         }
         
         // 🆕 3. UI LINK pour Wiki avec transition vers WIKI_SCENE

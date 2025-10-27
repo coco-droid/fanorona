@@ -174,23 +174,24 @@ static void my_scene_update(Scene* scene, float delta_time) {
 
 1. **Home Scene** → "JOUER" → **Choice Scene** (MINI window)
 2. **Choice Scene** → "JOUER EN LOCAL" → **Menu Scene** (MINI window)
-3. **Menu Scene** → "JOUER CONTRE L'IA" → **AI Configuration Scene** (MINI window)
-4. **AI Configuration Scene** → Sélection difficulté/couleur → "DÉMARRER" → **Game Scene** (MAIN window)
-
-**Alternative multijoueur:**
-3bis. **Menu Scene** → "JOUER EN MULTIJOUEUR" → Configuration multijoueur → **Game Scene**
+3a. **Menu Scene** → "JOUER EN MULTIJOUEUR" → **Profile Scene** → **Pieces Scene** → **Game Scene**
+3b. **Menu Scene** → "JOUER CONTRE L'IA" → **Profile Scene** → **AI Configuration Scene** → **Game Scene**
 
 ```c
 // Navigation fluide avec transitions animées
 // Home → Choice : SCENE_TRANSITION_REPLACE (même fenêtre)
 // Choice → Menu : SCENE_TRANSITION_REPLACE (même fenêtre)
-// Menu → AI Config : SCENE_TRANSITION_REPLACE (même fenêtre)
+// Menu → Profile : SCENE_TRANSITION_REPLACE (même fenêtre)
+// Profile → AI Config (mode IA) : SCENE_TRANSITION_REPLACE (même fenêtre)
+// Profile → Pieces (mode multi) : SCENE_TRANSITION_REPLACE (même fenêtre)
 // AI Config → Game : SCENE_TRANSITION_CLOSE_AND_OPEN (changement de fenêtre)
+// Pieces → Game : SCENE_TRANSITION_CLOSE_AND_OPEN (changement de fenêtre)
 ```
 
 **🎯 Caractéristiques du flux complet :**
-- ✅ **Séparation claire des modes** : Local vs En ligne dès le départ
-- ✅ **Navigation intuitive** : Chaque choix mène à la configuration appropriée
+- ✅ **Mode IA activé dès le menu** : Le mode VS_AI est configuré avant la création de profil
+- ✅ **Profil adaptatif** : 1 joueur en mode IA, 2 joueurs en multijoueur
+- ✅ **Configuration séquentielle** : Profil → Difficulté IA → Couleurs → Jeu
 - ✅ **Transitions fluides** : Animations pour chaque changement de scène
 - ✅ **Fenêtres adaptées** : Config en MINI, jeu en MAIN
 
