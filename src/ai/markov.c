@@ -202,7 +202,7 @@ void markov_learn_from_game(MarkovModel* model, Move* game_moves, int move_count
 Move markov_find_best_move(AIEngine* ai, Board* board) {
     if (!ai || !ai->markov_data) {
         printf("❌ Données Markov manquantes\n");
-        Move invalid_move = {-1, -1, 0, {0}, 0};
+        Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
     
@@ -213,12 +213,12 @@ Move markov_find_best_move(AIEngine* ai, Board* board) {
     int move_count = generate_moves(board, ai->ai_player, possible_moves, MAX_MOVES);
     
     if (move_count == 0) {
-        Move invalid_move = {-1, -1, 0, {0}, 0};
+        Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
     
     // Extraire le pattern actuel
-    Move dummy_move = {0, 0, 0, {0}, 0};
+    Move dummy_move = {.from_id = 0, .to_id = 0, .is_capture = 0, .capture_count = 0};
     PositionPattern current_pattern = markov_extract_pattern(board, dummy_move);
     
     // Évaluer chaque coup selon les probabilités Markov

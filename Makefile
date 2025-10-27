@@ -23,7 +23,16 @@ SOURCES = main.c \
           src/scene/profile_scene.c \
           src/scene/game_scene.c \
           src/scene/ai_scene.c \
+          src/scene/wiki_scene.c \
+          src/scene/pieces_scene.c \
+          src/scene/net_start_scene.c \
+          src/scene/lobby_scene.c \
+          src/scene/player_list_scene.c \
           src/logic/logic.c \
+          src/logic/mode.c \
+          src/ai/ai.c \
+          src/ai/minimax.c \
+          src/ai/markov.c \
           src/ui/ui_tree.c \
           src/ui/ui_components.c \
           src/ui/animation.c \
@@ -73,6 +82,7 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/scene
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/utils
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/logic
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ai
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/plateau
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/pions
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/native

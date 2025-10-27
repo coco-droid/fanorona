@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h> // 🆕 For AI animation
 
 // Import PlateauRenderData definition
 #include "../ui/ui_components.h"
@@ -11,6 +12,8 @@
 #include "../ui/native/atomic.h"
 #include "../window/window.h"
 #include "../pions/pions.h"
+#include "../ai/ai.h" // 🆕 For AI functions
+#include "../utils/asset_manager.h" // 🆕 For config access
 
 // Full definition needed for logic functions
 typedef struct PlateauRenderData {
@@ -30,6 +33,21 @@ typedef struct PlateauRenderData {
     void* game_logic;
     void* intersection_elements[NODES];
 } PlateauRenderData;
+
+// === AI ANIMATION STATE ===
+typedef struct AIAnimationState {
+    bool ai_is_moving;
+    float ai_move_delay;
+    Move pending_ai_move;
+    bool showing_capture_preview;
+    float capture_preview_timer;
+    int captured_pieces[MAX_CAPTURE_LIST];
+    int capture_count;
+    int consecutive_ai_moves;
+} AIAnimationState;
+
+static AIAnimationState g_ai_animation = {false, 0.0f, {0}, false, 0.0f, {0}, 0, 0};
+
 
 // Forward declaration for animation stub
 static void animate_piece_capture(PlateauRenderData* data, int piece_id) {
@@ -281,14 +299,19 @@ void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
 }
 
 bool is_valid_destination(PlateauRenderData* data, int from_id, int to_id) {
-    (void)from_id;
-    if (!data || !data->visual_state) return false;
-    for (int i = 0; i < data->visual_state->valid_count; i++) {
-        if (data->visual_state->valid_destinations[i] == to_id) {
-            return true;
-        }
-    }
-    return false;
+    if (!data || !data->board || !data->visual_state) return false;
+    
+    GameLogic* logic = (GameLogic*)data->game_logic;
+    Player current_player = logic ? logic->current_player : WHITE;
+    
+    // Delegate to rules.c for authoritative validation
+    return is_move_valide(
+        data->board, from_id, to_id, current_player,
+        data->visual_state->in_capture_chain ? &data->visual_state->last_capture_direction : NULL,
+        data->visual_state->visited_positions,
+        data->visual_state->visited_count,
+        data->visual_state->in_capture_chain ? 1 : 0
+    );
 }
 
 // 🆕 Check game over and update GameLogic state + visual feedback
@@ -328,5 +351,245 @@ bool check_and_handle_game_over(PlateauRenderData* data) {
         return true;
     }
     
+    return false;
+}
+
+// 🆕 Moved from plateau_cnt.c
+static AIEngine* get_or_create_ai_engine(PlateauRenderData* data) {
+    if (!data || !data->game_logic) return NULL;
+
+    GameLogic* logic = (GameLogic*)data->game_logic;
+    if (logic->mode != GAME_MODE_VS_AI) return NULL;
+
+    // Use static to prevent multiple creations
+    static AIEngine* cached_ai = NULL;
+    if (cached_ai) return cached_ai;
+
+    AIDifficulty difficulty = config_get_ai_difficulty();
+    bool ai_is_white = config_is_ai_white();
+    Player ai_player = ai_is_white ? WHITE : BLACK;
+
+    cached_ai = ai_create(AI_TYPE_MINIMAX, difficulty, ai_player);
+    if (cached_ai) {
+        printf("🤖 AI Engine créé: difficulté %d, joue %s\n",
+               difficulty, ai_is_white ? "Blanc" : "Noir");
+    }
+
+    return cached_ai;
+}
+
+// 🆕 Moved from plateau_cnt.c
+void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
+    if (!data || !data->board) return;
+    printf("🎬 [ANIMATE_MOVE] Démarrage animation: %d → %d\n", from_id, to_id);
+
+    apply_move_to_board(data, from_id, to_id);
+
+    // 🆕 Check game over after move
+    if (check_and_handle_game_over(data)) {
+        // Game is over, stop here.
+        g_ai_animation.ai_is_moving = false;
+        return;
+    }
+
+
+    printf("✅ [ANIMATE_MOVE] Mouvement appliqué avec animation\n");
+
+    // 🔧 FIX: Only trigger AI after a small delay to let animations complete
+    if (is_ai_turn(data) && !g_ai_animation.ai_is_moving) {
+        printf("🤖 [ANIMATE_MOVE] Tour de l'IA détecté - démarrage avec délai\n");
+        // Small delay to let human move animation finish
+        g_ai_animation.ai_move_delay = 0.8f;
+        g_ai_animation.ai_is_moving = true;
+
+        // Calculate AI move immediately but delay execution
+        AIEngine* ai = get_or_create_ai_engine(data);
+        if (ai) {
+            Move ai_move = ai_find_best_move(ai, data->board);
+            g_ai_animation.pending_ai_move = ai_move;
+
+            // Setup capture preview if needed
+            if (ai_move.is_capture && ai_move.capture_count > 0) {
+                g_ai_animation.showing_capture_preview = true;
+                g_ai_animation.capture_preview_timer = 1.5f;
+                g_ai_animation.capture_count = ai_move.capture_count;
+                for (int i = 0; i < ai_move.capture_count; i++) {
+                    g_ai_animation.captured_pieces[i] = ai_move.captured_ids[i];
+                }
+            }
+        }
+    }
+}
+
+// 🆕 Moved from plateau_cnt.c
+void update_ai_animation(PlateauRenderData* data, float delta_time) {
+    if (!g_ai_animation.ai_is_moving) return;
+
+    // Update capture preview timer
+    if (g_ai_animation.showing_capture_preview) {
+        g_ai_animation.capture_preview_timer -= delta_time;
+        if (g_ai_animation.capture_preview_timer <= 0.0f) {
+            g_ai_animation.showing_capture_preview = false;
+        }
+    }
+
+    // Update move delay
+    g_ai_animation.ai_move_delay -= delta_time;
+
+    if (g_ai_animation.ai_move_delay <= 0.0f) {
+        Move ai_move = g_ai_animation.pending_ai_move;
+
+        // 🆕 Incrémenter le compteur de coups consécutifs
+        g_ai_animation.consecutive_ai_moves++;
+
+        printf("\n┌────────────────────────────────────────────────────────┐\n");
+        printf("│ 🤖 IA JOUE SON COUP #%d\n", g_ai_animation.consecutive_ai_moves);
+        printf("│ 📍 Mouvement: %d → %d\n", ai_move.from_id, ai_move.to_id);
+        printf("│ 💥 Capture: %s (%d pièce(s))\n",
+               ai_move.is_capture ? "OUI" : "NON", ai_move.capture_count);
+        printf("└────────────────────────────────────────────────────────┘\n");
+
+        execute_animated_move(data, ai_move.from_id, ai_move.to_id);
+
+        // 🆕 DÉTECTION DE CHAÎNE DE CAPTURES
+        if (ai_move.is_capture && ai_move.capture_count > 0) {
+            printf("🔍 Vérification des captures supplémentaires depuis %d...\n", ai_move.to_id);
+
+            // Vérifier si l'IA peut faire une autre capture depuis la position d'arrivée
+            bool more_captures = has_additional_captures(data, ai_move.to_id);
+
+            if (more_captures) {
+                printf("\n┌────────────────────────────────────────────────────────┐\n");
+                printf("│ 🔗 CHAÎNE DE CAPTURES DÉTECTÉE!\n");
+                printf("│ ⚠️  L'IA DOIT continuer à capturer\n");
+                printf("│ 🔄 L'IA va jouer un autre coup immédiatement\n");
+                printf("└────────────────────────────────────────────────────────┘\n\n");
+
+                // L'IA DOIT rejouer immédiatement
+                AIEngine* ai = get_or_create_ai_engine(data);
+                if (ai) {
+                    Move next_ai_move = ai_find_best_move(ai, data->board);
+
+                    if (next_ai_move.from_id != -1 && next_ai_move.to_id != -1) {
+                        // Programmer le prochain coup de l'IA avec un délai court
+                        g_ai_animation.pending_ai_move = next_ai_move;
+                        g_ai_animation.ai_move_delay = 1.0f; // 1 seconde entre chaque coup de la chaîne
+                        g_ai_animation.ai_is_moving = true;
+
+                        // Setup capture preview si nécessaire
+                        if (next_ai_move.is_capture && next_ai_move.capture_count > 0) {
+                            g_ai_animation.showing_capture_preview = true;
+                            g_ai_animation.capture_preview_timer = 1.5f;
+                            g_ai_animation.capture_count = next_ai_move.capture_count;
+                            for (int i = 0; i < next_ai_move.capture_count; i++) {
+                                g_ai_animation.captured_pieces[i] = next_ai_move.captured_ids[i];
+                            }
+                        }
+
+                        printf("✅ Prochain coup IA programmé: %d → %d\n",
+                               next_ai_move.from_id, next_ai_move.to_id);
+                        return; // Ne pas réinitialiser l'état, continuer la chaîne
+                    }
+                }
+            } else {
+                printf("\n┌────────────────────────────────────────────────────────┐\n");
+                printf("│ ✅ AUCUNE CAPTURE SUPPLÉMENTAIRE\n");
+                printf("│ 🔄 Fin de la séquence de l'IA\n");
+                printf("│ 📊 Total coups IA consécutifs: %d\n", g_ai_animation.consecutive_ai_moves);
+                printf("│ 👤 Maintenant c'est au tour du joueur\n");
+                printf("└────────────────────────────────────────────────────────┘\n\n");
+            }
+        }
+
+        // Réinitialiser l'état d'animation IA (fin de séquence)
+        g_ai_animation.ai_is_moving = false;
+        g_ai_animation.showing_capture_preview = false;
+        g_ai_animation.capture_count = 0;
+        g_ai_animation.consecutive_ai_moves = 0; // Reset du compteur
+
+        // 🔧 FIX: Reset visual selection après séquence IA complète
+        if (data->visual_state) {
+            data->visual_state->selected_intersection = -1;
+            if (data->visual_state->valid_destinations) {
+                free(data->visual_state->valid_destinations);
+                data->visual_state->valid_destinations = NULL;
+            }
+            data->visual_state->valid_count = 0;
+        }
+    }
+}
+
+// 🆕 Moved from plateau_cnt.c
+bool is_ai_turn(PlateauRenderData* data) {
+    if (!data || !data->game_logic) return false;
+
+    GameLogic* logic = (GameLogic*)data->game_logic;
+    if (logic->mode != GAME_MODE_VS_AI) return false;
+    if (logic->game_finished) return false; // 🆕 No AI turn if game is over
+
+    GamePlayer* current = game_logic_get_current_player_info(logic);
+    return current && current->type == PLAYER_TYPE_AI;
+}
+
+// 🆕 Moved from plateau_cnt.c
+void execute_ai_move(PlateauRenderData* data) {
+    if (!data || !data->board || !data->game_logic) return;
+
+    // Don't start new AI move if one is already in progress
+    if (g_ai_animation.ai_is_moving) return;
+
+    AIEngine* ai = get_or_create_ai_engine(data);
+    if (!ai) {
+        printf("❌ Impossible de récupérer l'AI Engine\n");
+        return;
+    }
+
+    printf("\n╔═══════════════════════════════════════════════════════════╗\n");
+    printf("║ 🤖 DÉBUT DE SÉQUENCE IA\n");
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
+    printf("║ 🧠 L'IA commence à calculer son premier coup...\n");
+
+     // L'IA calcule le meilleur coup
+     Move best_move = ai_find_best_move(ai, data->board);
+
+     if (best_move.from_id == -1 || best_move.to_id == -1) {
+        printf("║ ❌ Aucun coup valide trouvé par l'IA\n");
+        printf("╚═══════════════════════════════════════════════════════════╝\n");
+        return;
+     }
+
+    printf("║ 🎯 Premier coup choisi: %d → %d\n", best_move.from_id, best_move.to_id);
+    printf("╚═══════════════════════════════════════════════════════════╝\n");
+
+     // Store move for delayed execution
+     g_ai_animation.pending_ai_move = best_move;
+     g_ai_animation.ai_move_delay = 1.5f; // 1.5 second thinking delay
+     g_ai_animation.ai_is_moving = true;
+     g_ai_animation.consecutive_ai_moves = 0; // 🆕 Reset du compteur au début de séquence
+
+     // Show capture preview if it's a capture move
+     if (best_move.is_capture && best_move.capture_count > 0) {
+         g_ai_animation.showing_capture_preview = true;
+         g_ai_animation.capture_preview_timer = 2.0f; // 2 seconds preview
+         g_ai_animation.capture_count = best_move.capture_count;
+
+         for (int i = 0; i < best_move.capture_count; i++) {
+             g_ai_animation.captured_pieces[i] = best_move.captured_ids[i];
+         }
+
+        printf("💥 Prévisualisation des captures: %d pièce(s)\n", best_move.capture_count);
+     }
+
+    printf("⏳ Coup programmé avec délai d'animation de %.1fs\n\n", g_ai_animation.ai_move_delay);
+}
+
+// 🆕 Getter for AI animation state, needed by plateau_cnt.c
+bool get_ai_capture_preview_state(int* count, const int** pieces, float* timer) {
+    if (g_ai_animation.showing_capture_preview) {
+        *count = g_ai_animation.capture_count;
+        *pieces = g_ai_animation.captured_pieces;
+        *timer = g_ai_animation.capture_preview_timer;
+        return true;
+    }
     return false;
 }

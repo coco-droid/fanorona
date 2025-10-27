@@ -12,6 +12,7 @@
 #include "../logic/logic.h"
 #include "../logic/rules.h"
 #include "../types/plateau_types.h"
+#include "../ai/ai.h"  // 🆕 AJOUT: Support IA
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,43 +60,17 @@ static void create_intersection_atomic_elements(PlateauRenderData* data);
 static void plateau_draw_visual_effects(PlateauRenderData* data);
 static void update_intersection_positions(PlateauRenderData* data);
 static void plateau_draw_valid_destinations(PlateauRenderData* data);
-static void execute_animated_move(PlateauRenderData* data, int from_id, int to_id);
+// 🗑️ REMOVED FORWARD DECLARATIONS (MOVED TO plateau_types)
+// static void execute_animated_move(PlateauRenderData* data, int from_id, int to_id);
+// static AIEngine* get_or_create_ai_engine(PlateauRenderData* data);
+// static bool is_ai_turn(PlateauRenderData* data);
+// static void execute_ai_move(PlateauRenderData* data);
+// static void update_ai_animation(PlateauRenderData* data, float delta_time);
 
 // === PLACEHOLDER IMPLEMENTATIONS ===
-static void animate_piece_move(PlateauRenderData* data, int from_id, int to_id) {
-    (void)data;
-    printf("🔄 Animate piece move: %d -> %d\n", from_id, to_id);
-}
-
-static void animate_piece_selection(PlateauRenderData* data, int piece_id) {
-    (void)data;
-    printf("🎯 Animate piece selection: %d\n", piece_id);
-}
-
 static void animate_piece_capture(PlateauRenderData* data, int piece_id) {
     (void)data;
     printf("💥 Animate piece capture: %d\n", piece_id);
-}
-
-static void animate_piece_placement(PlateauRenderData* data, int intersection_id) {
-    (void)data;
-    printf("📍 Animate piece placement: %d\n", intersection_id);
-}
-
-static void animate_victory_dance(PlateauRenderData* data, Player winning_player) {
-    (void)data;
-    printf("🎉 Animate victory dance for player %d\n", winning_player);
-}
-
-static void animate_defeat_fade(PlateauRenderData* data, Player losing_player) {
-    (void)data;
-    (void)losing_player;
-    printf("😞 Animate defeat fade for player %d\n", losing_player);
-}
-
-static void animate_initial_piece_wave(PlateauRenderData* data) {
-    (void)data;
-    printf("🌊 Animate initial piece wave\n");
 }
 
 // === FONCTIONS UTILITAIRES DE DESSIN ===
@@ -347,6 +322,45 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     plateau_draw_visual_effects(data);
 }
 
+// === AI ANIMATION STATE ===
+// 🗑️ REMOVED AI ANIMATION STATE STRUCT AND GLOBAL (MOVED TO plateau_types.c)
+
+// 🆕 Getter for AI animation state from plateau_types.c
+extern bool get_ai_capture_preview_state(int* count, const int** pieces, float* timer);
+
+// Draw red circles around pieces that will be captured
+static void draw_ai_capture_preview(PlateauRenderData* data) {
+    int capture_count;
+    const int* captured_pieces;
+    float timer;
+
+    if (!get_ai_capture_preview_state(&capture_count, &captured_pieces, &timer) || !data || !data->renderer) return;
+
+    // Animate the red circle with pulsing effect
+    float pulse = 0.5f + 0.5f * sinf(timer * 6.0f);
+    int alpha = (int)(128 + 127 * pulse);
+
+    SDL_SetRenderDrawColor(data->renderer, 255, 0, 0, alpha);
+
+    for (int i = 0; i < capture_count; i++) {
+        int cap_id = captured_pieces[i];
+        if (cap_id >= 0 && cap_id < NODES) {
+            Intersection* intersection = &data->board->nodes[cap_id];
+            int x, y;
+            plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
+
+            // Draw pulsing red circle around doomed piece
+            int radius = PIECE_RADIUS + 8 + (int)(4.0f * pulse);
+            for (int angle = 0; angle < 360; angle += 2) {
+                float rad = angle * 3.14159f / 180.0f;
+                int bx = x + radius * cosf(rad);
+                int by = y + radius * sinf(rad);
+                SDL_RenderDrawPoint(data->renderer, bx, by);
+            }
+        }
+    }
+}
+
 static void plateau_draw_visual_effects(PlateauRenderData* data) {
     if (!data || !data->visual_state) return;
     static int last_selected = -2;
@@ -397,6 +411,9 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
         }
     }
     plateau_draw_valid_destinations(data);
+
+    // 🆕 Draw AI capture preview
+    draw_ai_capture_preview(data);
 }
 
 static void on_intersection_click(void* element, SDL_Event* event) {
@@ -411,6 +428,12 @@ static void on_intersection_click(void* element, SDL_Event* event) {
     }
     if (!data->visual_state) {
         printf("❌ [PLATEAU_CLICK] État visuel non initialisé\n");
+        return;
+    }
+
+    // 🆕 VÉRIFICATION MODE IA: Bloquer interaction si c'est le tour de l'IA
+    if (is_ai_turn(data)) {
+        printf("🤖 [PLATEAU_CLICK] Tour de l'IA - Interaction joueur bloquée\n");
         return;
     }
 
@@ -489,24 +512,35 @@ static void on_intersection_click(void* element, SDL_Event* event) {
 
     printf("   📊 Sélection actuelle APRÈS: %d\n", data->visual_state->selected_intersection);
     printf("✅ [PLATEAU_CLICK] FIN - État de sélection mis à jour\n\n");
+
+    // 🆕 APRÈS CHAQUE COUP HUMAIN: Vérifier si c'est maintenant le tour de l'IA
+    if (is_ai_turn(data)) {
+        printf("🤖 [PLATEAU_CLICK] Maintenant c'est le tour de l'IA, déclenchement...\n");
+        // Délai minimal pour voir l'animation du coup humain
+        execute_ai_move(data);
+    }
 }
 
-static void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
-    if (!data || !data->board) return;
-    printf("🎬 [ANIMATE_MOVE] Démarrage animation: %d → %d\n", from_id, to_id);
-    Intersection* from_intersection = &data->board->nodes[from_id];
-    Intersection* to_intersection = &data->board->nodes[to_id];
-    int from_x, from_y, to_x, to_y;
-    plateau_logical_to_screen(data, from_intersection->r, from_intersection->c, &from_x, &from_y);
-    plateau_logical_to_screen(data, to_intersection->r, to_intersection->c, &to_x, &to_y);
-    printf("   📍 Animation: (%d,%d) → (%d,%d) pixels\n", from_x, from_y, to_x, to_y);
-    apply_move_to_board(data, from_id, to_id);
-    
-    // 🆕 Check game over after move
-    check_and_handle_game_over(data);
-    
-    printf("✅ [ANIMATE_MOVE] Mouvement appliqué avec animation\n");
+// 🗑️ REMOVED execute_animated_move (MOVED TO plateau_types.c)
+
+// Add AI animation update to main update function
+void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time) {
+    if (!plateau) return;
+
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+
+    // Update AI animations
+    update_ai_animation(data, delta_time);
 }
+
+// 🗑️ REMOVED update_ai_animation (MOVED TO plateau_types.c)
+
+// 🗑️ REMOVED get_or_create_ai_engine (MOVED TO plateau_types.c)
+
+// 🗑️ REMOVED is_ai_turn (MOVED TO plateau_types.c)
+
+// 🗑️ REMOVED execute_ai_move (MOVED TO plateau_types.c)
 
 // === PUBLIC API FUNCTIONS ===
 void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* player2) {
@@ -548,19 +582,33 @@ void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) {
+        // Clean up valid destinations first
         if (data->visual_state && data->visual_state->valid_destinations) {
             free(data->visual_state->valid_destinations);
             data->visual_state->valid_destinations = NULL;
         }
+
+        // Clean up intersections
         for (int i = 0; i < NODES; i++) {
             if (data->intersection_elements[i]) {
                 atomic_destroy_safe(data->intersection_elements[i]);
                 data->intersection_elements[i] = NULL;
             }
         }
+
+        // Clean up visual state
         if (data->visual_state) {
             free(data->visual_state);
+            data->visual_state = NULL;
         }
+
+        // Clean up board
+        if (data->board) {
+            board_free(data->board);
+            free(data->board);
+            data->board = NULL;
+        }
+
         free(data);
     }
 }
@@ -570,46 +618,10 @@ void ui_plateau_container_destroy(UINode* plateau_container) {
 }
 
 // Animation API functions
-void ui_plateau_animate_piece_move(UINode* plateau, int from_id, int to_id) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_piece_move(data, from_id, to_id);
-}
-
 void ui_plateau_animate_piece_capture(UINode* plateau, int piece_id) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) animate_piece_capture(data, piece_id);
-}
-
-void ui_plateau_animate_piece_placement(UINode* plateau, int intersection_id) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_piece_placement(data, intersection_id);
-}
-
-void ui_plateau_animate_piece_selection(UINode* plateau, int piece_id) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_piece_selection(data, piece_id);
-}
-
-void ui_plateau_animate_victory_dance(UINode* plateau, int winning_player) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_victory_dance(data, (Player)winning_player);
-}
-
-void ui_plateau_animate_defeat_fade(UINode* plateau, int losing_player) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_defeat_fade(data, (Player)losing_player);
-}
-
-void ui_plateau_animate_initial_wave(UINode* plateau) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_initial_piece_wave(data);
 }
 
 void ui_plateau_set_mouse_handlers(UINode* plateau) {
@@ -682,65 +694,65 @@ UINode* ui_plateau_container_with_size(UITree* tree, const char* id, int width, 
 // === DEBUG FUNCTIONS ===
 void ui_plateau_debug_intersections(UINode* plateau) {
     if (!plateau) return;
-    
+
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (!data) {
         printf("❌ [PLATEAU_DEBUG] Pas de données plateau\n");
         return;
     }
-    
+
     printf("\n=== 🔍 DEBUG INTERSECTIONS PLATEAU ===\n");
     printf("Nombre d'intersections créées: %d\n", NODES);
-    
+
     int active_count = 0;
     int with_handlers = 0;
-    
+
     for (int i = 0; i < NODES; i++) {
         if (data->intersection_elements[i]) {
             active_count++;
-            
+
             AtomicElement* elem = data->intersection_elements[i];
             bool has_click = (elem->events.on_click != NULL);
             bool has_hover = (elem->events.on_hover != NULL);
             bool has_unhover = (elem->events.on_unhover != NULL);
-            
+
             if (has_click || has_hover || has_unhover) {
                 with_handlers++;
             }
-            
+
             if (i < 5) {
                 printf("  Intersection %d: ID=%s, handlers(c:%s h:%s u:%s)\n",
                        i, elem->id ? elem->id : "NULL",
                        has_click ? "✓" : "✗",
-                       has_hover ? "✓" : "✗", 
+                       has_hover ? "✓" : "✗",
                        has_unhover ? "✓" : "✗");
             }
         }
     }
-    
+
     printf("Résumé: %d actives, %d avec handlers\n", active_count, with_handlers);
     printf("=====================================\n\n");
 }
 
 void ui_plateau_debug_current_selection(UINode* plateau) {
     if (!plateau) return;
-    
+
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (!data || !data->visual_state) {
         printf("❌ [PLATEAU_DEBUG] Pas d'état visuel\n");
         return;
     }
-    
+
     printf("🎯 [PLATEAU_SELECTION] État complet:\n");
     printf("   ✅ Visual state: %p\n", (void*)data->visual_state);
     printf("   📍 Sélection: %d", data->visual_state->selected_intersection);
-    
+
     if (data->visual_state->selected_intersection >= 0) {
         int id = data->visual_state->selected_intersection;
         if (id < NODES) {
             Intersection* intersection = &data->board->nodes[id];
             printf(" ➜ (r=%d, c=%d)", intersection->r, intersection->c);
-            
+
             if (intersection->piece && intersection->piece->alive) {
                 printf(" ➜ PIÈCE %s", intersection->piece->owner == WHITE ? "BLANCHE" : "NOIRE");
             } else {
@@ -749,7 +761,7 @@ void ui_plateau_debug_current_selection(UINode* plateau) {
         }
     }
     printf("\n");
-    
+
     printf("   🌟 Survol: %d", data->visual_state->hovered_intersection);
     if (data->visual_state->hovered_intersection >= 0) {
         int id = data->visual_state->hovered_intersection;
@@ -765,10 +777,10 @@ void ui_plateau_debug_current_selection(UINode* plateau) {
 
 void ui_plateau_debug_visual_state(UINode* plateau) {
     if (!plateau) return;
-    
+
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (!data) return;
-    
+
     printf("👁️ [PLATEAU_VISUAL] État visuel du plateau:\n");
     printf("   Board: %p\n", (void*)data->board);
     printf("   Visual state: %p\n", (void*)data->visual_state);
@@ -778,10 +790,10 @@ void ui_plateau_debug_visual_state(UINode* plateau) {
 
 void ui_plateau_register_events(UINode* plateau, EventManager* event_manager) {
     if (!plateau || !event_manager) return;
-    
+
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (!data) return;
-    
+
     int registered_count = 0;
     for (int i = 0; i < NODES; i++) {
         if (data->intersection_elements[i]) {
@@ -789,7 +801,7 @@ void ui_plateau_register_events(UINode* plateau, EventManager* event_manager) {
             registered_count++;
         }
     }
-    
-    printf("🔗 Plateau '%s': %d intersections enregistrées dans EventManager\n", 
+
+    printf("🔗 Plateau '%s': %d intersections enregistrées dans EventManager\n",
            plateau->id, registered_count);
 }

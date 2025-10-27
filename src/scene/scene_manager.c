@@ -344,6 +344,12 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             wiki_scene_connect_events(target_scene, manager->core);
         } else if (strcmp(scene_id, "pieces") == 0) {  // 🆕 Ajout de pieces_scene
             pieces_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "net_start") == 0) {  // 🆕 Ajout de net_start_scene
+            net_start_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "lobby") == 0) {  // 🆕 Ajout de lobby_scene
+            lobby_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "player_list") == 0) {  // 🆕 Ajout de player_list_scene
+            player_list_scene_connect_events(target_scene, manager->core);
         } else {
             printf("⚠️ Pas de fonction de connexion pour '%s'\n", scene_id);
         }

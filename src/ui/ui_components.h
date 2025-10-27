@@ -487,6 +487,12 @@ void ui_avatar_selector_register_events(UINode* selector, EventManager* event_ma
 // Mettre à jour les animations du composant
 void ui_avatar_selector_update(UINode* selector, float delta_time);
 
+// 🆕 AI INTEGRATION FUNCTIONS
+void ui_plateau_set_ai_mode(UINode* plateau, bool enable_ai);
+bool ui_plateau_is_ai_mode(UINode* plateau);
+void ui_plateau_trigger_ai_turn(UINode* plateau);
+bool ui_plateau_is_ai_thinking(UINode* plateau);
+
 // === MACROS POUR AVATAR SELECTOR ===
 
 #define UI_AVATAR_SELECTOR(tree, id) ui_avatar_selector(tree, id)

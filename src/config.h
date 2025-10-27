@@ -2,7 +2,7 @@
 #define FANORONA_CONFIG_H
 
 #include <stdbool.h>
-#include "types.h"  // 🔧 FIX: Import types instead of redefining
+#include "types.h"
 
 // Tailles par défaut centralisées
 #define DEFAULT_MAIN_WINDOW_WIDTH  950
@@ -18,13 +18,14 @@ typedef struct {
     char player2_name[128];
     AvatarID player1_avatar;
     AvatarID player2_avatar;
-    PieceColor player1_piece_color;    // 🆕 Couleur des pièces J1
-    PieceColor player2_piece_color;    // 🆕 Couleur des pièces J2
+    PieceColor player1_piece_color;
+    PieceColor player2_piece_color;
     bool player1_configured;
     bool player2_configured;
     bool ai_plays_as_white;
     bool sound_enabled;
     bool animations_enabled;
+    bool invite_on_game;  // 🆕 true = invité, false = hôte
 } GameConfig;
 
 // 🆕 FONCTIONS DE CONFIGURATION
@@ -72,5 +73,9 @@ void config_reset_player_configs(void);
 
 // 🆕 Mapper ID → Nom de fichier
 const char* avatar_id_to_filename(AvatarID id);
+
+// 🆕 FONCTIONS POUR LE MODE RÉSEAU
+void config_set_network_role(bool is_invite);
+bool config_is_network_invite(void);
 
 #endif // FANORONA_CONFIG_H

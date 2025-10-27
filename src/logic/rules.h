@@ -1,19 +1,24 @@
 #ifndef RULES_H
 #define RULES_H
 
+#include <stdbool.h>
 #include "../plateau/plateau.h"
+#include "../types.h"
 
-#define MAX_CAPTURE_LIST 45
-#define MAX_MOVES 512
-#define MAX_VISITED_POSITIONS 45
+// 🔧 FIX: Define MAX_CAPTURE_LIST before any usage
+#define MAX_CAPTURE_LIST 22  // Maximum pieces capturable in one move
+
+// 🆕 FIX: Add missing macro definitions
+#define MAX_MOVES 512  // Maximum possible moves in a position
+#define MAX_VISITED_POSITIONS 32  // Maximum positions in capture chain
 
 // Move representation
 typedef struct Move {
     int from_id;
     int to_id;
+    bool is_capture;
     int capture_count;
-    int captured_ids[MAX_CAPTURE_LIST]; // list of node ids of captured pieces
-    int is_capture; // 0 = paika, 1 = capture
+    int captured_ids[MAX_CAPTURE_LIST];
 } Move;
 
 // Direction vector for capture chaining restrictions
@@ -42,5 +47,11 @@ int directions_equal(Direction *d1, Direction *d2);
 int count_alive_pieces(Board *b, Player player);
 int has_any_legal_move(Board *b, Player player);
 Player check_game_over(Board *b);
+
+// 🆕 AI NEURO-SYMBOLIC RULE VALIDATION
+bool ai_validate_fanorona_move(Board* board, Move* move, Player current_player);
+int ai_generate_legal_moves(Board* board, Player player, Move* moves, int max_moves);
+bool ai_is_mandatory_capture_situation(Board* board, Player player);
+bool ai_can_continue_capture_chain(Board* board, int position, Player player, Direction* last_direction);
 
 #endif

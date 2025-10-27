@@ -178,6 +178,14 @@ static void game_scene_update(Scene* scene, float delta_time) {
         // - Animations de victoire/défaite
     }
     
+    // 🆕 Update plateau AI animations
+    if (data->playable_area) {
+        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
+        if (plateau) {
+            ui_plateau_update_visual_feedback(plateau, delta_time);
+        }
+    }
+    
     // 🆕 DEBUG PÉRIODIQUE des événements plateau (toutes les 5 secondes)
     static float debug_timer = 0.0f;
     debug_timer += delta_time;

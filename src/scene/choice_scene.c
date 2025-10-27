@@ -39,11 +39,20 @@ static void local_link_clicked(void* element, SDL_Event* event) {
 }
 
 static void online_link_clicked(void* element, SDL_Event* event) {
-    (void)element;
     (void)event;
     
     config_set_mode(GAME_MODE_ONLINE_MULTIPLAYER);
-    printf("🌐 Mode MULTIJOUEUR EN LIGNE activé\n");
+    config_reset_player_configs();
+    printf("🌐 Mode MULTIJOUEUR EN LIGNE activé (flags réinitialisés)\n");
+    
+    // 🔧 FIX: Activate the link to trigger transition
+    AtomicElement* atomic = (AtomicElement*)element;
+    UINode* link = (UINode*)atomic->user_data;
+    
+    if (link) {
+        extern void ui_link_activate(UINode* link);
+        ui_link_activate(link);
+    }
 }
 
 static void choice_scene_init(Scene* scene) {
@@ -134,7 +143,7 @@ static void choice_scene_init(Scene* scene) {
     }
     
     // BOUTON EN LIGNE
-    data->online_link = ui_create_link(data->ui_tree, "online-link", "JOUER EN LIGNE", "profile", SCENE_TRANSITION_REPLACE);
+    data->online_link = ui_create_link(data->ui_tree, "online-link", "JOUER EN LIGNE", "net_start", SCENE_TRANSITION_REPLACE);
     if (data->online_link) {
         SET_SIZE(data->online_link, 300, 50);
         ui_set_text_align(data->online_link, "center");
@@ -150,7 +159,7 @@ static void choice_scene_init(Scene* scene) {
         atomic_set_click_handler(data->online_link->element, online_link_clicked);
         
         APPEND(buttons_container, data->online_link);
-        printf("✅ Lien 'En ligne' créé avec transition vers profile_scene\n");
+        printf("✅ Lien 'En ligne' créé avec transition vers net_start_scene\n");
     }
     
     // Bouton retour (comme wiki_scene)

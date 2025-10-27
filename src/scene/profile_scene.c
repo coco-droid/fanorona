@@ -146,7 +146,45 @@ static void next_link_callback(UINode* link) {
     const char* current_name = ui_text_input_get_text(name_input);
     AvatarID current_avatar = avatar_selector ? ui_avatar_selector_get_selected(avatar_selector) : AVATAR_WARRIOR;
     
-    // 🆕 MODE VS IA: Un seul profil puis transition vers ai_scene
+    // 🆕 MODE MULTIJOUEUR EN LIGNE: Un seul profil puis redirection selon rôle
+    if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        // Sauvegarder le profil du joueur local
+        strncpy(data->player1_name, current_name ? current_name : "", sizeof(data->player1_name) - 1);
+        data->player1_name[sizeof(data->player1_name) - 1] = '\0';
+        data->player1_avatar = current_avatar;
+        data->player1_completed = true;
+        
+        // Configurer dans la config globale
+        config_set_player1_full_profile(data->player1_name, data->player1_avatar);
+        
+        printf("🌐 Profil MULTIJOUEUR EN LIGNE sauvegardé:\n");
+        printf("   👤 Joueur local: %s (Avatar %d)\n", data->player1_name, data->player1_avatar);
+        
+        // 🆕 REDIRECTION selon le rôle réseau
+        bool is_invite = config_is_network_invite();
+        const char* target_scene = is_invite ? "lobby" : "player_list";
+        
+        printf("🔀 Rôle réseau: %s → Redirection vers %s\n", 
+               is_invite ? "INVITÉ" : "HÔTE", target_scene);
+        
+        if (scene_data->next_link) {
+            ui_link_set_target(scene_data->next_link, target_scene);
+            ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_REPLACE);
+            ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MINI);
+            
+            extern SceneManager* game_core_get_scene_manager(GameCore* core);
+            if (scene_data->core) {
+                SceneManager* scene_manager = game_core_get_scene_manager(scene_data->core);
+                if (scene_manager) {
+                    scene_manager_transition_to_scene(scene_manager, target_scene, SCENE_TRANSITION_REPLACE);
+                    printf("✅ Transition vers %s déclenchée\n", target_scene);
+                }
+            }
+        }
+        return;
+    }
+    
+    // 🆕 MODE VS IA: Un seul profil puis transition vers pieces_scene
     if (current_mode == GAME_MODE_VS_AI) {
         // Sauvegarder le profil du joueur humain
         strncpy(data->player1_name, current_name ? current_name : "", sizeof(data->player1_name) - 1);
@@ -167,9 +205,9 @@ static void next_link_callback(UINode* link) {
         printf("   👤 Joueur: %s (Avatar %d)\n", data->player1_name, data->player1_avatar);
         printf("   🤖 IA: %s (Avatar %d)\n", data->player2_name, data->player2_avatar);
         
-        // 🆕 Transition vers ai_scene pour configurer la difficulté
-        if (scene_data->next_link) {
-            ui_link_set_target(scene_data->next_link, "ai");
+        // 🔧 FIX: Transition vers pieces_scene d'abord (choix couleur avant difficulté)
+         if (scene_data->next_link) {
+            ui_link_set_target(scene_data->next_link, "pieces");
             ui_link_set_transition(scene_data->next_link, SCENE_TRANSITION_REPLACE);
             ui_link_set_target_window(scene_data->next_link, WINDOW_TYPE_MINI);
             
@@ -177,13 +215,13 @@ static void next_link_callback(UINode* link) {
             if (scene_data->core) {
                 SceneManager* scene_manager = game_core_get_scene_manager(scene_data->core);
                 if (scene_manager) {
-                    scene_manager_transition_to_scene(scene_manager, "ai", SCENE_TRANSITION_REPLACE);
-                    printf("✅ Transition vers ai_scene pour configuration IA\n");
+                    scene_manager_transition_to_scene(scene_manager, "pieces", SCENE_TRANSITION_REPLACE);
+                    printf("✅ Transition vers pieces_scene (choix couleur avant config IA)\n");
                 }
             }
-        }
-        return;
-    }
+         }
+         return;
+     }
     
     // 🔧 MODE MULTIJOUEUR LOCAL: Logique multistep existante
     if (data->current_step == 1) {
@@ -279,6 +317,10 @@ static void profile_scene_init(Scene* scene) {
     GameMode current_mode = config_get_mode();
     if (current_mode == GAME_MODE_VS_AI) {
         printf("🤖 Mode VS IA détecté - interface simplifiée (1 joueur)\n");
+    } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        bool is_invite = config_is_network_invite();
+        printf("🌐 Mode MULTIJOUEUR EN LIGNE détecté - interface simplifiée (1 joueur)\n");
+        printf("   🎭 Rôle: %s\n", is_invite ? "INVITÉ" : "HÔTE");
     } else {
         printf("👥 Mode multijoueur détecté - interface complète (2 joueurs)\n");
     }
@@ -317,9 +359,15 @@ static void profile_scene_init(Scene* scene) {
     ui_set_flex_gap(content_parent, 20);
     
     // Header "CRÉATION DE PROFIL" (adapté selon le mode)
-    const char* initial_header = (current_mode == GAME_MODE_VS_AI) ? 
-                                "VOTRE PROFIL - CONTRE IA" : 
-                                "CRÉATION DE PROFIL - JOUEUR 1";
+    const char* initial_header;
+    if (current_mode == GAME_MODE_VS_AI) {
+        initial_header = "VOTRE PROFIL - CONTRE IA";
+    } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        bool is_invite = config_is_network_invite();
+        initial_header = is_invite ? "VOTRE PROFIL - INVITÉ" : "VOTRE PROFIL - HÔTE";
+    } else {
+        initial_header = "CRÉATION DE PROFIL - JOUEUR 1";
+    }
     
     data->profile_header = UI_TEXT(data->ui_tree, "profile-header", initial_header);
     ui_set_text_color(data->profile_header, "rgb(255, 165, 0)");
@@ -336,9 +384,14 @@ static void profile_scene_init(Scene* scene) {
     }
     
     // 🆕 Text Input avec placeholder adapté
-    const char* initial_placeholder = (current_mode == GAME_MODE_VS_AI) ? 
-                                     "Votre nom" : 
-                                     "Nom du Joueur 1";
+    const char* initial_placeholder;
+    if (current_mode == GAME_MODE_VS_AI) {
+        initial_placeholder = "Votre nom";
+    } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        initial_placeholder = "Votre nom";
+    } else {
+        initial_placeholder = "Nom du Joueur 1";
+    }
     
     data->name_input = ui_text_input(data->ui_tree, "profile-name-input", initial_placeholder);
     if (data->name_input) {
@@ -373,22 +426,29 @@ static void profile_scene_init(Scene* scene) {
     }
     
     // UI Link avec texte adapté selon le mode
-    const char* initial_button_text = (current_mode == GAME_MODE_VS_AI) ? 
-                                     "CONFIGURATION IA" : 
-                                     "SUIVANT";
+    const char* initial_button_text;
+    if (current_mode == GAME_MODE_VS_AI) {
+        initial_button_text = "CONFIGURATION IA";
+    } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+        bool is_invite = config_is_network_invite();
+        initial_button_text = is_invite ? "REJOINDRE LOBBY" : "CHERCHER ADVERSAIRE";
+    } else {
+        initial_button_text = "SUIVANT";
+    }
     
     data->next_link = ui_create_link(data->ui_tree, "next-link", initial_button_text, NULL, SCENE_TRANSITION_REPLACE);
     if (data->next_link) {
-        SET_SIZE(data->next_link, 150, 35);
+        SET_SIZE(data->next_link, 200, 35);
         ui_set_text_align(data->next_link, "center");
         
         // Style adapté selon le mode
         if (current_mode == GAME_MODE_VS_AI) {
-            // Style orange pour mode IA
             atomic_set_background_color(data->next_link->element, 255, 140, 0, 200);
             atomic_set_border(data->next_link->element, 2, 255, 165, 0, 255);
+        } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
+            atomic_set_background_color(data->next_link->element, 0, 64, 128, 200);
+            atomic_set_border(data->next_link->element, 2, 0, 191, 255, 255);
         } else {
-            // Style vert pour multijoueur
             atomic_set_background_color(data->next_link->element, 0, 128, 0, 200);
             atomic_set_border(data->next_link->element, 2, 0, 255, 0, 255);
         }
@@ -401,8 +461,7 @@ static void profile_scene_init(Scene* scene) {
         ui_link_set_activation_delay(data->next_link, 0.0f);
         
         APPEND(buttons_container, data->next_link);
-        printf("🔗 UI Link créé avec style adapté au mode %s\n", 
-               current_mode == GAME_MODE_VS_AI ? "VS_AI" : "MULTIPLAYER");
+        printf("🔗 UI Link créé avec style adapté au mode %s\n", config_mode_to_string(current_mode));
     }
     
     // Assembler dans le conteneur parent
@@ -450,7 +509,6 @@ static void profile_scene_update(Scene* scene, float delta_time) {
             ui_link_update(data->back_link, delta_time);
         }
         
-        // 🔧 FIX: Mettre à jour le UI Link suivant
         if (data->next_link) {
             ui_link_update(data->next_link, delta_time);
         }
@@ -478,14 +536,12 @@ static void profile_scene_cleanup(Scene* scene) {
     
     ProfileSceneData* data = (ProfileSceneData*)scene->data;
     
-    // 🆕 Nettoyer les données du multistep form
     if (data->profile_data) {
         printf("🗑️ Nettoyage ProfileData\n");
         free(data->profile_data);
         data->profile_data = NULL;
     }
     
-    // 🔧 HACK: Nettoyer la référence globale
     if (g_current_profile_scene_data == data) {
         g_current_profile_scene_data = NULL;
     }
@@ -562,7 +618,6 @@ void profile_scene_connect_events(Scene* scene, GameCore* core) {
         ui_tree_register_all_events(data->ui_tree);
         scene->ui_tree = data->ui_tree;
         
-        // 🔧 FIX: Enregistrer les événements de l'avatar selector
         if (data->avatar_selector) {
             ui_avatar_selector_register_events(data->avatar_selector, scene->event_manager);
             printf("🔗 Avatar selector events registered with scene EventManager\n");
@@ -575,7 +630,6 @@ void profile_scene_connect_events(Scene* scene, GameCore* core) {
     scene->initialized = true;
     scene->active = true;
     
-    // Connecter le lien retour
     if (data->back_link) {
         extern SceneManager* game_core_get_scene_manager(GameCore* core);
         SceneManager* scene_manager = game_core_get_scene_manager(core);
@@ -586,7 +640,6 @@ void profile_scene_connect_events(Scene* scene, GameCore* core) {
         }
     }
     
-    // 🔧 FIX: Connecter le UI Link suivant (même si pas de transition)
     if (data->next_link) {
         extern SceneManager* game_core_get_scene_manager(GameCore* core);
         SceneManager* scene_manager = game_core_get_scene_manager(core);

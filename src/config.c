@@ -261,3 +261,13 @@ PieceColor config_get_player1_piece_color(void) {
 PieceColor config_get_player2_piece_color(void) {
     return g_config.player2_piece_color;
 }
+
+// 🆕 FONCTIONS POUR LE MODE RÉSEAU
+void config_set_network_role(bool is_invite) {
+    g_config.invite_on_game = is_invite;
+    printf("🌐 Rôle réseau défini: %s\n", is_invite ? "INVITÉ" : "HÔTE");
+}
+
+bool config_is_network_invite(void) {
+    return g_config.invite_on_game;
+}

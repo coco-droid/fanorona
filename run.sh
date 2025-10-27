@@ -10,7 +10,7 @@ SRC_DIR="src"
 BUILD_DIR="build"
 CC="gcc"
 CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g"
-LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm"
+LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_net -lm"
 
 # Flags optionnels
 ENABLE_LOG_CONSOLE=false
@@ -83,6 +83,9 @@ SOURCES=(
     "$SRC_DIR/scene/ai_scene.c"
     "$SRC_DIR/scene/wiki_scene.c"
     "$SRC_DIR/scene/pieces_scene.c"
+    "$SRC_DIR/scene/net_start_scene.c"
+    "$SRC_DIR/scene/lobby_scene.c"
+    "$SRC_DIR/scene/player_list_scene.c"
     "$SRC_DIR/scene/scene_registry.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"
@@ -101,8 +104,14 @@ SOURCES=(
     "$SRC_DIR/pions/pions.c"
     "$SRC_DIR/logic/rules.c"
     "$SRC_DIR/logic/mode.c"
+    "$SRC_DIR/ai/ai.c"
+    "$SRC_DIR/ai/minimax.c"
+    "$SRC_DIR/ai/markov.c"
     "$SRC_DIR/stats/game_stats.c"  # 🔧 FIX: Add missing stats module
     "$SRC_DIR/types/plateau_types.c"
+    "$SRC_DIR/net/protocol.c"
+    "$SRC_DIR/net/network.c"
+    "$SRC_DIR/serializer/serializer.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"
 )

@@ -108,6 +108,9 @@ Scene* create_profile_scene(void); // 🆕 Ajout de la déclaration pour profile
 Scene* create_choice_scene(void);  // 🆕 Ajout de la déclaration pour choice_scene
 Scene* create_wiki_scene(void);    // 🆕 Ajout de la déclaration pour wiki_scene
 Scene* create_pieces_scene(void);  // 🆕 Ajout de la déclaration pour pieces_scene
+Scene* create_net_start_scene(void);
+Scene* create_lobby_scene(void);
+Scene* create_player_list_scene(void);  // 🆕 ADD
 
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
@@ -116,10 +119,12 @@ void game_scene_connect_events(Scene* scene, GameCore* core);
 void ai_scene_connect_events(Scene* scene, GameCore* core);
 void profile_scene_connect_events(Scene* scene, GameCore* core);
 void choice_scene_connect_events(Scene* scene, GameCore* core);
-void wiki_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 ADD: Missing declaration
-void pieces_scene_connect_events(Scene* scene, GameCore* core); // 🆕 ADD: New declaration
-
+void wiki_scene_connect_events(Scene* scene, GameCore* core);
+void pieces_scene_connect_events(Scene* scene, GameCore* core);
+void net_start_scene_connect_events(Scene* scene, GameCore* core);
+void lobby_scene_connect_events(Scene* scene, GameCore* core);
+void player_list_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 ADD
 // 🆕 Associer le core au manager pour les transitions automatiques
 void scene_manager_set_core(SceneManager* manager, GameCore* core);
-
+void scene_manager_set_core(SceneManager* manager, GameCore* core);
 #endif // SCENE_H

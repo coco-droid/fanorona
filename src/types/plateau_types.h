@@ -36,4 +36,10 @@ void log_board_state(Board* board, const char* context);
 // 🆕 Game over detection
 bool check_and_handle_game_over(PlateauRenderData* data);
 
+// 🆕 AI and Animation Logic
+void execute_animated_move(PlateauRenderData* data, int from_id, int to_id);
+bool is_ai_turn(PlateauRenderData* data);
+void execute_ai_move(PlateauRenderData* data);
+void update_ai_animation(PlateauRenderData* data, float delta_time);
+
 #endif // PLATEAU_TYPES_H

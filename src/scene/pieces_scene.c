@@ -367,12 +367,29 @@ void pieces_scene_connect_events(Scene* scene, GameCore* core) {
             printf("🔗 Lien 'Retour' connecté au SceneManager\n");
         }
         
-        // 🆕 Connecter le bouton SUIVANT
+        // 🔧 FIX: Adapter bouton SUIVANT selon mode
         if (data->next_link) {
+            GameMode current_mode = config_get_mode();
+            
+            if (current_mode == GAME_MODE_VS_AI) {
+                // Mode IA: rediriger vers ai_scene pour config difficulté
+                ui_link_set_target(data->next_link, "ai");
+                ui_link_set_transition(data->next_link, SCENE_TRANSITION_REPLACE);
+                ui_link_set_target_window(data->next_link, WINDOW_TYPE_MINI);
+                printf("🤖 Mode VS_AI: bouton SUIVANT → ai_scene (config difficulté)\n");
+            } else {
+                // Mode multijoueur: rediriger vers game_scene
+                ui_link_set_target(data->next_link, "game");
+                ui_link_set_transition(data->next_link, SCENE_TRANSITION_CLOSE_AND_OPEN);
+                ui_link_set_target_window(data->next_link, WINDOW_TYPE_MAIN);
+                printf("👥 Mode Multijoueur: bouton SUIVANT → game_scene (CLOSE_AND_OPEN)\n");
+            }
+            
             ui_link_connect_to_manager(data->next_link, scene_manager);
-            printf("🔗 Lien 'SUIVANT' connecté au SceneManager (transition CLOSE_AND_OPEN vers game)\n");
-        }
-    }
+            printf("🔗 Lien 'SUIVANT' connecté et adapté selon mode\n");
+         }
+     }
     
-    printf("✅ Scène Pieces prête avec événements connectés et bouton SUIVANT\n");
+    printf("✅ Scène Pieces prête avec bouton SUIVANT adapté au mode (%s)\n", 
+           config_mode_to_string(config_get_mode()));
 }

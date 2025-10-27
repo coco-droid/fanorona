@@ -268,10 +268,10 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
         return minimax_quiescence_search(board, alpha, beta, maximizing, ai_player);
     }
     
-    // Générer les coups
+    // Générer les coups LÉGAUX selon les règles Fanorona
     Player current_player = maximizing ? ai_player : (ai_player == WHITE ? BLACK : WHITE);
     Move moves[MAX_MOVES];
-    int move_count = generate_moves(board, current_player, moves, MAX_MOVES);
+    int move_count = ai_generate_legal_moves(board, current_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
         // Aucun coup possible = défaite
@@ -282,11 +282,41 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
     int best_score = maximizing ? -MINIMAX_INFINITY : MINIMAX_INFINITY;
     
     for (int i = 0; i < move_count; i++) {
-        // Créer une copie du plateau pour la récursion
-        Board temp_board = *board;
-        apply_move(&temp_board, &moves[i]);
+        // Valider le coup selon les règles Fanorona
+        if (!ai_validate_fanorona_move(board, &moves[i], current_player)) {
+            continue; // Skip invalid moves
+        }
         
-        int score = minimax_search(&temp_board, depth - 1, alpha, beta, !maximizing, ai_player, tt);
+        // 🔧 FIX: Allouer sur le heap au lieu de la pile pour éviter stack overflow
+        Board* temp_board = (Board*)malloc(sizeof(Board));
+        if (!temp_board) continue; // Skip si allocation échoue
+        
+        memcpy(temp_board, board, sizeof(Board));
+        
+        // Deep-clone pieces
+        for (int j = 0; j < NODES; j++) {
+            if (board->nodes[j].piece) {
+                Piece* np = (Piece*)malloc(sizeof(Piece));
+                if (np) {
+                    *np = *board->nodes[j].piece;
+                    temp_board->nodes[j].piece = np;
+                } else {
+                    temp_board->nodes[j].piece = NULL;
+                }
+            }
+        }
+        
+        apply_move(temp_board, &moves[i]);
+        
+        int score = minimax_search(temp_board, depth - 1, alpha, beta, !maximizing, ai_player, tt);
+        
+        // 🔧 FIX: Libérer les pièces clonées + le board heap
+        for (int j = 0; j < NODES; j++) {
+            if (temp_board->nodes[j].piece) {
+                free(temp_board->nodes[j].piece);
+            }
+        }
+        free(temp_board);
         
         if (maximizing) {
             if (score > best_score) {
@@ -319,12 +349,19 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
 
 Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     if (!ai || !board) {
-        Move invalid_move = {-1, -1, 0, {0}, 0};
+        Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
     
-    printf("🤖 Recherche minimax (profondeur %d, joueur %s)\n", 
-           depth, ai->ai_player == WHITE ? "Blanc" : "Noir");
+    printf("\n╔═══════════════════════════════════════════════════════════╗\n");
+    printf("║ 🤖 RECHERCHE MINIMAX - IA\n");
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
+    printf("║ 🎯 Profondeur: %d\n", depth);
+    printf("║ 🎨 Joueur IA: %s\n", ai->ai_player == WHITE ? "Blanc" : "Noir");
+    
+    // 🆕 Vérifier captures obligatoires
+    bool has_mandatory_captures = ai_is_mandatory_capture_situation(board, ai->ai_player);
+    printf("║ ⚠️  Captures obligatoires: %s\n", has_mandatory_captures ? "OUI" : "NON");
     
     TranspositionTable* tt = (TranspositionTable*)ai->minimax_data;
     if (!tt) {
@@ -336,10 +373,21 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     int move_count = generate_moves(board, ai->ai_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
-        printf("❌ Aucun coup possible\n");
-        Move invalid_move = {-1, -1, 0, {0}, 0};
+        printf("║ ❌ Aucun coup possible - L'IA ne peut pas jouer\n");
+        printf("╚═══════════════════════════════════════════════════════════╝\n");
+        Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
+    
+    printf("║ 📋 Coups générés: %d\n", move_count);
+    
+    // 🆕 Compter les captures disponibles
+    int capture_moves = 0;
+    for (int i = 0; i < move_count; i++) {
+        if (moves[i].is_capture) capture_moves++;
+    }
+    printf("║ 💥 Dont captures: %d\n", capture_moves);
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
     
     Move best_move = moves[0];
     int best_score = -MINIMAX_INFINITY;
@@ -349,17 +397,35 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     ai->cache_misses = 0;
     
     for (int i = 0; i < move_count; i++) {
-        Board temp_board = *board;
-        apply_move(&temp_board, &moves[i]);
+        // 🔧 FIX: Deep copy at root to prevent original board mutation
+        Board* temp_board = (Board*)malloc(sizeof(Board));
+        if (!temp_board) continue;
+        memcpy(temp_board, board, sizeof(Board));
+        for (int j = 0; j < NODES; j++) {
+            if (board->nodes[j].piece) {
+                Piece* np = (Piece*)malloc(sizeof(Piece));
+                if (np) {
+                    *np = *board->nodes[j].piece;
+                    temp_board->nodes[j].piece = np;
+                }
+            }
+        }
+        apply_move(temp_board, &moves[i]);
+         
+        int score = minimax_search(temp_board, depth - 1, -MINIMAX_INFINITY, MINIMAX_INFINITY, 
+                                  false, ai->ai_player, tt);
         
-        int score = minimax_search(&temp_board, depth - 1, -MINIMAX_INFINITY, MINIMAX_INFINITY, 
-                                 false, ai->ai_player, tt);
+        // Cleanup
+        for (int j = 0; j < NODES; j++) {
+            if (temp_board->nodes[j].piece) free(temp_board->nodes[j].piece);
+        }
+        free(temp_board);
         
         ai->moves_evaluated++;
         
-        printf("   Coup %d→%d: score=%d%s\n", 
-               moves[i].from_id, moves[i].to_id, score, 
-               moves[i].is_capture ? " (CAPTURE)" : "");
+        printf("║   %d. Coup %d→%d: score=%d%s\n", 
+               i+1, moves[i].from_id, moves[i].to_id, score, 
+               moves[i].is_capture ? " 💥 CAPTURE" : " 🚶 PAIKA");
         
         if (score > best_score) {
             best_score = score;
@@ -367,10 +433,36 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
         }
     }
     
-    printf("🎯 Meilleur coup minimax: %d→%d (score: %d)\n", 
-           best_move.from_id, best_move.to_id, best_score);
-    printf("📊 Statistiques: %d coups évalués, cache %d/%d\n", 
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
+    printf("║ 🎯 MEILLEUR COUP SÉLECTIONNÉ\n");
+    printf("║ 📍 Mouvement: %d → %d\n", best_move.from_id, best_move.to_id);
+    printf("║ 📊 Score: %d\n", best_score);
+    
+    // 🆕 LOGS DÉTAILLÉS DES CONSÉQUENCES DU COUP IA
+    if (best_move.is_capture) {
+        printf("║ 💥 TYPE: CAPTURE (%d pièce(s))\n", best_move.capture_count);
+        if (best_move.capture_count > 0) {
+            printf("║ 📍 IDs capturés: ");
+            for (int i = 0; i < best_move.capture_count; i++) {
+                printf("%d%s", best_move.captured_ids[i], 
+                       (i < best_move.capture_count - 1) ? ", " : "");
+            }
+            printf("\n");
+        }
+    } else {
+        printf("║ 🚶 TYPE: PAIKA (pas de capture)\n");
+    }
+    
+    // État du plateau après simulation
+    int ai_pieces = ai_count_pieces(board, ai->ai_player);
+    Player opponent = (ai->ai_player == WHITE) ? BLACK : WHITE;
+    int opp_pieces = ai_count_pieces(board, opponent);
+    printf("║ 📊 État: IA=%d pièces, Adversaire=%d pièces\n", 
+           ai_pieces, opp_pieces);
+    
+    printf("║ 🔢 Statistiques: %d coups évalués, cache %d/%d\n", 
            ai->moves_evaluated, ai->cache_hits, ai->cache_misses);
+    printf("╚═══════════════════════════════════════════════════════════╝\n\n");
     
     return best_move;
 }

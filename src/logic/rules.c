@@ -24,6 +24,7 @@ int collect_captures_along(Board *b, int start_id, int vr, int vc, Player enemy,
 }
 
 // Determine type of capture for a proposed move (from_id -> to_id).
+// Returns: 0=no capture, 1=percussion only, 2=aspiration only, 3=both available (choice needed)
 int detect_capture(Board *b, int from_id, int to_id, Move *mv) {
     mv->from_id = from_id;
     mv->to_id = to_id;
@@ -46,27 +47,36 @@ int detect_capture(Board *b, int from_id, int to_id, Move *mv) {
     Player me = origin_piece->owner;
     Player enemy = (me == WHITE) ? BLACK : WHITE;
 
-    // Percussion: check immediate after destination in same vector
+    // Check both capture types
     int percussion_capture_ids[MAX_CAPTURE_LIST];
     int percussion_count = 0;
     collect_captures_along(b, to_id, vr, vc, enemy, percussion_capture_ids, &percussion_count);
-    if (percussion_count > 0) {
-        mv->is_capture = 1;
-        for (int i = 0; i < percussion_count; ++i) mv->captured_ids[mv->capture_count++] = percussion_capture_ids[i];
-        return 1;
-    }
-
-    // Aspiration: check before origin in opposite vector
+    
     int aspiration_capture_ids[MAX_CAPTURE_LIST];
     int aspiration_count = 0;
     collect_captures_along(b, from_id, -vr, -vc, enemy, aspiration_capture_ids, &aspiration_count);
-    if (aspiration_count > 0) {
+
+    // ✅ CORRECTION: Handle choice between both capture types
+    if (percussion_count > 0 && aspiration_count > 0) {
+        // Both captures possible - return special code for UI choice
+        return 3; // Caller must decide which capture type to use
+    }
+    
+    if (percussion_count > 0) {
         mv->is_capture = 1;
-        for (int i = 0; i < aspiration_count; ++i) mv->captured_ids[mv->capture_count++] = aspiration_capture_ids[i];
-        return 2;
+        for (int i = 0; i < percussion_count; ++i) 
+            mv->captured_ids[mv->capture_count++] = percussion_capture_ids[i];
+        return 1; // Percussion only
     }
 
-    return 0;
+    if (aspiration_count > 0) {
+        mv->is_capture = 1;
+        for (int i = 0; i < aspiration_count; ++i) 
+            mv->captured_ids[mv->capture_count++] = aspiration_capture_ids[i];
+        return 2; // Aspiration only
+    }
+
+    return 0; // No capture
 }
 
 // Generate all legal moves for given player
@@ -127,28 +137,31 @@ int generate_moves(Board *b, Player player, Move out_moves[], int max_moves) {
 
 // Apply a move: move piece, remove captured pieces
 void apply_move(Board *b, const Move *mv) {
-    int from = mv->from_id;
-    int to = mv->to_id;
-    Piece *pc = b->nodes[from].piece;
-    if (!pc) {
-        fprintf(stderr, "apply_move: no piece at from=%d\n", from);
-        return;
-    }
-    // move piece
-    b->nodes[to].piece = pc;
-    b->nodes[from].piece = NULL;
-    int tr, tc; rc_from_id(to, &tr, &tc);
-    pc->r = tr; pc->c = tc;
+    if (!b || !mv || mv->from_id < 0 || mv->from_id >= NODES || 
+        mv->to_id < 0 || mv->to_id >= NODES) {
+         return;
+     }
+     
+     Piece *pc = b->nodes[mv->from_id].piece;
+     if (!pc || !pc->alive) {
+         return;
+     }
+    
+    // Move piece
+    b->nodes[mv->to_id].piece = pc;
+    b->nodes[mv->from_id].piece = NULL;
+    int tr, tc; 
+    rc_from_id(mv->to_id, &tr, &tc);
+    pc->r = tr; 
+    pc->c = tc;
 
-    // remove captured pieces
+    // Remove captured pieces
     if (mv->is_capture && mv->capture_count > 0) {
         for (int i = 0; i < mv->capture_count; ++i) {
             int cid = mv->captured_ids[i];
             Piece *cap = b->nodes[cid].piece;
             if (cap) {
                 cap->alive = 0;
-                // free memory and clear pointer
-                free(cap);
                 b->nodes[cid].piece = NULL;
             }
         }
@@ -330,4 +343,113 @@ Player check_game_over(Board *b) {
     if (!black_can_move) return WHITE;
     
     return NOBODY; // Partie continue
+}
+
+// 🆕 AI RULE VALIDATION: Check if move follows Fanorona rules
+bool ai_validate_fanorona_move(Board* board, Move* move, Player current_player) {
+    if (!board || !move) return false;
+    
+    // Basic validation
+    if (move->from_id < 0 || move->from_id >= NODES || 
+        move->to_id < 0 || move->to_id >= NODES) {
+        return false;
+    }
+    
+    Piece* piece = board->nodes[move->from_id].piece;
+    if (!piece || !piece->alive || piece->owner != current_player) {
+        return false;
+    }
+    
+    // Destination must be empty
+    if (board->nodes[move->to_id].piece != NULL) {
+        return false;
+    }
+    
+    // Must be adjacent move
+    Intersection* from = &board->nodes[move->from_id];
+    bool is_adjacent = false;
+    for (int i = 0; i < from->nnei; i++) {
+        if (from->neighbors[i] == move->to_id) {
+            is_adjacent = true;
+            break;
+        }
+    }
+    
+    return is_adjacent;
+}
+
+// 🆕 AI RULE UNDERSTANDING: Generate only legal moves according to Fanorona rules
+int ai_generate_legal_moves(Board* board, Player player, Move* moves, int max_moves) {
+    if (!board || !moves) return 0;
+    
+    // First check if any captures are available (mandatory captures rule)
+    bool has_captures = has_any_capture_available(board, player);
+    
+    int move_count = 0;
+    
+    for (int from_id = 0; from_id < NODES && move_count < max_moves; from_id++) {
+        Piece* piece = board->nodes[from_id].piece;
+        if (!piece || !piece->alive || piece->owner != player) continue;
+        
+        Intersection* from = &board->nodes[from_id];
+        for (int i = 0; i < from->nnei && move_count < max_moves; i++) {
+            int to_id = from->neighbors[i];
+            if (board->nodes[to_id].piece != NULL) continue;
+            
+            Move candidate;
+            int capture_type = detect_capture(board, from_id, to_id, &candidate);
+            
+            // Apply Fanorona mandatory capture rule
+            if (has_captures && !capture_type) {
+                continue; // Skip non-capture moves when captures are available
+            }
+            
+            if (!has_captures && !capture_type) {
+                // Paika move when no captures available
+                candidate.from_id = from_id;
+                candidate.to_id = to_id;
+                candidate.is_capture = 0;
+                candidate.capture_count = 0;
+            }
+            
+            moves[move_count++] = candidate;
+        }
+    }
+    
+    return move_count;
+}
+
+// 🆕 AI NEURO-SYMBOLIC RULE VALIDATION: Check mandatory capture situation
+bool ai_is_mandatory_capture_situation(Board* board, Player player) {
+    return has_any_capture_available(board, player);
+}
+
+// 🆕 AI NEURO-SYMBOLIC RULE VALIDATION: Check if can continue capture chain
+bool ai_can_continue_capture_chain(Board* board, int position, Player player, Direction* last_direction) {
+    if (!board || position < 0 || position >= NODES) return false;
+    
+    Intersection* from = &board->nodes[position];
+    if (!from->piece || from->piece->owner != player) return false;
+    
+    for (int i = 0; i < from->nnei; i++) {
+        int to_id = from->neighbors[i];
+        if (board->nodes[to_id].piece != NULL) continue;
+        
+        Move test_move;
+        if (detect_capture(board, position, to_id, &test_move)) {
+            // Check direction restriction
+            if (last_direction) {
+                int fr, fc, tr, tc;
+                rc_from_id(position, &fr, &fc);
+                rc_from_id(to_id, &tr, &tc);
+                Direction new_dir = {tr - fr, tc - fc};
+                
+                if (directions_equal(&new_dir, last_direction)) {
+                    continue; // Same direction not allowed
+                }
+            }
+            return true;
+        }
+    }
+    return false;
 }

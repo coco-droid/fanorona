@@ -26,6 +26,8 @@ fanoron-sivy/
     │   ├── scene_registry.c # Registre automatique des scènes
     │   ├── home_scene.c # Scène d'accueil
     │   ├── choice_scene.c # 🆕 Scène de choix de mode (Local/En ligne)
+    │   ├── net_start_scene.c # 🆕 Scène de démarrage réseau (Hôte/Invité)
+    │   ├── lobby_scene.c # 🆕 Scène d'attente multijoueur (Lobby)
     │   ├── menu_scene.c # Scène de menu
     │   ├── profile_scene.c # 🆕 Scène de création de profil
     │   ├── wiki_scene.c # 🆕 Scène Wiki du jeu
@@ -174,8 +176,11 @@ static void my_scene_update(Scene* scene, float delta_time) {
 
 1. **Home Scene** → "JOUER" → **Choice Scene** (MINI window)
 2. **Choice Scene** → "JOUER EN LOCAL" → **Menu Scene** (MINI window)
-3a. **Menu Scene** → "JOUER EN MULTIJOUEUR" → **Profile Scene** → **Pieces Scene** → **Game Scene**
-3b. **Menu Scene** → "JOUER CONTRE L'IA" → **Profile Scene** → **AI Configuration Scene** → **Game Scene**
+3. **Choice Scene** → "JOUER EN LIGNE" → **NetStart Scene** (MINI window)
+4a. **NetStart Scene** → "LANCER UNE PARTIE" (hôte) → **Profile Scene**
+4b. **NetStart Scene** → "REJOINDRE UNE PARTIE" (invité) → **Profile Scene**
+5. **Menu Scene** → "JOUER EN MULTIJOUEUR" → **Profile Scene** → **Pieces Scene** → **Game Scene**
+6. **Menu Scene** → "JOUER CONTRE L'IA" → **Profile Scene** → **AI Configuration Scene** → **Game Scene**
 
 ```c
 // Navigation fluide avec transitions animées
@@ -288,12 +293,11 @@ game_core_force_scene_event_registration(core);  // Force la re-connexion
 3. **Nœud détruit** : Ne pas détruire un nœud qui a des animations actives3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller
 4. **Mémoire insuffisante** : Le système peut refuser de nouvelles animations si la mémoire est limitée
 
-### Performance des animations`
-1. **Trop d'animations simultanées** : Limiter à ~20-30 animations actives maximum
+1. **Trop d'animations simultanées** : Limiter à ~20-30 animations actives maximum3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre
 2. **Nettoyage automatique** : Le système nettoie automatiquement les animations terminéestrés
 3. **Monitoring** : Utiliser `ui_get_active_animations_count()` pour surveiller4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre
-
-### Événements non détectés
+`oit être appelé
+### Événements non détectés2. **Vérifier l'EventManager**: Chaque scène doit avoir son EventManager
 1. **Vérifier l'initialisation**: La scène doit être `initialized = true`oit être appelé
 2. **Vérifier l'EventManager**: Chaque scène doit avoir son EventManager
 
@@ -303,4 +307,5 @@ game_core_force_scene_event_registration(core);  // Force la re-connexion
 
 
 
-3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées2. **Vérifier les IDs**: Les IDs de scène doivent correspondre1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé### Transitions qui ne fonctionnent pas4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre3. **Vérifier l'enregistrement**: Les éléments UI doivent être enregistrés3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées
+
+3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées2. **Vérifier les IDs**: Les IDs de scène doivent correspondre1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé### Transitions qui ne fonctionnent pas4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre3. **Vérifier l'enregistrement**: Les éléments UI doivent être enregistrés3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées2. **Vérifier les IDs**: Les IDs de scène doivent correspondre1. **Vérifier la connexion**: `ui_link_connect_to_manager()` doit être appelé### Transitions qui ne fonctionnent pas4. **Vérifier la fenêtre**: L'événement doit venir de la bonne fenêtre3. **Vérifier l'enregistrement**: Les éléments UI doivent être enregistrés3. **Vérifier les fenêtres**: Les fenêtres cibles doivent être créées
