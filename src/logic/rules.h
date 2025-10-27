@@ -38,4 +38,9 @@ int has_any_capture_available(Board *b, Player player);
 int is_position_visited(int position_id, int *visited_positions, int visited_count);
 int directions_equal(Direction *d1, Direction *d2);
 
+// 🆕 Game over detection functions
+int count_alive_pieces(Board *b, Player player);
+int has_any_legal_move(Board *b, Player player);
+Player check_game_over(Board *b);
+
 #endif

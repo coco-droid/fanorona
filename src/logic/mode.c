@@ -1,6 +1,7 @@
 #include "logic.h"
 #include "../config.h"
 #include "../utils/log_console.h"
+#include "../logic/rules.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -180,6 +181,20 @@ void game_logic_switch_turn(GameLogic* logic) {
     // Mettre à jour les flags de tour
     current->is_current_turn = false;
     next->is_current_turn = true;
+    
+    // 🆕 Vérifier fin de partie après chaque tour
+    if (logic->board) {
+        Player winner = check_game_over(logic->board);
+        if (winner != NOBODY) {
+            logic->game_finished = true;
+            logic->winner = winner;
+            logic->state = GAME_STATE_GAME_OVER;
+            
+            GamePlayer* winner_player = (winner == logic->player1->logical_color) ? logic->player1 : logic->player2;
+            printf("🏆 PARTIE TERMINÉE! Vainqueur: %s\n", winner_player->name);
+            return;
+        }
+    }
     
     // Déterminer le nouvel état selon le type du prochain joueur
     switch (next->type) {

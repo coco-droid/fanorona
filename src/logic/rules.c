@@ -292,3 +292,42 @@ int is_move_valide(Board *b, int from_id, int to_id, Player player,
     
     return 1; // Default valid
 }
+
+// 🆕 Count alive pieces for a player
+int count_alive_pieces(Board *b, Player player) {
+    int count = 0;
+    for (int id = 0; id < NODES; ++id) {
+        Piece *pc = b->nodes[id].piece;
+        if (pc && pc->owner == player && pc->alive) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// 🆕 Check if player has any legal move (capture or paika)
+int has_any_legal_move(Board *b, Player player) {
+    Move temp_moves[MAX_MOVES];
+    int move_count = generate_moves(b, player, temp_moves, MAX_MOVES);
+    return move_count > 0;
+}
+
+// 🆕 Check game over conditions and return winner (or NOBODY if ongoing/draw)
+Player check_game_over(Board *b) {
+    int white_count = count_alive_pieces(b, WHITE);
+    int black_count = count_alive_pieces(b, BLACK);
+    
+    // Condition 1: Un joueur n'a plus de pions
+    if (white_count == 0) return BLACK;
+    if (black_count == 0) return WHITE;
+    
+    // Condition 2: Un joueur ne peut plus bouger
+    int white_can_move = has_any_legal_move(b, WHITE);
+    int black_can_move = has_any_legal_move(b, BLACK);
+    
+    if (!white_can_move && !black_can_move) return NOBODY; // Match nul
+    if (!white_can_move) return BLACK;
+    if (!black_can_move) return WHITE;
+    
+    return NOBODY; // Partie continue
+}

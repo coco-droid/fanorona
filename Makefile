@@ -40,6 +40,7 @@ SOURCES = main.c \
           src/plateau/plateau.c \
           src/pions/pions.c \
           src/logic/rules.c \
+          src/types/plateau_types.c \
           src/config.c \
           src/utils/asset_manager.c \
           src/utils/log_console.c
