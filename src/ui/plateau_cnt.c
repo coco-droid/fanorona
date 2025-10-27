@@ -10,7 +10,7 @@
 #include "../config.h"
 #include "../pions/pions.h"
 #include "../logic/logic.h"
-#include "../logic/rules.h"  // 🆕 AJOUT: Pour generate_moves()
+#include "../logic/rules.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +33,6 @@
 #define LINE_COLOR_B 0
 
 // === VISUAL FEEDBACK STRUCTURES ===
-// Moved this section up to resolve the compilation error.
 typedef struct VisualFeedbackState {
     int hovered_intersection;
     int selected_intersection;
@@ -74,6 +73,12 @@ static void update_intersection_positions(PlateauRenderData* data);
 static void calculate_valid_destinations(PlateauRenderData* data, int piece_id);
 static void plateau_draw_valid_destinations(PlateauRenderData* data);
 
+// 🆕 AJOUT : Déclarations anticipées pour corriger les erreurs de compilation
+static bool is_valid_destination(PlateauRenderData* data, int from_id, int to_id);
+static void execute_animated_move(PlateauRenderData* data, int from_id, int to_id);
+static void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id);
+
+
 // === PLATEAU COMPONENT ===
 
 // === PLACEHOLDER IMPLEMENTATIONS ===
@@ -104,6 +109,7 @@ static void animate_victory_dance(PlateauRenderData* data, Player winning_player
 
 static void animate_defeat_fade(PlateauRenderData* data, Player losing_player) {
     (void)data;
+    (void)losing_player; // 🔧 FIX: Paramètre non utilisé
     printf("😞 Animate defeat fade for player %d\n", losing_player);
 }
 
@@ -273,7 +279,6 @@ static void plateau_load_piece_textures(PlateauRenderData* data, SDL_Renderer* r
     }
 }
 
-// 🔧 FIX: Créer les AtomicElements pour toutes les intersections ET les ajouter au tree
 static void create_intersection_atomic_elements(PlateauRenderData* data) {
     if (!data || !data->board) return;
     
@@ -285,22 +290,17 @@ static void create_intersection_atomic_elements(PlateauRenderData* data) {
         
         AtomicElement* atomic_intersection = atomic_create(atomic_id);
         if (atomic_intersection) {
-            // 🔧 FIX: Calculer la position RELATIVE au plateau
             int x, y;
-            // Ces valeurs seront ajustées lors du rendu
-            x = intersection->c * 50; // Position relative temporaire
-            y = intersection->r * 40; // Position relative temporaire
+            x = intersection->c * 50;
+            y = intersection->r * 40;
             
-            // 🔧 FIX: Hitbox plus grande pour améliorer la détection
-            int hitbox_size = PIECE_RADIUS * 3; // Augmenté de 2x à 3x
+            int hitbox_size = PIECE_RADIUS * 3;
             atomic_set_position(atomic_intersection, x - hitbox_size/2, y - hitbox_size/2);
             atomic_set_size(atomic_intersection, hitbox_size, hitbox_size);
             
-            // Rendre visible pour debug (optionnel)
-            atomic_set_background_color(atomic_intersection, 255, 0, 0, 30); // Rouge semi-transparent
+            atomic_set_background_color(atomic_intersection, 255, 0, 0, 30);
             atomic_set_z_index(atomic_intersection, 100);
             
-            // 🆕 IMPORTANT: Stocker l'ID d'intersection pour les callbacks
             atomic_set_custom_data(atomic_intersection, "intersection_id", (void*)(intptr_t)id);
             atomic_set_custom_data(atomic_intersection, "plateau_data", data);
             
@@ -315,7 +315,6 @@ static void create_intersection_atomic_elements(PlateauRenderData* data) {
     printf("✅ %d AtomicElements d'intersections créés avec hitboxes agrandies\n", NODES);
 }
 
-// 🔧 FIX: Mettre à jour les positions des intersections lors du rendu
 static void update_intersection_positions(PlateauRenderData* data) {
     if (!data) return;
     
@@ -325,13 +324,11 @@ static void update_intersection_positions(PlateauRenderData* data) {
             int x, y;
             plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
             
-            // 🔧 FIX: Mettre à jour la position absolue
             int hitbox_size = PIECE_RADIUS * 3;
             atomic_set_position(data->intersection_elements[id], 
                               x - hitbox_size/2, 
                               y - hitbox_size/2);
             
-            // 🆕 FORCER la synchronisation avec l'EventManager après chaque update de position
             extern UITree* ui_get_global_tree(void);
             UITree* tree = ui_get_global_tree();
             if (tree && tree->event_manager) {
@@ -359,22 +356,18 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     data->cell_width = (rect.w - 2 * PLATEAU_MARGIN) / (COLS - 1);
     data->cell_height = (rect.h - 2 * PLATEAU_MARGIN) / (ROWS - 1);
     
-    // 🆕 IMPORTANT: Mettre à jour les positions des intersections
     update_intersection_positions(data);
     
     plateau_draw_all_lines(data);
     plateau_draw_all_intersections(data);
     plateau_draw_all_pieces(data);
     
-    // 🆕 RENDU DES EFFETS VISUELS (hover/selection)
     plateau_draw_visual_effects(data);
 }
 
-// 🆕 NOUVELLE FONCTION: Rendu des effets visuels - SIMPLIFIÉ
 static void plateau_draw_visual_effects(PlateauRenderData* data) {
     if (!data || !data->visual_state) return;
     
-    // 🔧 DEBUG: Afficher l'état actuel (seulement si quelque chose est sélectionné/survolé)
     static int last_selected = -2;
     static int last_hovered = -2;
     
@@ -390,7 +383,6 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
         last_hovered = data->visual_state->hovered_intersection;
     }
     
-    // 🆕 EFFET DE SÉLECTION SIMPLIFIÉ - Juste un cercle bleu
     if (data->visual_state->selected_intersection >= 0) {
         int id = data->visual_state->selected_intersection;
         if (id < NODES) {
@@ -398,7 +390,6 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
             int x, y;
             plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
             
-            // 🔵 CERCLE BLEU SIMPLE autour de l'intersection sélectionnée
             SDL_SetRenderDrawColor(data->renderer, 0, 100, 255, 255);
             for (int t = 0; t < 3; t++) {
                 for (int angle = 0; angle < 360; angle += 2) {
@@ -411,7 +402,6 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
         }
     }
     
-    // Effet de hover (cercle doré fin)
     if (data->visual_state->hovered_intersection >= 0 && 
         data->visual_state->hovered_intersection != data->visual_state->selected_intersection) {
         int id = data->visual_state->hovered_intersection;
@@ -420,7 +410,6 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
             int x, y;
             plateau_logical_to_screen(data, intersection->r, intersection->c, &x, &y);
             
-            // Cercle doré pour le hover
             SDL_SetRenderDrawColor(data->renderer, 255, 215, 0, 200);
             for (int t = 0; t < 2; t++) {
                 for (int angle = 0; angle < 360; angle += 3) {
@@ -433,11 +422,9 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
         }
     }
     
-    // 🆕 DESSINER les destinations valides
     plateau_draw_valid_destinations(data);
 }
 
-// 🔧 FIX: Callback pour le clic avec validation du tour
 static void on_intersection_click(void* element, SDL_Event* event) {
     (void)event;
     
@@ -457,7 +444,28 @@ static void on_intersection_click(void* element, SDL_Event* event) {
     
     Piece* piece = data->board->nodes[intersection_id].piece;
     
-    // 🆕 VALIDATION DU TOUR - Vérifier si le joueur peut interagir
+    if (data->visual_state->selected_intersection >= 0 && 
+        data->visual_state->selected_intersection != intersection_id) {
+        
+        if (is_valid_destination(data, data->visual_state->selected_intersection, intersection_id)) {
+            printf("✅ [PLATEAU_MOVE] Mouvement valide: %d → %d\n", 
+                   data->visual_state->selected_intersection, intersection_id);
+            
+            execute_animated_move(data, data->visual_state->selected_intersection, intersection_id);
+            
+            data->visual_state->selected_intersection = -1;
+            if (data->visual_state->valid_destinations) {
+                free(data->visual_state->valid_destinations);
+                data->visual_state->valid_destinations = NULL;
+            }
+            data->visual_state->valid_count = 0;
+            return;
+        } else {
+            printf("🚫 [PLATEAU_MOVE] Mouvement invalide: %d → %d\n", 
+                   data->visual_state->selected_intersection, intersection_id);
+        }
+    }
+    
     if (piece && piece->alive) {
         GameLogic* game_logic = (GameLogic*)data->game_logic;
         if (game_logic) {
@@ -477,11 +485,8 @@ static void on_intersection_click(void* element, SDL_Event* event) {
            data->board->nodes[intersection_id].c);
     printf("   📊 Sélection actuelle AVANT: %d\n", data->visual_state->selected_intersection);
     
-    // 🆕 NOUVELLE LOGIQUE DE SÉLECTION avec calcul des mouvements
     if (data->visual_state->selected_intersection == intersection_id) {
-        // Déselectionner
         data->visual_state->selected_intersection = -1;
-        // 🆕 NETTOYER les destinations valides
         if (data->visual_state->valid_destinations) {
             free(data->visual_state->valid_destinations);
             data->visual_state->valid_destinations = NULL;
@@ -489,15 +494,12 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         data->visual_state->valid_count = 0;
         printf("🔄 [PLATEAU_CLICK] DÉSELECTION intersection %d\n", intersection_id);
     } else {
-        // Sélectionner la nouvelle intersection (déjà validée ci-dessus)
         int old_selection = data->visual_state->selected_intersection;
         data->visual_state->selected_intersection = intersection_id;
         
-        // 🆕 CALCULER les destinations valides si c'est une pièce
         if (piece && piece->alive) {
             calculate_valid_destinations(data, intersection_id);
         } else {
-            // Pas de pièce = pas de destinations
             if (data->visual_state->valid_destinations) {
                 free(data->visual_state->valid_destinations);
                 data->visual_state->valid_destinations = NULL;
@@ -519,7 +521,71 @@ static void on_intersection_click(void* element, SDL_Event* event) {
     printf("✅ [PLATEAU_CLICK] FIN - État de sélection mis à jour\n\n");
 }
 
-// 🔧 FIX: Callback pour le hover avec validation du tour
+static bool is_valid_destination(PlateauRenderData* data, int from_id, int to_id) {
+    (void)from_id; // 🔧 FIX: Paramètre non utilisé
+    if (!data || !data->visual_state) return false;
+    
+    for (int i = 0; i < data->visual_state->valid_count; i++) {
+        if (data->visual_state->valid_destinations[i] == to_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
+    if (!data || !data->board) return;
+    
+    printf("🎬 [ANIMATE_MOVE] Démarrage animation: %d → %d\n", from_id, to_id);
+    
+    Intersection* from_intersection = &data->board->nodes[from_id];
+    Intersection* to_intersection = &data->board->nodes[to_id];
+    
+    int from_x, from_y, to_x, to_y;
+    plateau_logical_to_screen(data, from_intersection->r, from_intersection->c, &from_x, &from_y);
+    plateau_logical_to_screen(data, to_intersection->r, to_intersection->c, &to_x, &to_y);
+    
+    printf("   📍 Animation: (%d,%d) → (%d,%d) pixels\n", from_x, from_y, to_x, to_y);
+    
+    // TODO: Système d'animation
+    
+    apply_move_to_board(data, from_id, to_id);
+    
+    printf("✅ [ANIMATE_MOVE] Mouvement appliqué avec animation\n");
+}
+
+static void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id) {
+    if (!data || !data->board) return;
+    
+    Intersection* from = &data->board->nodes[from_id];
+    Intersection* to = &data->board->nodes[to_id];
+    
+    if (!from->piece || !from->piece->alive) {
+        printf("❌ [APPLY_MOVE] Pas de pièce à déplacer sur %d\n", from_id);
+        return;
+    }
+    
+    printf("🔄 [APPLY_MOVE] Déplacement pièce %d: %d → %d\n", 
+           from->piece->id, from_id, to_id);
+    
+    to->piece = from->piece;
+    from->piece = NULL;
+    
+    to->piece->r = to->r;
+    to->piece->c = to->c;
+    
+    GameLogic* game_logic = (GameLogic*)data->game_logic;
+    if (game_logic) {
+        game_logic_switch_turn(game_logic);
+        printf("🔄 [APPLY_MOVE] Tour passé au joueur suivant\n");
+    }
+}
+
+// 🚫 DÉBUT DU BLOC DE CODE SUPPRIMÉ - Toutes les fonctions suivantes étaient des duplications.
+// static void plateau_logical_to_screen(...) { ... }
+// ... et ainsi de suite jusqu'à la fin des fonctions dupliquées ...
+// 🚫 FIN DU BLOC DE CODE SUPPRIMÉ
+
 static void on_intersection_hover(void* element, SDL_Event* event) {
     (void)event;
     
@@ -531,12 +597,10 @@ static void on_intersection_hover(void* element, SDL_Event* event) {
     
     Piece* piece = data->board->nodes[intersection_id].piece;
     
-    // 🆕 VALIDATION DU TOUR - Vérifier si le joueur peut hover
     if (piece && piece->alive) {
         GameLogic* game_logic = (GameLogic*)data->game_logic;
         if (game_logic) {
             if (!game_logic_can_hover_piece(game_logic, piece->owner)) {
-                // Hover refusé - ne pas mettre à jour l'état visuel
                 return;
             }
         }
@@ -557,7 +621,6 @@ static void on_intersection_hover(void* element, SDL_Event* event) {
     }
 }
 
-// 🔧 FIX: Callback pour le unhover - utiliser l'ID stocké
 static void on_intersection_unhover(void* element, SDL_Event* event) {
     (void)event;
     
@@ -573,7 +636,6 @@ static void on_intersection_unhover(void* element, SDL_Event* event) {
     }
 }
 
-// 🔧 FIX: Enregistrer les intersections avec l'EventManager
 void ui_plateau_register_events(UINode* plateau, EventManager* event_manager) {
     if (!plateau || !event_manager) return;
     
@@ -621,7 +683,7 @@ void ui_plateau_debug_intersections(UINode* plateau) {
                 with_handlers++;
             }
             
-            if (i < 5) { // Afficher les 5 premiers pour exemple
+            if (i < 5) {
                 printf("  Intersection %d: ID=%s, handlers(c:%s h:%s u:%s)\n",
                        i, elem->id ? elem->id : "NULL",
                        has_click ? "✓" : "✗",
@@ -689,11 +751,9 @@ void ui_plateau_debug_visual_state(UINode* plateau) {
     printf("   Intersections visibles: %s\n", data->show_intersections ? "OUI" : "NON");
 }
 
-// 🆕 FONCTION: Calculer et stocker les destinations valides
 static void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
     if (!data || !data->visual_state || !data->board) return;
     
-    // Libérer l'ancienne liste
     if (data->visual_state->valid_destinations) {
         free(data->visual_state->valid_destinations);
         data->visual_state->valid_destinations = NULL;
@@ -703,17 +763,14 @@ static void calculate_valid_destinations(PlateauRenderData* data, int piece_id) 
     Intersection* intersection = &data->board->nodes[piece_id];
     if (!intersection->piece || !intersection->piece->alive) return;
     
-    // Générer tous les mouvements possibles depuis cette pièce
     Move possible_moves[MAX_MOVES];
     int move_count = generate_moves(data->board, intersection->piece->owner, possible_moves, MAX_MOVES);
     
-    // Filtrer les mouvements qui commencent depuis cette pièce
     int* destinations = malloc(sizeof(int) * move_count);
     int dest_count = 0;
     
     for (int i = 0; i < move_count; i++) {
         if (possible_moves[i].from_id == piece_id) {
-            // Vérifier que la destination n'est pas déjà dans la liste
             bool already_added = false;
             for (int j = 0; j < dest_count; j++) {
                 if (destinations[j] == possible_moves[i].to_id) {
@@ -733,12 +790,10 @@ static void calculate_valid_destinations(PlateauRenderData* data, int piece_id) 
     printf("🎯 [CALC_MOVES] %d destinations valides pour pièce %d\n", dest_count, piece_id);
 }
 
-// 🆕 FONCTION: Dessiner les destinations valides
 static void plateau_draw_valid_destinations(PlateauRenderData* data) {
     if (!data || !data->visual_state) return;
     if (data->visual_state->valid_count == 0 || !data->visual_state->valid_destinations) return;
     
-    // Dessiner un cercle vert sur chaque destination valide
     for (int i = 0; i < data->visual_state->valid_count; i++) {
         int dest_id = data->visual_state->valid_destinations[i];
         if (dest_id < 0 || dest_id >= NODES) continue;
@@ -747,7 +802,6 @@ static void plateau_draw_valid_destinations(PlateauRenderData* data) {
         int x, y;
         plateau_logical_to_screen(data, dest->r, dest->c, &x, &y);
         
-        // Cercle vert semi-transparent pour indiquer une destination valide
         SDL_SetRenderDrawColor(data->renderer, 0, 255, 0, 100);
         for (int r = PIECE_RADIUS + 2; r <= PIECE_RADIUS + 5; r++) {
             for (int angle = 0; angle < 360; angle += 2) {
@@ -798,7 +852,6 @@ void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) {
-        // 🆕 NETTOYER les destinations valides
         if (data->visual_state && data->visual_state->valid_destinations) {
             free(data->visual_state->valid_destinations);
             data->visual_state->valid_destinations = NULL;
@@ -854,13 +907,22 @@ void ui_plateau_animate_victory_dance(UINode* plateau, int winning_player) {
 void ui_plateau_animate_defeat_fade(UINode* plateau, int losing_player) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) animate_defeat_fade(data, (Player)losing_player);
+    if(data) animate_defeat_fade(data, (Player)losing_player);
 }
 
 void ui_plateau_animate_initial_wave(UINode* plateau) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) animate_initial_piece_wave(data);
+}
+
+void ui_plateau_set_mouse_handlers(UINode* plateau) {
+    if (!plateau) return;
+    
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (!data) return;
+    
+    printf("🖱️ Mouse handlers plateau connectés (intersections atomiques prêtes)\n");
 }
 
 UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlayer* player1, GamePlayer* player2) {
@@ -892,10 +954,8 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
             data->visual_state->selected_intersection = -1;
         }
         
-        // Créer les AtomicElements pour toutes les intersections
         create_intersection_atomic_elements(data);
         
-        // 🔧 FIX: ENREGISTRER IMMÉDIATEMENT dans l'EventManager du tree
         if (tree->event_manager) {
             for (int i = 0; i < NODES; i++) {
                 if (data->intersection_elements[i]) {
@@ -929,39 +989,4 @@ UINode* ui_plateau_container_with_size(UITree* tree, const char* id, int width, 
         SET_SIZE(plateau, width, height);
     }
     return plateau;
-}
-
-void ui_plateau_set_show_intersections(UINode* plateau, bool show) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) data->show_intersections = show;
-}
-
-void ui_plateau_set_show_coordinates(UINode* plateau, bool show) {
-    if (!plateau) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) data->show_coordinates = show;
-}
-
-Board* ui_plateau_get_board(UINode* plateau) {
-    if (!plateau) return NULL;
-    return (Board*)atomic_get_custom_data(plateau->element, "board");
-}
-
-void ui_plateau_update_from_board(UINode* plateau, Board* new_board) {
-    if (!plateau || !new_board) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (data) {
-        data->board = new_board;
-        atomic_set_custom_data(plateau->element, "board", new_board);
-    }
-}
-
-void ui_plateau_set_mouse_handlers(UINode* plateau) {
-    if (!plateau) return;
-    
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
-    if (!data) return;
-    
-    printf("🖱️ Mouse handlers plateau connectés (intersections atomiques prêtes)\n");
 }

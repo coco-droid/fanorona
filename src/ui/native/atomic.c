@@ -461,11 +461,11 @@ void atomic_register_with_event_manager(AtomicElement* element, EventManager* ma
     // 🔧 FIX: Utiliser la position finale calculée au lieu de la position de style brute
     SDL_Rect rect = atomic_get_final_render_rect(element);
     
-    // 🆕 DEBUG: Afficher les informations d'enregistrement
-    if (element->id && strstr(element->id, "intersection")) {
-        printf("📝 [EVENT_REGISTER] %s at (%d,%d) size %dx%d\n", 
-               element->id, rect.x, rect.y, rect.w, rect.h);
-    }
+    // 🔧 FIX REMOVED: Supprimer les logs d'enregistrement qui polluent la console
+    // if (element->id && strstr(element->id, "intersection")) {
+    //     printf("📝 [EVENT_REGISTER] %s at (%d,%d) size %dx%d\n", 
+    //            element->id, rect.x, rect.y, rect.w, rect.h);
+    // }
     
     event_manager_subscribe(manager, rect.x, rect.y, rect.w, rect.h, 
                           element->style.z_index, element->style.visible,
