@@ -937,23 +937,15 @@ Le plateau supporte maintenant la sélection interactive des intersections avec 
 **🖱️ Interactions supportées :**
 - **Clic sur intersection vide** : Sélectionne l'intersection (si autorisé)
 - **Clic sur intersection avec pièce** : Sélectionne la pièce (si c'est le tour du propriétaire)
+  - 🆕 **Affiche les mouvements possibles** : Cercles verts sur toutes les destinations valides
 - **Clic sur intersection déjà sélectionnée** : Déselectionne (supprime les effets visuels)
 - **Hover** : Effet doré temporaire (seulement si autorisé par le tour)
 
-**🔒 Validation des interactions :**
-```c
-// Vérifier si un joueur peut interagir avec une pièce
-bool can_interact = game_logic_can_player_interact(logic, piece_owner);
+**🎨 Effets visuels de sélection :**
+- 🔵 **Cercle bleu** : Pièce sélectionnée
+- 🟢 **Cercles verts** : Destinations valides où la pièce peut se déplacer
+- 🟡 **Cercle doré** : Survol temporaire
 
-// Vérifier si c'est le tour d'un joueur local
-bool is_turn = game_logic_is_local_player_turn(logic, player_number);
-
-// Vérifier si on peut hover une pièce
-bool can_hover = game_logic_can_hover_piece(logic, piece_owner);
-
-// Vérifier si on peut sélectionner une pièce
-bool can_select = game_logic_can_select_piece(logic, piece_owner);
+**📊 Logs de sélection avec mouvements :**
 ```
-
-**📊 Logs de validation :**
-```
+````

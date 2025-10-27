@@ -10,6 +10,7 @@
 #include "../config.h"
 #include "../pions/pions.h"
 #include "../logic/logic.h"
+#include "../logic/rules.h"  // 🆕 AJOUT: Pour generate_moves()
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +71,8 @@ static void on_intersection_unhover(void* element, SDL_Event* event);
 static void create_intersection_atomic_elements(PlateauRenderData* data);
 static void plateau_draw_visual_effects(PlateauRenderData* data);
 static void update_intersection_positions(PlateauRenderData* data);
+static void calculate_valid_destinations(PlateauRenderData* data, int piece_id);
+static void plateau_draw_valid_destinations(PlateauRenderData* data);
 
 // === PLATEAU COMPONENT ===
 
@@ -429,6 +432,9 @@ static void plateau_draw_visual_effects(PlateauRenderData* data) {
             }
         }
     }
+    
+    // 🆕 DESSINER les destinations valides
+    plateau_draw_valid_destinations(data);
 }
 
 // 🔧 FIX: Callback pour le clic avec validation du tour
@@ -471,15 +477,33 @@ static void on_intersection_click(void* element, SDL_Event* event) {
            data->board->nodes[intersection_id].c);
     printf("   📊 Sélection actuelle AVANT: %d\n", data->visual_state->selected_intersection);
     
-    // 🆕 NOUVELLE LOGIQUE DE SÉLECTION avec validation
+    // 🆕 NOUVELLE LOGIQUE DE SÉLECTION avec calcul des mouvements
     if (data->visual_state->selected_intersection == intersection_id) {
-        // Déselectionner si on clique sur la même intersection
+        // Déselectionner
         data->visual_state->selected_intersection = -1;
+        // 🆕 NETTOYER les destinations valides
+        if (data->visual_state->valid_destinations) {
+            free(data->visual_state->valid_destinations);
+            data->visual_state->valid_destinations = NULL;
+        }
+        data->visual_state->valid_count = 0;
         printf("🔄 [PLATEAU_CLICK] DÉSELECTION intersection %d\n", intersection_id);
     } else {
         // Sélectionner la nouvelle intersection (déjà validée ci-dessus)
         int old_selection = data->visual_state->selected_intersection;
         data->visual_state->selected_intersection = intersection_id;
+        
+        // 🆕 CALCULER les destinations valides si c'est une pièce
+        if (piece && piece->alive) {
+            calculate_valid_destinations(data, intersection_id);
+        } else {
+            // Pas de pièce = pas de destinations
+            if (data->visual_state->valid_destinations) {
+                free(data->visual_state->valid_destinations);
+                data->visual_state->valid_destinations = NULL;
+            }
+            data->visual_state->valid_count = 0;
+        }
         
         printf("✅ [PLATEAU_CLICK] NOUVELLE SÉLECTION: %d -> %d\n", old_selection, intersection_id);
         
@@ -665,6 +689,77 @@ void ui_plateau_debug_visual_state(UINode* plateau) {
     printf("   Intersections visibles: %s\n", data->show_intersections ? "OUI" : "NON");
 }
 
+// 🆕 FONCTION: Calculer et stocker les destinations valides
+static void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
+    if (!data || !data->visual_state || !data->board) return;
+    
+    // Libérer l'ancienne liste
+    if (data->visual_state->valid_destinations) {
+        free(data->visual_state->valid_destinations);
+        data->visual_state->valid_destinations = NULL;
+    }
+    data->visual_state->valid_count = 0;
+    
+    Intersection* intersection = &data->board->nodes[piece_id];
+    if (!intersection->piece || !intersection->piece->alive) return;
+    
+    // Générer tous les mouvements possibles depuis cette pièce
+    Move possible_moves[MAX_MOVES];
+    int move_count = generate_moves(data->board, intersection->piece->owner, possible_moves, MAX_MOVES);
+    
+    // Filtrer les mouvements qui commencent depuis cette pièce
+    int* destinations = malloc(sizeof(int) * move_count);
+    int dest_count = 0;
+    
+    for (int i = 0; i < move_count; i++) {
+        if (possible_moves[i].from_id == piece_id) {
+            // Vérifier que la destination n'est pas déjà dans la liste
+            bool already_added = false;
+            for (int j = 0; j < dest_count; j++) {
+                if (destinations[j] == possible_moves[i].to_id) {
+                    already_added = true;
+                    break;
+                }
+            }
+            if (!already_added) {
+                destinations[dest_count++] = possible_moves[i].to_id;
+            }
+        }
+    }
+    
+    data->visual_state->valid_destinations = destinations;
+    data->visual_state->valid_count = dest_count;
+    
+    printf("🎯 [CALC_MOVES] %d destinations valides pour pièce %d\n", dest_count, piece_id);
+}
+
+// 🆕 FONCTION: Dessiner les destinations valides
+static void plateau_draw_valid_destinations(PlateauRenderData* data) {
+    if (!data || !data->visual_state) return;
+    if (data->visual_state->valid_count == 0 || !data->visual_state->valid_destinations) return;
+    
+    // Dessiner un cercle vert sur chaque destination valide
+    for (int i = 0; i < data->visual_state->valid_count; i++) {
+        int dest_id = data->visual_state->valid_destinations[i];
+        if (dest_id < 0 || dest_id >= NODES) continue;
+        
+        Intersection* dest = &data->board->nodes[dest_id];
+        int x, y;
+        plateau_logical_to_screen(data, dest->r, dest->c, &x, &y);
+        
+        // Cercle vert semi-transparent pour indiquer une destination valide
+        SDL_SetRenderDrawColor(data->renderer, 0, 255, 0, 100);
+        for (int r = PIECE_RADIUS + 2; r <= PIECE_RADIUS + 5; r++) {
+            for (int angle = 0; angle < 360; angle += 2) {
+                float rad = angle * 3.14159f / 180.0f;
+                int bx = x + r * cosf(rad);
+                int by = y + r * sinf(rad);
+                SDL_RenderDrawPoint(data->renderer, bx, by);
+            }
+        }
+    }
+}
+
 // === PUBLIC API FUNCTIONS ===
 void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* player2) {
     if (!plateau) return;
@@ -703,11 +798,19 @@ void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) {
+        // 🆕 NETTOYER les destinations valides
+        if (data->visual_state && data->visual_state->valid_destinations) {
+            free(data->visual_state->valid_destinations);
+            data->visual_state->valid_destinations = NULL;
+        }
         for (int i = 0; i < NODES; i++) {
             if (data->intersection_elements[i]) {
                 atomic_destroy_safe(data->intersection_elements[i]);
                 data->intersection_elements[i] = NULL;
             }
+        }
+        if (data->visual_state) {
+            free(data->visual_state);
         }
         free(data);
     }
