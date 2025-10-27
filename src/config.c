@@ -94,8 +94,13 @@ GameMode config_get_mode(void) {
 
 // 🆕 GESTION DE LA DIFFICULTÉ IA
 void config_set_ai_difficulty(AIDifficulty difficulty) {
+    AIDifficulty old_difficulty = g_config.ai_difficulty;
     g_config.ai_difficulty = difficulty;
-    printf("🤖 Difficulté IA définie à: %s\n", config_difficulty_to_string(difficulty));
+    
+    printf("🤖 Difficulté IA changée: %s → %s\n", 
+           config_difficulty_to_string(old_difficulty),
+           config_difficulty_to_string(difficulty));
+    printf("   📊 Niveau enregistré dans la configuration globale\n");
 }
 
 AIDifficulty config_get_ai_difficulty(void) {
