@@ -34,4 +34,7 @@ void board_print(Board *b);
 void board_free(Board *b);
 void board_destroy(Board* board);
 
+// 🆕 Global board reference for AI
+extern Board* g_static_board_for_ai;
+
 #endif

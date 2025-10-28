@@ -51,7 +51,6 @@ void game_stats_reset_all(GameStatsManager* stats);
 // Gestion du timer
 void game_stats_start_turn_timer(GameStatsManager* stats, int player_number);
 void game_stats_stop_turn_timer(GameStatsManager* stats, int player_number);
-void game_stats_update_timers(GameStatsManager* stats, float delta_time);
 
 // Enregistrement des actions
 void game_stats_record_move(GameStatsManager* stats, int player_number, bool is_capture);
@@ -63,6 +62,7 @@ void game_stats_calculate_efficiency(GameStatsManager* stats, int player_number)
 
 // Accesseurs
 PlayerStats* game_stats_get_player(GameStatsManager* stats, int player_number);
+void game_stats_update_timers(GameStatsManager* stats, float delta_time);
 float game_stats_get_current_turn_time(GameStatsManager* stats, int player_number);
 int game_stats_get_total_moves(GameStatsManager* stats, int player_number);
 

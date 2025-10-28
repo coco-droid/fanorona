@@ -160,50 +160,79 @@ static void game_scene_update(Scene* scene, float delta_time) {
             if (data->game_logic->player2) {
                 ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player2);
             }
+            
+            // 🔧 CRITICAL FIX: Force capture sync every few frames
+            static int sync_counter = 0;
+            sync_counter++;
+            if (sync_counter >= 60) { // Every second at 60fps
+                sync_counter = 0;
+                
+                // Force capture count synchronization from board state
+                if (data->game_logic->board) {
+                    // Calculate actual captures by counting missing pieces
+                    int initial_pieces = 22; // Each player starts with 22 pieces
+                    int white_pieces = 0, black_pieces = 0;
+                    
+                    for (int i = 0; i < NODES; i++) {
+                        Piece* piece = data->game_logic->board->nodes[i].piece;
+                        if (piece && piece->alive) {
+                            if (piece->owner == WHITE) white_pieces++;
+                            else if (piece->owner == BLACK) black_pieces++;
+                        }
+                    }
+                    
+                    // Calculate captures (pieces that were captured)
+                    int p1_captures, p2_captures;
+                    if (data->game_logic->player1->logical_color == WHITE) {
+                        p1_captures = initial_pieces - black_pieces; // White captured black pieces
+                        p2_captures = initial_pieces - white_pieces; // Black captured white pieces
+                    } else {
+                        p1_captures = initial_pieces - white_pieces; // Black captured white pieces
+                        p2_captures = initial_pieces - black_pieces; // White captured black pieces
+                    }
+                    
+                    // Update if different
+                    if (p1_captures != data->game_logic->player1->captures_made) {
+                        printf("🔄 [SYNC] %s captures: %d -> %d\n", 
+                               data->game_logic->player1->name, 
+                               data->game_logic->player1->captures_made, p1_captures);
+                        player_set_captures(data->game_logic->player1, p1_captures);
+                    }
+                    
+                    if (p2_captures != data->game_logic->player2->captures_made) {
+                        printf("🔄 [SYNC] %s captures: %d -> %d\n", 
+                               data->game_logic->player2->name,
+                               data->game_logic->player2->captures_made, p2_captures);
+                        player_set_captures(data->game_logic->player2, p2_captures);
+                    }
+                }
+            }
         }
     }
     
-    // 🔧 FIX: Update sidebar timers and captures every frame - use game_logic members
-    if (data && data->sidebar && data->game_logic && data->game_logic->player1 && data->game_logic->player2) {
-        // Update both players' display
-        ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player1);
-        ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player2);
-        
-        // Update captures when they change
-        static int last_p1_captures = -1;
-        static int last_p2_captures = -1;
-        
-        if (data->game_logic->player1->captures_made != last_p1_captures) {
-            ui_sidebar_update_player_captures(data->sidebar, data->game_logic->player1);
-            last_p1_captures = data->game_logic->player1->captures_made;
-        }
-        
-        if (data->game_logic->player2->captures_made != last_p2_captures) {
-            ui_sidebar_update_player_captures(data->sidebar, data->game_logic->player2);
-            last_p2_captures = data->game_logic->player2->captures_made;
-        }
-    }
-    
-    // 🆕 AJOUT: Mettre à jour les animations (inclut les animations de pièces)
+    // 🆕 AJOUT: Mettre à jour les animations (inclut les nouvelles animations de pièces)
     ui_update_animations(delta_time);
     
     // Mettre à jour l'arbre UI avec effets de scale
     if (data->ui_tree) {
         ui_tree_update(data->ui_tree, delta_time);
-        
-        // 🆕 Les animations de pièces sont automatiquement mises à jour via ui_update_animations()
-        // Les effets incluent :
-        // - Mouvements de pièces avec transitions fluides
-        // - Animations de capture avec fade-out
-        // - Pulsations de sélection
-        // - Animations de victoire/défaite
     }
     
-    // 🆕 Update plateau AI animations
+    // 🔧 MODIFICATION: Update plateau animations avec le nouveau système
     if (data->playable_area) {
         UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
         if (plateau) {
             ui_plateau_update_visual_feedback(plateau, delta_time);
+            
+            // 🆕 Log occasionnel des animations actives
+            static float anim_debug_timer = 0.0f;
+            anim_debug_timer += delta_time;
+            if (anim_debug_timer >= 10.0f) {
+                anim_debug_timer = 0.0f;
+                if (ui_plateau_has_active_animations(plateau)) {
+                    printf("🎬 [GAME_SCENE] Animations de pièces en cours\n");
+                }
+            }
         }
     }
     

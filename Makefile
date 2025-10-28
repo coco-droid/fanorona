@@ -33,6 +33,7 @@ SOURCES = main.c \
           src/ai/ai.c \
           src/ai/minimax.c \
           src/ai/markov.c \
+          src/ai/mcts.c \
           src/ui/ui_tree.c \
           src/ui/ui_components.c \
           src/ui/animation.c \
@@ -54,7 +55,8 @@ SOURCES = main.c \
           src/net/protocol.c \
           src/config.c \
           src/utils/asset_manager.c \
-          src/utils/log_console.c
+          src/utils/log_console.c \
+          src/sound/sound.c
 
 # Fichiers objets
 OBJECTS = $(SOURCES:%.c=$(OBJ_DIR)/%.o)
@@ -87,7 +89,9 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ai
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/plateau
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/pions
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/types
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/net
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/sound
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/native
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/components
 

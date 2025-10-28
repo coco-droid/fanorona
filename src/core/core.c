@@ -8,7 +8,7 @@
 GameCore* game_core_create(void) {
     GameCore* core = (GameCore*)malloc(sizeof(GameCore));
     if (!core) {
-        printf("Erreur: Impossible d'allouer la mémoire pour le core\n");
+        printf("Erreur: Impossible d'allouer la memoire pour le core\n");
         return NULL;
     }
     
@@ -26,10 +26,10 @@ GameCore* game_core_create(void) {
     }
     
     // 🔧 FIX: Créer et INITIALISER la scène home immédiatement avec vérifications
-    printf("🏠 Création de la scène home...\n");
+    printf("Creation de la scene home...\n");
     Scene* home_scene = create_home_scene();
     if (!home_scene) {
-        printf("❌ Erreur: Impossible de créer la scène home\n");
+        printf("Erreur: Impossible de creer la scene home\n");
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
@@ -38,7 +38,7 @@ GameCore* game_core_create(void) {
     
     // 🆕 Validate that scene has valid strings
     if (!home_scene->id || !home_scene->name) {
-        printf("❌ Erreur: Scène home créée avec des chaînes invalides\n");
+        printf("Erreur: Scene home creee avec des chaines invalides\n");
         if (home_scene->cleanup) home_scene->cleanup(home_scene);
         scene_destroy(home_scene);
         scene_manager_destroy(core->scene_manager);
@@ -47,7 +47,7 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
-    printf("🔧 Définition de la scène home comme scène courante...\n");
+    printf("Definition de la scene home comme scene courante...\n");
     if (!scene_manager_set_scene(core->scene_manager, home_scene)) {
         printf("❌ Erreur: Impossible de définir la scène home\n");
         // Nettoyer la scène créée

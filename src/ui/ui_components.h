@@ -4,6 +4,7 @@
 #include "ui_tree.h"
 #include "animation.h"  // 🆕 AJOUT: Support pour les animations
 #include "../config.h"  // 🔧 FIX: Include config.h for AvatarID type
+#include "../sound/sound.h"  // 🆕 AJOUT: Support pour les sons
 #include <SDL2/SDL_ttf.h>
 
 // Forward declarations
@@ -79,6 +80,11 @@ UINode* ui_append(UINode* parent, UINode* child);
 
 // Button component function
 UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick)(UINode* node, void* user_data), void* user_data);
+
+// 🆕 NOUVELLES FONCTIONS: Intégration des sons dans les composants UI
+void ui_button_enable_sound_feedback(UINode* button);  // Active les sons click/hover automatiques
+void ui_button_set_click_sound(UINode* button, SoundEffect sound);  // Son personnalisé au clic
+void ui_button_set_hover_sound(UINode* button, SoundEffect sound);  // Son personnalisé au survol
 
 // === CONTAINER COMPONENT ===
 
@@ -500,5 +506,24 @@ bool ui_plateau_is_ai_thinking(UINode* plateau);
 
 #define UI_AVATAR_SELECTOR(tree, id) ui_avatar_selector(tree, id)
 #define AVATAR_RESET_DEFAULTS(selector) ui_avatar_selector_reset_to_defaults(selector)
+
+// === NOUVELLES FONCTIONS D'ANIMATION DE PIECES AMÉLIORÉES ===
+
+// Configurer la vitesse des animations de pièces
+void ui_plateau_set_animation_speed(UINode* plateau, float speed_multiplier);
+
+// Vérifier si des animations sont en cours
+bool ui_plateau_has_active_animations(UINode* plateau);
+
+// Arrêter toutes les animations de pièces
+void ui_plateau_clear_animations(UINode* plateau);
+
+// === MACROS POUR ANIMATIONS DE PIECES AMÉLIORÉES ===
+
+#define PLATEAU_ANIMATION_SLOW(plateau) ui_plateau_set_animation_speed(plateau, 0.5f)
+#define PLATEAU_ANIMATION_NORMAL(plateau) ui_plateau_set_animation_speed(plateau, 1.0f)
+#define PLATEAU_ANIMATION_FAST(plateau) ui_plateau_set_animation_speed(plateau, 2.0f)
+#define PLATEAU_CLEAR_ANIMATIONS(plateau) ui_plateau_clear_animations(plateau)
+#define PLATEAU_HAS_ANIMATIONS(plateau) ui_plateau_has_active_animations(plateau)
 
 #endif // UI_COMPONENTS_H

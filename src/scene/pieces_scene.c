@@ -5,6 +5,7 @@
 #include "../utils/log_console.h"
 #include "../utils/asset_manager.h"
 #include "../config.h"
+#include "../sound/sound.h"  // 🆕 AJOUT: Include pour les sons
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,11 +28,17 @@ static void black_pieces_clicked(void* element, SDL_Event* event) {
     (void)element;
     (void)event;
     
+    // 🆕 AJOUT: Son de clic
+    sound_play_button_click();
+    
     printf("🖤 Joueur 1 choisit les pièces NOIRES\n");
     printf("🤎 Joueur 2 aura automatiquement les pièces BRUNES\n");
     
     // 🆕 SAUVEGARDER dans la config globale
     config_set_player_piece_colors(PIECE_COLOR_BLACK, PIECE_COLOR_BROWN);
+    
+    // 🆕 AJOUT: Son de succès
+    sound_play_effect(SOUND_SUCCESS);
     
     printf("💾 Couleurs sauvegardées: J1=NOIR, J2=BRUN\n");
 }
@@ -40,11 +47,17 @@ static void brown_pieces_clicked(void* element, SDL_Event* event) {
     (void)element;
     (void)event;
     
+    // 🆕 AJOUT: Son de clic
+    sound_play_button_click();
+    
     printf("🤎 Joueur 1 choisit les pièces BRUNES\n");
     printf("🖤 Joueur 2 aura automatiquement les pièces NOIRES\n");
     
     // 🆕 SAUVEGARDER dans la config globale  
     config_set_player_piece_colors(PIECE_COLOR_BROWN, PIECE_COLOR_BLACK);
+    
+    // 🆕 AJOUT: Son de succès
+    sound_play_effect(SOUND_SUCCESS);
     
     printf("💾 Couleurs sauvegardées: J1=BRUN, J2=NOIR\n");
 }

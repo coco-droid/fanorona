@@ -598,83 +598,64 @@ void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player) {
     UINode* time_text_node = time_container->children[1];
     if (!time_text_node || !time_text_node->element) return;
     
-    // 🔧 CRITICAL FIX: Use separate timer tracking per player
-    static float player1_time = 0.0f;
-    static float player2_time = 0.0f;
-    static Uint32 last_update = 0;
-    
-    Uint32 current_time = SDL_GetTicks();
-    if (last_update == 0) last_update = current_time;
-    
-    float delta_time = (current_time - last_update) / 1000.0f;
-    last_update = current_time;
-    
-    char time_text[16];
+    // 🔧 CRITICAL FIX: Use stats system for accurate per-player timing
     float display_time = 0.0f;
+    bool timer_running = false;
     
-    if (player->is_current_turn) {
-        // Only increment timer for current player
-        if (player->player_number == 1) {
-            player1_time += delta_time;
-            display_time = player1_time;
-        } else {
-            player2_time += delta_time;
-            display_time = player2_time;
-        }
+    if (player->stats) {
+        display_time = player->stats->current_turn_time;
+        timer_running = player->stats->is_timer_running;
         
-        // 🔧 FIX: Update player stats with correct time
-        if (player->stats) {
-            player->stats->current_turn_time = display_time;
-            player->stats->is_timer_running = true;
-        }
-        player->thinking_time = display_time; // Keep in sync
-        
+        // Sync with player->thinking_time for compatibility
+        player->thinking_time = display_time;
     } else {
-        // Show accumulated time for inactive player
-        if (player->player_number == 1) {
-            display_time = player1_time;
-        } else {
-            display_time = player2_time;
-        }
-        
-        if (player->stats) {
-            player->stats->is_timer_running = false;
-        }
+        // Fallback to thinking_time if stats not available
+        display_time = player->thinking_time;
+        timer_running = player->is_current_turn;
     }
     
-    int minutes = ((int)display_time) / 60;
-    int seconds = ((int)display_time) % 60;
+    // Format time as MM:SS
+    int minutes = (int)(display_time) / 60;
+    int seconds = (int)(display_time) % 60;
+    
+    char time_text[16];
     snprintf(time_text, sizeof(time_text), "%02d:%02d", minutes, seconds);
     
     update_node_text_safe(time_text_node, time_text);
     
-    // 🔧 CRITICAL FIX: Get captures from the correct source
+    // 🔧 CRITICAL FIX: Get captures from player field
     UINode* info_container = player_node->children[1]; // Info container
     if (info_container && info_container->children_count >= 2) {
         UINode* captures_node = info_container->children[1]; // Captures text
         if (captures_node && captures_node->element) {
-            // 🔧 FIX: Use the actual captures_made field which gets updated by game logic
             int actual_captures = player->captures_made;
-            
-            // 🔧 DEBUG: Check if captures are being updated elsewhere
-            if (actual_captures > 0) {
-                printf("🎯 [CAPTURES_DEBUG] Player %s has %d captures (field value)\n", 
-                       player->name, actual_captures);
-            }
             
             char captures_text[32];
             snprintf(captures_text, sizeof(captures_text), "Captures: %d", actual_captures);
             update_node_text_safe(captures_node, captures_text);
+            
+            // Debug only when captures > 0
+            if (actual_captures > 0) {
+                printf("🎯 [SIDEBAR] %s displays %d captures\n", 
+                       player->name, actual_captures);
+            }
         }
     }
     
-    // Debug timer progress every 5 seconds for active player
+    // Debug timer progress for active player
     static float debug_timer = 0.0f;
-    if (player->is_current_turn) {
-        debug_timer += delta_time;
+    static Uint32 last_debug_time = 0;
+    
+    Uint32 current_time = SDL_GetTicks();
+    float debug_delta = (current_time - last_debug_time) / 1000.0f;
+    last_debug_time = current_time;
+    
+    if (timer_running) {
+        debug_timer += debug_delta;
         if (debug_timer >= 5.0f) {
-            printf("⏱️ [TIMER_PROGRESS] %s: %s active, Captures: %d\n", 
-                   player->name, time_text, player->captures_made);
+            printf("⏱️ [TIMER_DEBUG] Player %d (%s): %s, Timer: %s, Captures: %d\n", 
+                   player->player_number, player->name, time_text,
+                   timer_running ? "RUNNING" : "STOPPED", player->captures_made);
             debug_timer = 0.0f;
         }
     }

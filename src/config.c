@@ -43,16 +43,15 @@ const char* config_difficulty_to_string(AIDifficulty difficulty) {
 
 // 🆕 INITIALISATION DE LA CONFIGURATION
 void config_init(void) {
-    printf("⚙️ Initialisation de la configuration du jeu\n");
+    printf("Initialisation de la configuration du jeu\n");
     
-    // Valeurs par défaut déjà définies dans la structure statique
-    printf("   📋 Mode par défaut: %s\n", config_mode_to_string(g_config.current_mode));
-    printf("   🤖 Difficulté IA par défaut: %s\n", config_difficulty_to_string(g_config.ai_difficulty));
-    printf("   👤 Joueur 1: %s\n", g_config.player1_name);
-    printf("   👤 Joueur 2: %s\n", g_config.player2_name);
-    printf("   🎨 IA joue en: %s\n", g_config.ai_plays_as_white ? "Blanc" : "Noir");
+    printf("   Mode par defaut: %s\n", config_mode_to_string(g_config.current_mode));
+    printf("   Difficulte IA par defaut: %s\n", config_difficulty_to_string(g_config.ai_difficulty));
+    printf("   Joueur 1: %s\n", g_config.player1_name);
+    printf("   Joueur 2: %s\n", g_config.player2_name);
+    printf("   IA joue en: %s\n", g_config.ai_plays_as_white ? "Blanc" : "Noir");
     
-    printf("✅ Configuration initialisée\n");
+    printf("Configuration initialisee\n");
 }
 
 // 🆕 GESTION DU MODE DE JEU
@@ -60,30 +59,30 @@ void config_set_mode(GameMode mode) {
     GameMode old_mode = g_config.current_mode;
     g_config.current_mode = mode;
     
-    printf("🎮 Mode de jeu changé: %s → %s\n", 
+    printf("Mode de jeu change: %s -> %s\n", 
            config_mode_to_string(old_mode), 
            config_mode_to_string(mode));
     
     // Ajustements automatiques selon le mode
     switch (mode) {
         case GAME_MODE_LOCAL_MULTIPLAYER:
-            printf("   👥 Mode multijoueur local activé\n");
-            printf("   ⌨️ Deux joueurs humains sur le même PC\n");
+            printf("   Mode multijoueur local active\n");
+            printf("   Deux joueurs humains sur le meme PC\n");
             break;
             
         case GAME_MODE_ONLINE_MULTIPLAYER:
-            printf("   🌐 Mode multijoueur en ligne activé\n");
-            printf("   📡 Connexion réseau requise\n");
+            printf("   Mode multijoueur en ligne active\n");
+            printf("   Connexion reseau requise\n");
             break;
             
         case GAME_MODE_VS_AI:
-            printf("   🤖 Mode contre IA activé\n");
-            printf("   🧠 Difficulté: %s\n", config_difficulty_to_string(g_config.ai_difficulty));
-            printf("   🎨 IA joue en: %s\n", g_config.ai_plays_as_white ? "Blanc" : "Noir");
+            printf("   Mode contre IA active\n");
+            printf("   Difficulte: %s\n", config_difficulty_to_string(g_config.ai_difficulty));
+            printf("   IA joue en: %s\n", g_config.ai_plays_as_white ? "Blanc" : "Noir");
             break;
             
         case GAME_MODE_NONE:
-            printf("   ❌ Aucun mode sélectionné\n");
+            printf("   Aucun mode selectionne\n");
             break;
     }
 }
@@ -97,10 +96,10 @@ void config_set_ai_difficulty(AIDifficulty difficulty) {
     AIDifficulty old_difficulty = g_config.ai_difficulty;
     g_config.ai_difficulty = difficulty;
     
-    printf("🤖 Difficulté IA changée: %s → %s\n", 
+    printf("Difficulte IA changee: %s -> %s\n", 
            config_difficulty_to_string(old_difficulty),
            config_difficulty_to_string(difficulty));
-    printf("   📊 Niveau enregistré dans la configuration globale\n");
+    printf("   Niveau enregistre dans la configuration globale\n");
 }
 
 AIDifficulty config_get_ai_difficulty(void) {
@@ -136,7 +135,7 @@ const char* config_get_player2_name(void) {
 // 🆕 GESTION DE LA COULEUR DE L'IA
 void config_set_ai_color(bool ai_plays_white) {
     g_config.ai_plays_as_white = ai_plays_white;
-    printf("🤖 IA configurée pour jouer en: %s\n", ai_plays_white ? "Blanc" : "Noir");
+    printf("IA configuree pour jouer en: %s\n", ai_plays_white ? "Blanc" : "Noir");
 }
 
 bool config_is_ai_white(void) {
@@ -151,7 +150,7 @@ GameConfig* config_get_current(void) {
 // 🆕 FONCTION RAPIDE pour activer le mode IA
 void config_enable_ai_mode(void) {
     config_set_mode(GAME_MODE_VS_AI);
-    printf("⚡ Mode IA activé rapidement avec configuration par défaut\n");
+    printf("Mode IA active rapidement avec configuration par defaut\n");
 }
 
 // 🆕 IMPLÉMENTATION DU SYSTÈME D'AVATARS
@@ -202,8 +201,8 @@ void config_set_player1_full_profile(const char* name, AvatarID avatar) {
         g_config.player1_name[sizeof(g_config.player1_name) - 1] = '\0';
     }
     g_config.player1_avatar = avatar;
-    g_config.player1_configured = true;  // 🆕 Set flag
-    printf("👤 Profil Joueur 1 configuré: '%s' (Avatar %d)\n", name, avatar);
+    g_config.player1_configured = true;
+    printf("Profil Joueur 1 configure: '%s' (Avatar %d)\n", name, avatar);
 }
 
 void config_set_player2_full_profile(const char* name, AvatarID avatar) {
@@ -212,8 +211,8 @@ void config_set_player2_full_profile(const char* name, AvatarID avatar) {
         g_config.player2_name[sizeof(g_config.player2_name) - 1] = '\0';
     }
     g_config.player2_avatar = avatar;
-    g_config.player2_configured = true;  // 🆕 Set flag
-    printf("👤 Profil Joueur 2 configuré: '%s' (Avatar %d)\n", name, avatar);
+    g_config.player2_configured = true;
+    printf("Profil Joueur 2 configure: '%s' (Avatar %d)\n", name, avatar);
 }
 
 // 🆕 NOUVELLES FONCTIONS pour vérifier l'état
@@ -241,7 +240,7 @@ bool config_is_profile_player2_turn(void) {
 void config_reset_player_configs(void) {
     g_config.player1_configured = false;
     g_config.player2_configured = false;
-    printf("🔄 Flags de configuration J1/J2 réinitialisés\n");
+    printf("Flags de configuration J1/J2 reinitialises\n");
 }
 
 // 🆕 GESTION DES COULEURS DE PIÈCES
@@ -249,9 +248,9 @@ void config_set_player_piece_colors(PieceColor player1_color, PieceColor player2
     g_config.player1_piece_color = player1_color;
     g_config.player2_piece_color = player2_color;
     
-    printf("🎨 Couleurs de pièces configurées:\n");
-    printf("   👤 Joueur 1 (%s): %s\n", g_config.player1_name, piece_color_to_string(player1_color));
-    printf("   👤 Joueur 2 (%s): %s\n", g_config.player2_name, piece_color_to_string(player2_color));
+    printf("Couleurs de pieces configurees:\n");
+    printf("   Joueur 1 (%s): %s\n", g_config.player1_name, piece_color_to_string(player1_color));
+    printf("   Joueur 2 (%s): %s\n", g_config.player2_name, piece_color_to_string(player2_color));
 }
 
 PieceColor config_get_player1_piece_color(void) {
@@ -265,7 +264,7 @@ PieceColor config_get_player2_piece_color(void) {
 // 🆕 FONCTIONS POUR LE MODE RÉSEAU
 void config_set_network_role(bool is_invite) {
     g_config.invite_on_game = is_invite;
-    printf("🌐 Rôle réseau défini: %s\n", is_invite ? "INVITÉ" : "HÔTE");
+    printf("Role reseau defini: %s\n", is_invite ? "INVITE" : "HOTE");
 }
 
 bool config_is_network_invite(void) {

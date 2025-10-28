@@ -26,16 +26,12 @@ Le nouveau système d'animation permet de créer des animations fluides inspiré
 ### Architecture du système d'animation
 
 ```c
-// CRÉATION D'ANIMATION
 Animation* anim = animation_create("mon-animation", ANIMATION_PROPERTY_X, 2.0f);
 ├── animation_add_keyframe(anim, 0.0f, 0.0f, "ease-out");    // Début
 ├── animation_add_keyframe(anim, 0.5f, 200.0f, "ease-in");   // Milieu
 └── animation_add_keyframe(anim, 1.0f, 100.0f, "ease-out");  // Fin
 
-// APPLICATION À UN NOEUD
 ui_node_add_animation(mon_bouton, anim);
-
-// MISE À JOUR AUTOMATIQUE (dans la boucle de jeu)
 ui_update_animations(delta_time);
 ```
 
@@ -99,7 +95,6 @@ ANIMATE_SLIDE_LEFT(mon_titre, 0.8f, 200.0f);
 ANIMATE_SHAKE(bouton_erreur, 0.3f, 5.0f);
 ANIMATE_PULSE(bouton_important, 1.5f);
 
-// Arrêter toutes les animations
 STOP_ANIMATIONS(mon_element);
 ```
 
@@ -578,7 +573,7 @@ ui_container_add_content(modal, content);  // Centrage X automatique
 // Centrage Y : align-self center-y (ajouté manuellement)
 ```
 
-### Macros disponibles pour la construction UI
+### Macros disponibles
 
 ```c
 // Macros de base

@@ -59,7 +59,7 @@ static ProfileData* create_profile_data(void) {
         data->current_step = 1;
         data->is_local_multiplayer = true;  // Pour l'instant, toujours local
         
-        printf("📋 ProfileData créée - Étape initiale: Joueur 1\n");
+        printf("ProfileData creee - Etape initiale: Joueur 1\n");
     }
     return data;
 }
@@ -67,21 +67,21 @@ static ProfileData* create_profile_data(void) {
 static void log_profile_data(ProfileData* data) {
     if (!data) return;
     
-    printf("\n=== 📊 PROFILE DATA STATUS ===\n");
+    printf("\n=== PROFILE DATA STATUS ===\n");
     printf("Current Step: %d (%s)\n", 
            data->current_step, 
            data->current_step == 1 ? "Joueur 1" : "Joueur 2");
     printf("Mode: %s\n", data->is_local_multiplayer ? "Local Multiplayer" : "Autre");
     
-    printf("\n👤 JOUEUR 1:\n");
+    printf("\nJOUEUR 1:\n");
     printf("   Nom: '%s'\n", data->player1_name[0] ? data->player1_name : "[VIDE]");
     printf("   Avatar: %d (%s)\n", data->player1_avatar, avatar_id_to_filename(data->player1_avatar));
-    printf("   Complété: %s\n", data->player1_completed ? "✅ OUI" : "❌ NON");
+    printf("   Complete: %s\n", data->player1_completed ? "OUI" : "NON");
     
-    printf("\n👤 JOUEUR 2:\n");
+    printf("\nJOUEUR 2:\n");
     printf("   Nom: '%s'\n", data->player2_name[0] ? data->player2_name : "[VIDE]");
     printf("   Avatar: %d (%s)\n", data->player2_avatar, avatar_id_to_filename(data->player2_avatar));
-    printf("   Complété: %s\n", data->player2_completed ? "✅ OUI" : "❌ NON");
+    printf("   Complete: %s\n", data->player2_completed ? "OUI" : "NON");
     printf("==============================\n\n");
 }
 
@@ -103,7 +103,7 @@ static void update_ui_for_current_step(ProfileSceneData* scene_data) {
         atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
         
-        printf("🔄 UI mise à jour pour Joueur 1\n");
+        printf("UI mise a jour pour Joueur 1\n");
     } else {
         // Étape Joueur 2
         atomic_set_text(scene_data->profile_header->element, "CRÉATION DE PROFIL - JOUEUR 2");
@@ -116,7 +116,7 @@ static void update_ui_for_current_step(ProfileSceneData* scene_data) {
         atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
         
-        printf("🔄 UI mise à jour pour Joueur 2 (bouton START)\n");
+        printf("UI mise a jour pour Joueur 2 (bouton START)\n");
     }
 }
 

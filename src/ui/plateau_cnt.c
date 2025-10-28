@@ -121,11 +121,14 @@ static void plateau_draw_piece(PlateauRenderData* data, int r, int c, Player own
     extern GameConfig* config_get_current(void);
     GameConfig* cfg = config_get_current();
 
+    // 🔧 SIMPLIFIED: Directement selon l'owner logique et les couleurs visuelles choisies
     if (owner == WHITE) {
+        // Joueur 1 (WHITE logique) utilise sa couleur visuelle choisie
         texture_to_use = (cfg->player1_piece_color == PIECE_COLOR_BLACK) ?
             data->texture_black : data->texture_brown;
     }
     else if (owner == BLACK) {
+        // Joueur 2 (BLACK logique) utilise sa couleur visuelle choisie  
         texture_to_use = (cfg->player2_piece_color == PIECE_COLOR_BLACK) ?
             data->texture_black : data->texture_brown;
     }
@@ -193,12 +196,120 @@ static void plateau_draw_all_intersections(PlateauRenderData* data) {
     }
 }
 
+// 🆕 RENDU DES PIÈCES ANIMÉES
+static void plateau_draw_animated_pieces(PlateauRenderData* data) {
+    if (!data || !data->visual_state) return;
+    
+    if (!piece_animation_is_active(data)) return;
+    
+    // Access global manager directly through extern declaration
+    extern PieceAnimationManager g_piece_manager;
+    
+    for (int i = 0; i < 10; i++) {
+        PieceAnimation* anim = &g_piece_manager.animations[i];
+        if (!anim->is_active) continue;
+        
+        // Obtenir la pièce qui bouge
+        Piece* piece = data->board->nodes[anim->from_intersection].piece;
+        if (!piece && anim->progress < 1.0f) {
+            // Si la pièce a déjà été déplacée logiquement, la prendre de la destination
+            piece = data->board->nodes[anim->to_intersection].piece;
+        }
+        
+        if (!piece) continue;
+        
+        // Choisir la texture selon les règles de couleur
+        SDL_Texture* texture_to_use = NULL;
+        extern GameConfig* config_get_current(void);
+        GameConfig* cfg = config_get_current();
+        
+        if (piece->owner == WHITE) {
+            texture_to_use = (cfg->player1_piece_color == PIECE_COLOR_BLACK) ?
+                data->texture_black : data->texture_brown;
+        } else if (piece->owner == BLACK) {
+            texture_to_use = (cfg->player2_piece_color == PIECE_COLOR_BLACK) ?
+                data->texture_black : data->texture_brown;
+        }
+        
+        // Rendu de la pièce à sa position animée
+        int piece_radius = PIECE_RADIUS;
+        
+        // 🎨 Effet visuel pendant l'animation
+        if (anim->is_capture_move) {
+            // Pièce légèrement plus grande pendant les captures
+            piece_radius = PIECE_RADIUS + 2;
+            
+            // Effet de pulsation pour les captures
+            float pulse = 1.0f + 0.1f * sinf(anim->elapsed_time * 8.0f);
+            piece_radius = (int)(piece_radius * pulse);
+        }
+        
+        if (texture_to_use) {
+            SDL_Rect dest_rect = { 
+                (int)(anim->current_x - piece_radius), 
+                (int)(anim->current_y - piece_radius), 
+                piece_radius * 2, 
+                piece_radius * 2 
+            };
+            SDL_RenderCopy(data->renderer, texture_to_use, NULL, &dest_rect);
+        } else {
+            // Fallback sur cercles colorés
+            if (piece->owner == WHITE) {
+                plateau_draw_filled_circle(data->renderer, (int)anim->current_x, (int)anim->current_y, 
+                                         piece_radius, 240, 240, 240, 255);
+            } else {
+                plateau_draw_filled_circle(data->renderer, (int)anim->current_x, (int)anim->current_y, 
+                                         piece_radius, 30, 30, 30, 255);
+            }
+        }
+        
+        // 🎨 Traînée de mouvement (trail effect)
+        if (anim->progress > 0.1f) {
+            int trail_alpha = (int)(100 * (1.0f - anim->progress));
+            plateau_draw_filled_circle(data->renderer, (int)anim->start_x, (int)anim->start_y,
+                                     piece_radius - 2, 200, 200, 200, trail_alpha);
+        }
+        
+        // 🎨 Indicateur de destination
+        if (anim->progress < 0.8f) {
+            SDL_SetRenderDrawColor(data->renderer, 0, 255, 100, 80);
+            for (int angle = 0; angle < 360; angle += 10) {
+                float rad = angle * 3.14159f / 180.0f;
+                int bx = (int)(anim->end_x + (piece_radius + 5) * cosf(rad));
+                int by = (int)(anim->end_y + (piece_radius + 5) * sinf(rad));
+                SDL_RenderDrawPoint(data->renderer, bx, by);
+            }
+        }
+    }
+}
+
 static void plateau_draw_all_pieces(PlateauRenderData* data) {
     if (!data->board) return;
+    
+    // Check if animations are active
+    bool has_animations = piece_animation_is_active(data);
+    
     for (int id = 0; id < NODES; id++) {
         Intersection* intersection = &data->board->nodes[id];
         if (intersection->piece && intersection->piece->alive) {
-            plateau_draw_piece(data, intersection->r, intersection->c, intersection->piece->owner);
+            
+            // Skip pieces being animated
+            bool is_being_animated = false;
+            if (has_animations) {
+                extern PieceAnimationManager g_piece_manager;
+                for (int i = 0; i < 10; i++) {
+                    PieceAnimation* anim = &g_piece_manager.animations[i];
+                    if (anim->is_active && 
+                        (anim->from_intersection == id || anim->to_intersection == id)) {
+                        is_being_animated = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!is_being_animated) {
+                plateau_draw_piece(data, intersection->r, intersection->c, intersection->piece->owner);
+            }
         }
     }
 }
@@ -319,6 +430,10 @@ static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer
     plateau_draw_all_lines(data);
     plateau_draw_all_intersections(data);
     plateau_draw_all_pieces(data);
+    
+    // 🆕 RENDU DES PIÈCES ANIMÉES EN DERNIER (par-dessus tout)
+    plateau_draw_animated_pieces(data);
+    
     plateau_draw_visual_effects(data);
 }
 
@@ -439,8 +554,23 @@ static void on_intersection_click(void* element, SDL_Event* event) {
 
     Piece* piece = data->board->nodes[intersection_id].piece;
 
+    GameLogic* game_logic = (GameLogic*)data->game_logic;
+    
+    // 🔧 SIMPLIFIED: Validation plus directe
+    if (game_logic && piece && piece->alive) {
+        if (!game_logic_can_select_piece(game_logic, piece->owner)) {
+            printf("🚫 [PLATEAU_CLICK] Interaction refusée\n");
+            printf("   📍 Pièce: %s, Tour actuel: %s\n",
+                piece->owner == WHITE ? "WHITE (J1)" : "BLACK (J2)",
+                game_logic->current_player == PLAYER_1 ? "Joueur 1" : "Joueur 2");
+            return;
+        }
+    }
+
+    // 🔧 SIMPLIFIED: Validation de mouvement plus simple
     if (data->visual_state->selected_intersection >= 0 &&
         data->visual_state->selected_intersection != intersection_id) {
+        
         if (is_valid_destination(data, data->visual_state->selected_intersection, intersection_id)) {
             printf("✅ [PLATEAU_MOVE] Mouvement valide: %d → %d\n",
                 data->visual_state->selected_intersection, intersection_id);
@@ -456,19 +586,6 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         else {
             printf("🚫 [PLATEAU_MOVE] Mouvement invalide: %d → %d\n",
                 data->visual_state->selected_intersection, intersection_id);
-        }
-    }
-
-    if (piece && piece->alive) {
-        GameLogic* game_logic = (GameLogic*)data->game_logic;
-        if (game_logic) {
-            if (!game_logic_can_select_piece(game_logic, piece->owner)) {
-                printf("🚫 [PLATEAU_CLICK] Interaction refusée - Ce n'est pas le tour du propriétaire de cette pièce\n");
-                printf("   📍 Pièce: %s, Tour actuel: Joueur %d\n",
-                    piece->owner == WHITE ? "Blanc" : "Noir",
-                    game_logic->current_player);
-                return;
-            }
         }
     }
 
@@ -503,7 +620,7 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         printf("✅ [PLATEAU_CLICK] NOUVELLE SÉLECTION: %d -> %d\n", old_selection, intersection_id);
         if (piece && piece->alive) {
             printf("🔵 [PLATEAU_CLICK] PIÈCE sélectionnée - Propriétaire: %s\n",
-                piece->owner == WHITE ? "Blanc" : "Noir");
+                piece->owner == WHITE ? "WHITE" : "BLACK");
         }
         else {
             printf("⚫ [PLATEAU_CLICK] Intersection VIDE sélectionnée\n");
@@ -529,6 +646,9 @@ void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time) {
 
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (!data) return;
+
+    // 🆕 Mettre à jour les animations de pièces
+    piece_animation_update(data, delta_time);
 
     // Update AI animations
     update_ai_animation(data, delta_time);
@@ -804,4 +924,11 @@ void ui_plateau_register_events(UINode* plateau, EventManager* event_manager) {
 
     printf("🔗 Plateau '%s': %d intersections enregistrées dans EventManager\n",
            plateau->id, registered_count);
+}
+
+// Add missing function
+bool ui_plateau_has_active_animations(UINode* plateau) {
+    if (!plateau) return false;
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    return data ? piece_animation_is_active(data) : false;
 }

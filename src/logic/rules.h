@@ -54,4 +54,26 @@ int ai_generate_legal_moves(Board* board, Player player, Move* moves, int max_mo
 bool ai_is_mandatory_capture_situation(Board* board, Player player);
 bool ai_can_continue_capture_chain(Board* board, int position, Player player, Direction* last_direction);
 
+// 🆕 STRUCTURE LÉGÈRE POUR L'IA (pas de pointeurs)
+typedef struct BoardSnapshot {
+    int8_t pieces[NODES];        // -1=vide, 0=WHITE, 1=BLACK
+    uint8_t alive[NODES];        // 0=mort, 1=vivant
+    int white_count;
+    int black_count;
+    uint64_t hash;               // Hash Zobrist de la position
+} BoardSnapshot;
+
+// 🆕 FONCTIONS POUR L'IA (interface stricte)
+BoardSnapshot board_create_snapshot(Board* board);
+void board_apply_move_to_snapshot(BoardSnapshot* snapshot, const Move* move);
+bool board_restore_from_snapshot(Board* board, const BoardSnapshot* snapshot);
+
+// 🆕 Génération de coups validés pour l'IA
+int ai_get_legal_moves_for_position(BoardSnapshot* snapshot, Player player, Move* out_moves, int max_moves);
+int ai_evaluate_snapshot(BoardSnapshot* snapshot, Player player);
+bool ai_is_game_over_snapshot(BoardSnapshot* snapshot);
+
+// 🆕 Validation stricte des coups IA
+bool ai_validate_move_strict(BoardSnapshot* snapshot, const Move* move, Player player);
+
 #endif

@@ -77,9 +77,14 @@ void board_init(Board *b) {
             }
         }
     }
+
+    // 🆕 Sauvegarder la référence globale pour l'IA
+    if (!g_static_board_for_ai) {
+        g_static_board_for_ai = b;
+        printf("Board de reference globale defini pour l'IA\n");
+    }
 }
 
-// ASCII debug print (with coordinates)
 void board_print(Board *b) {
     printf("    ");
     for (int c = 0; c < COLS; ++c) printf(" %d", c);
@@ -102,20 +107,18 @@ void board_print(Board *b) {
     printf("\nLegend: O=White  X=Black  .=empty\n\n");
 }
 
-// Release allocated pieces in board
 void board_free(Board *b) {
     if (!b) return;
     
-    printf("🧹 [BOARD_FREE] Nettoyage du plateau avec %d pièces\n", b->piece_count);
+    printf("[BOARD_FREE] Nettoyage du plateau avec %d pieces\n", b->piece_count);
     
-    // 🔧 FIX: Libérer toutes les pièces allouées, même celles marquées comme mortes
     for (int i = 0; i < b->piece_count; ++i) {
         Piece *p = b->pieces[i];
         if (p) {
-            printf("🗑️ [BOARD_FREE] Libération pièce %d (owner=%d, alive=%d)\n", 
+            printf("[BOARD_FREE] Liberation piece %d (owner=%d, alive=%d)\n", 
                    p->id, p->owner, p->alive);
             free(p);
-            b->pieces[i] = NULL; // 🔧 Éviter les double-free
+            b->pieces[i] = NULL;
         }
     }
     
@@ -127,18 +130,16 @@ void board_free(Board *b) {
     // 🔧 FIX: Réinitialiser le compteur
     b->piece_count = 0;
     
-    printf("✅ [BOARD_FREE] Plateau nettoyé complètement\n");
+    printf("[BOARD_FREE] Plateau nettoye completement\n");
 }
 
-// 🆕 NOUVELLE FONCTION: Destruction complète du board
 void board_destroy(Board* board) {
     if (!board) return;
     
-    printf("🧹 [BOARD_DESTROY] Destruction complète du plateau\n");
-    
-    // Libérer toutes les pièces
+    printf("[BOARD_DESTROY] Destruction complete du plateau\n");
     board_free(board);
-    
-    // Le board lui-même sera libéré par l'appelant car il peut être alloué sur la pile ou le tas
-    printf("✅ [BOARD_DESTROY] Plateau détruit\n");
+    printf("[BOARD_DESTROY] Plateau detruit\n");
 }
+
+// 🆕 Board statique pour référence de voisinage (utilisé par l'IA)
+Board* g_static_board_for_ai = NULL;

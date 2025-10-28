@@ -15,35 +15,14 @@ fanoron-sivy/
 │   └── profile-card.svg # 🆕 Fond des cartes joueur
 └── src/
     ├── core/
-    │   ├── core.h      # Interface du core du jeu
-    │   └── core.c      # Implémentation du core (capture les événements)
     ├── event/
-    │   ├── event.h     # Interface de l'event manager
-    │   └── event.c     # Système de gestion des événements
     ├── scene/
-    │   ├── scene.h     # Système de gestion des scènes
-    │   ├── scene_manager.c # Gestionnaire de scènes
-    │   ├── scene_registry.c # Registre automatique des scènes
-    │   ├── home_scene.c # Scène d'accueil
-    │   ├── choice_scene.c # 🆕 Scène de choix de mode (Local/En ligne)
-    │   ├── net_start_scene.c # 🆕 Scène de démarrage réseau (Hôte/Invité)
-    │   ├── lobby_scene.c # 🆕 Scène d'attente multijoueur (Lobby)
-    │   ├── menu_scene.c # Scène de menu
-    │   ├── profile_scene.c # 🆕 Scène de création de profil
-    │   ├── wiki_scene.c # 🆕 Scène Wiki du jeu
-    │   └── game_scene.c # Scène de jeu
     ├── ui/
-    │   ├── animation.h     # 🆕 Système d'animations keyframe-based
-    │   ├── animation.c     # 🆕 Implémentation des animations
-    │   ├── sidebar.c       # 🆕 Composant sidebar avec fonds graphiques
-    │   ├── components/
-    │   │   └── ui_link.c # Composant de liens de navigation
-    │   └── ui_components.h # Interface des composants UI
+    ├── sound/          # 🆕 Système de son (musique + effets)
+    │   ├── sound.h
+    │   └── sound.c
     ├── utils/
-    │   └── asset_manager.h # 🆕 Gestionnaire d'assets (textures, images)
     └── window/
-        ├── window.h    # Interface du window manager
-        └── window.c    # Gestion des fenêtres SDL2
 ```
 
 ## Fonctionnalités
@@ -125,6 +104,78 @@ fanoron-sivy/
 - **🌐 Placeholder en ligne**: Bouton préparé pour la fonctionnalité future
 - **✨ Animations**: Slide-in depuis les côtés pour chaque bouton
 - **🎨 Neon buttons**: Vert pour local, bleu pour en ligne
+
+### 🔊 Système de son (NOUVEAU)
+- **🎵 Musique**: Canal dédié avec support loop et fade
+- **🔊 Effets sonores**: 16 canaux pour jouer simultanément
+- **🎚️ Contrôle volume**: Musique et effets séparés (0-100%)
+- **⚙️ Configuration globale**: Activer/désactiver sons, musique, effets
+- **🎮 Helpers UI**: Fonctions directes pour boutons, pièces, événements
+- **📂 Format supporté**: WAV, OGG, MP3 via SDL_mixer
+- **🔄 Fallback automatique**: Sons carrés 16-bit générés si fichiers manquants
+- **✨ Intégration UI**: Sons automatiques sur boutons avec `ui_button_enable_sound_feedback()`
+- **🎯 Effets contextuels**: Sons distincts pour succès, erreur, déplacement, capture
+
+### Utilisation du système de son
+
+```c
+// Dans main.c ou core.c - initialisation
+if (!sound_init()) {
+    printf("❌ Impossible d'initialiser le son\n");
+}
+
+// Charger les ressources audio (avec fallback automatique)
+sound_load_music(MUSIC_MENU, "assets/music/menu.ogg");
+sound_load_effect(SOUND_CLICK, "assets/sfx/click.wav");
+// Si le fichier n'existe pas, un son carré sera généré automatiquement
+
+// Jouer la musique du menu (loop infini)
+sound_play_music(MUSIC_MENU, -1);
+
+// 🆕 NOUVEAU: Intégration automatique dans les boutons
+UINode* button = ui_button(tree, "btn", "JOUER", on_click, NULL);
+ui_button_enable_sound_feedback(button);  // Active sons click/hover automatiques
+
+// Dans les callbacks UI
+void on_button_click(UINode* node, void* data) {
+    sound_play_button_click();  // Joue le son ou son fallback
+    // ...reste du code...
+}
+
+// 🆕 NOUVEAU: Sons contextuels pour feedback visuel
+void on_success(void) {
+    sound_play_effect(SOUND_SUCCESS);  // Son aigu 1400Hz
+}
+
+void on_error(void) {
+    sound_play_effect(SOUND_ERROR);  // Triple bip 300Hz
+}
+
+void on_piece_move(void) {
+    sound_play_piece_move();  // Sweep 400-600Hz
+}
+
+void on_piece_capture(void) {
+    sound_play_piece_capture();  // Double tonalité 300+500Hz
+}
+
+// Nettoyage à la fin
+sound_cleanup();
+```
+
+**Caractéristiques des sons générés:**
+- Format: 16-bit signé (AUDIO_S16LSB)
+- Fréquence: 44.1kHz
+- Canaux: Mono
+- Type: Onde carrée (tonalités électroniques claires)
+- Durée: 30ms à 600ms selon l'effet
+- Effets spéciaux: Sweeps (balayages de fréquence), double tonalités
+
+**Avantages du fallback:**
+- ✅ Jeu fonctionnel même sans fichiers audio
+- ✅ Sons distinctifs pour chaque action
+- ✅ Faible latence (sons générés en mémoire)
+- ✅ Pas de dépendance externe
 
 ## Compilation et exécution
 
@@ -225,8 +276,7 @@ ui_node_add_animation(logo, bounce);
 // Secouer un bouton en cas d'erreur
     ANIMATE_SHAKE(button, 0.4f, 8.0f);  // Secousse 0.4s avec intensité 8pxMATION_PROPERTY_WIDTH, 0.3f);
 }
-animation_add_keyframe(scale_up, 1.0f, 110.0f, "ease-out");
-// Animation de succès
+animation_add_keyframe(scale_up, 1.0f, 110.0f, "ease-out");    // Animation de succès
 void show_success_feedback(UINode* element) {
     // Animation combinée : scale + fade   ui_node_add_animation(element, scale_up);
     Animation* scale_up = animation_create("success-scale", ANIMATION_PROPERTY_WIDTH, 0.3f);

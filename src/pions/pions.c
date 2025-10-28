@@ -226,7 +226,7 @@ void player_add_capture(GamePlayer* player) {
     if (!player) return;
     
     player->captures_made++;
-    printf("🎯 Capture pour '%s': %d captures total\n", 
+    printf("🎯 Capture for '%s': %d captures total\n", 
            player->name, player->captures_made);
            
     // 🆕 CRITICAL FIX: Update stats manager too

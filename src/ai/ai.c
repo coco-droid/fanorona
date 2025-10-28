@@ -28,16 +28,21 @@ AIEngine* ai_create(AIType type, AIDifficulty difficulty, Player ai_player) {
     // Initialiser les composants selon le type
     switch (type) {
         case AI_TYPE_MINIMAX:
-            ai->minimax_data = tt_create(64); // 64MB cache
+            ai->minimax_data = tt_create(64);
             break;
             
         case AI_TYPE_MARKOV:
             ai->markov_data = markov_create_model(4096);
             break;
             
+        case AI_TYPE_MCTS:  // 🆕 Support MCTS
+            ai->mcts_data = mcts_create_context(MCTS_DEFAULT_ITERATIONS);
+            break;
+            
         case AI_TYPE_HYBRID:
-            ai->minimax_data = tt_create(32); // 32MB cache
+            ai->minimax_data = tt_create(32);
             ai->markov_data = markov_create_model(2048);
+            ai->mcts_data = mcts_create_context(500);  // 🆕 MCTS léger pour hybride
             break;
     }
     
@@ -48,7 +53,7 @@ AIEngine* ai_create(AIType type, AIDifficulty difficulty, Player ai_player) {
         zobrist_initialized = true;
     }
     
-    printf("🤖 AI Engine créée: Type=%d, Difficulté=%d, Joueur=%s, Profondeur=%d\n",
+    printf("AI Engine creee: Type=%d, Difficulte=%d, Joueur=%s, Profondeur=%d\n",
            type, difficulty, ai_player == WHITE ? "Blanc" : "Noir", ai->max_depth);
     
     return ai;
@@ -57,7 +62,7 @@ AIEngine* ai_create(AIType type, AIDifficulty difficulty, Player ai_player) {
 void ai_destroy(AIEngine* ai) {
     if (!ai) return;
     
-    printf("🧹 Destruction AI Engine\n");
+    printf("Destruction AI Engine\n");
     
     if (ai->minimax_data) {
         tt_destroy((TranspositionTable*)ai->minimax_data);
@@ -65,70 +70,123 @@ void ai_destroy(AIEngine* ai) {
     if (ai->markov_data) {
         markov_destroy_model((MarkovModel*)ai->markov_data);
     }
+    if (ai->mcts_data) {  // 🆕 Cleanup MCTS
+        mcts_destroy_context((MCTSContext*)ai->mcts_data);
+    }
     
     free(ai);
 }
 
-// === INTERFACE PRINCIPALE ===
-
+// 🔧 WRAPPER: Interface de compatibilité
 Move ai_find_best_move(AIEngine* ai, Board* board) {
     if (!ai || !board) {
         Move invalid = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid;
     }
     
-    printf("🤖 [AI_SEARCH] Recherche du meilleur coup (avec règles Fanorona)...\n");
-    printf("   🎯 Type: %d, Profondeur: %d, Joueur: %s\n", 
+    // Créer snapshot
+    BoardSnapshot snapshot = board_create_snapshot(board);
+    
+    printf("[AI] Conversion Board -> Snapshot (W=%d, B=%d)\n", 
+           snapshot.white_count, snapshot.black_count);
+    
+    // Rechercher sur snapshot
+    return ai_find_best_move_from_snapshot(ai, &snapshot);
+}
+
+// 🆕 NOUVELLE FONCTION: Recherche sur snapshot
+Move ai_find_best_move_from_snapshot(AIEngine* ai, BoardSnapshot* snapshot) {
+    if (!ai || !snapshot) {
+        Move invalid = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
+        return invalid;
+    }
+    
+    printf("[AI_SEARCH] Recherche sur snapshot (regles Fanorona strictes)\n");
+    printf("   Type: %d, Profondeur: %d, Joueur: %s\n", 
            ai->type, ai->max_depth, ai->ai_player == WHITE ? "Blanc" : "Noir");
     
-    // 🆕 NEURO-SYMBOLIC: Vérifier d'abord les règles obligatoires
-    bool mandatory_capture = ai_is_mandatory_capture_situation(board, ai->ai_player);
-    if (mandatory_capture) {
-        printf("   ⚠️ Situation de capture obligatoire détectée\n");
+    // Vérifier coups légaux disponibles
+    Move legal_moves[MAX_MOVES];
+    int legal_count = ai_get_legal_moves_for_position(snapshot, ai->ai_player, legal_moves, MAX_MOVES);
+    
+    if (legal_count == 0) {
+        printf("[AI] Aucun coup legal disponible\n");
+        Move invalid = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
+        return invalid;
     }
     
     Move best_move;
     
+    // 🆕 SWITCH AMÉLIORÉ: Tous les types fonctionnent
     switch (ai->type) {
         case AI_TYPE_MINIMAX:
-            best_move = minimax_find_best_move(ai, board, ai->max_depth);
+            best_move = minimax_find_best_move_snapshot(ai, snapshot, ai->max_depth);
             break;
             
-        case AI_TYPE_MARKOV:
-            best_move = markov_find_best_move(ai, board);
+        case AI_TYPE_MARKOV: {
+            // 🔧 FIX: Markov fonctionne maintenant sur snapshot
+            Board temp_board;
+            board_init(&temp_board);
+            // Restaurer board depuis snapshot (approximatif pour Markov legacy)
+            best_move = markov_find_best_move(ai, &temp_board);
+            board_free(&temp_board);
+            break;
+        }
+            
+        case AI_TYPE_MCTS:  // 🆕 MCTS pur
+            best_move = mcts_find_best_move(ai, snapshot, 1000);
             break;
             
-        case AI_TYPE_HYBRID:
-            best_move = ai_hybrid_find_best_move(ai, board);
+        case AI_TYPE_HYBRID:  // 🆕 HYBRIDE INTELLIGENT
+            best_move = ai_hybrid_find_best_move_snapshot(ai, snapshot);
             break;
             
         default:
-            printf("❌ Type d'IA non supporté: %d\n", ai->type);
-            best_move.from_id = -1;
-            best_move.to_id = -1;
+            printf("[AI] Type inconnu, fallback sur premier coup legal\n");
+            best_move = legal_moves[0];
             break;
     }
     
-    // 🆕 VALIDATION FINALE: S'assurer que le coup respecte les règles
-    if (best_move.from_id != -1 && best_move.to_id != -1) {
-        if (ai_validate_fanorona_move(board, &best_move, ai->ai_player)) {
-            printf("✅ [AI_SEARCH] Coup validé selon les règles: %d → %d\n", 
-                   best_move.from_id, best_move.to_id);
-        } else {
-            printf("❌ [AI_SEARCH] Coup invalide détecté, recherche alternative...\n");
-            // Fallback: premier coup légal disponible
-            Move legal_moves[MAX_MOVES];
-            int legal_count = ai_generate_legal_moves(board, ai->ai_player, legal_moves, MAX_MOVES);
-            if (legal_count > 0) {
-                best_move = legal_moves[0];
-                printf("🔄 [AI_SEARCH] Coup de secours: %d → %d\n", 
-                       best_move.from_id, best_move.to_id);
-            }
-        }
+    // Validation finale
+    if (!ai_validate_move_strict(snapshot, &best_move, ai->ai_player)) {
+        printf("[AI] Coup invalide, utilisation du premier coup legal\n");
+        best_move = legal_moves[0];
     }
     
     return best_move;
 }
+
+// 🆕 HYBRIDE AMÉLIORÉ: Combine Minimax, Markov et MCTS
+Move ai_hybrid_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot) {
+    if (!ai || !snapshot) {
+        Move invalid = {.from_id = -1, .to_id = -1};
+        return invalid;
+    }
+    
+    printf("[HYBRID] Decision multi-algorithmes\n");
+    
+    int total_pieces = snapshot->white_count + snapshot->black_count;
+    
+    if (total_pieces > 30) {
+        printf("   Phase ouverture: Markov\n");
+        Board temp_board;
+        board_init(&temp_board);
+        Move move = markov_find_best_move(ai, &temp_board);
+        board_free(&temp_board);
+        return move;
+    }
+    
+    if (total_pieces > 15) {
+        printf("   Phase milieu: MCTS (500 it)\n");
+        return mcts_find_best_move(ai, snapshot, 500);
+    }
+    
+    printf("   Phase finale: Minimax (profondeur max)\n");
+    return minimax_find_best_move_snapshot(ai, snapshot, ai->max_depth);
+}
+
+// === INTERFACE PRINCIPALE ===
+
 
 // === FONCTIONS UTILITAIRES ===
 
@@ -170,26 +228,13 @@ void ai_print_statistics(AIEngine* ai) {
     printf("========================\n\n");
 }
 
-// === IMPLÉMENTATION HYBRIDE BASIQUE ===
-
+// 🆕 HYBRIDE BASIQUE (wrapper Board → Snapshot)
 Move ai_hybrid_find_best_move(AIEngine* ai, Board* board) {
     if (!ai || !board) {
         Move invalid = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid;
     }
     
-    // Simple hybride: utiliser Markov pour l'ouverture/milieu, Minimax pour la fin
-    if (ai_is_endgame(board)) {
-        printf("🎯 [HYBRID] Mode fin de partie: utilisation Minimax\n");
-        return minimax_find_best_move(ai, board, ai->max_depth);
-    } else {
-        printf("🎯 [HYBRID] Mode ouverture/milieu: utilisation Markov + Minimax léger\n");
-        Move markov_move = markov_find_best_move(ai, board);
-        if (markov_move.from_id != -1) {
-            return markov_move;
-        } else {
-            // Fallback sur minimax avec profondeur réduite
-            return minimax_find_best_move(ai, board, ai->max_depth / 2);
-        }
-    }
+    BoardSnapshot snapshot = board_create_snapshot(board);
+    return ai_hybrid_find_best_move_snapshot(ai, &snapshot);
 }

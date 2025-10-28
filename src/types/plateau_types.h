@@ -23,6 +23,31 @@ typedef struct VisualFeedbackState {
     int visited_count;
 } VisualFeedbackState;
 
+// 🆕 ANIMATION SYSTEM FOR PIECES
+typedef struct PieceAnimation {
+    int piece_id;
+    int from_intersection;
+    int to_intersection;
+    float start_x, start_y;     // Position de départ (pixels)
+    float end_x, end_y;         // Position d'arrivée (pixels)
+    float current_x, current_y; // Position actuelle (pixels)
+    float progress;             // 0.0 à 1.0
+    float duration;             // Durée totale en secondes
+    float elapsed_time;         // Temps écoulé
+    bool is_active;
+    bool is_capture_move;
+    int captured_pieces[MAX_CAPTURE_LIST];
+    int capture_count;
+    void (*on_complete)(struct PieceAnimation* anim); // Callback de fin
+} PieceAnimation;
+
+typedef struct PieceAnimationManager {
+    PieceAnimation animations[10]; // Max 10 animations simultanées
+    int active_count;
+    bool animation_in_progress;
+    float global_speed_multiplier; // 1.0 = normal, 0.5 = lent, 2.0 = rapide
+} PieceAnimationManager;
+
 typedef struct PlateauRenderData PlateauRenderData;
 
 // === GAME LOGIC FUNCTIONS ===
@@ -41,5 +66,17 @@ void execute_animated_move(PlateauRenderData* data, int from_id, int to_id);
 bool is_ai_turn(PlateauRenderData* data);
 void execute_ai_move(PlateauRenderData* data);
 void update_ai_animation(PlateauRenderData* data, float delta_time);
+
+// 🆕 PIECE ANIMATION FUNCTIONS
+void piece_animation_manager_init(PieceAnimationManager* manager);
+bool piece_animation_start(PlateauRenderData* data, int from_id, int to_id, bool is_capture, 
+                          const int* captured_pieces, int capture_count);
+void piece_animation_update(PlateauRenderData* data, float delta_time);
+bool piece_animation_is_active(PlateauRenderData* data);
+void piece_animation_set_speed(PlateauRenderData* data, float speed_multiplier);
+void piece_animation_clear_all(PlateauRenderData* data);
+
+// Add extern declaration for global manager access
+extern PieceAnimationManager g_piece_manager;
 
 #endif // PLATEAU_TYPES_H

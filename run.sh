@@ -8,6 +8,9 @@ echo "=== Compilation de Fanorona ==="
 PROJECT_NAME="fanorona"
 SRC_DIR="src"
 BUILD_DIR="build"
+
+# Vérification silencieuse des mises à jour
+[ -x "check.sh" ] && ./check.sh
 CC="gcc"
 CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g"
 LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_net -lm"
@@ -107,9 +110,11 @@ SOURCES=(
     "$SRC_DIR/ai/ai.c"
     "$SRC_DIR/ai/minimax.c"
     "$SRC_DIR/ai/markov.c"
+    "$SRC_DIR/ai/mcts.c"  # 🆕 Ajouter MCTS
     "$SRC_DIR/stats/game_stats.c"
     "$SRC_DIR/types/plateau_types.c"
     "$SRC_DIR/net/network.c"
+    "$SRC_DIR/sound/sound.c"
     "$SRC_DIR/net/protocol.c"
     "$SRC_DIR/serializer/serializer.c"
     "$SRC_DIR/utils/asset_manager.c"

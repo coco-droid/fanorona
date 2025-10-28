@@ -384,6 +384,11 @@ void atomic_set_hover_handler(AtomicElement* element, void (*handler)(void*, SDL
 void atomic_set_unhover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));  // 🆕 AJOUT
 void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
 
+// 🆕 NOUVELLES FONCTIONS: Feedback sonore automatique
+void atomic_enable_sound_feedback(AtomicElement* element);  // Active click + hover sons
+void atomic_set_click_sound(AtomicElement* element, int sound_effect);  // Son au clic
+void atomic_set_hover_sound(AtomicElement* element, int sound_effect);  // Son au survol
+
 // Fonctions de rendu et mise à jour
 void atomic_render(AtomicElement* element, SDL_Renderer* renderer);
 void atomic_update(AtomicElement* element, float delta_time);

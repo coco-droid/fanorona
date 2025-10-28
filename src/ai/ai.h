@@ -12,13 +12,17 @@
 typedef enum {
     AI_TYPE_MINIMAX = 0,     // Minimax classique
     AI_TYPE_MARKOV = 1,      // Chaînes de Markov
-    AI_TYPE_HYBRID = 2       // Combinaison Minimax + Markov
+    AI_TYPE_HYBRID = 2,      // Combinaison Minimax + Markov
+    AI_TYPE_MCTS = 3         // 🆕 Monte Carlo Tree Search
 } AIType;
 
 // === NIVEAUX DE PROFONDEUR ===
 #define AI_DEPTH_EASY 2      // Facile : 2 coups d'avance
 #define AI_DEPTH_MEDIUM 4    // Moyen : 4 coups d'avance
 #define AI_DEPTH_HARD 6      // Difficile : 6 coups d'avance
+
+// 🆕 MCTS DEFAULT ITERATIONS
+#define MCTS_DEFAULT_ITERATIONS 1000  // Nombre d'itérations par défaut pour MCTS
 
 // === STRUCTURE PRINCIPALE IA ===
 typedef struct {
@@ -36,6 +40,7 @@ typedef struct {
     // Données spécifiques
     void* minimax_data;      // Données minimax (cache, etc.)
     void* markov_data;       // Données chaînes de Markov
+    void* mcts_data;         // 🆕 Données MCTS
 } AIEngine;
 
 // === ÉVALUATION DE POSITION ===
@@ -59,8 +64,13 @@ void ai_set_thinking_time(AIEngine* ai, float max_time);
 void ai_reset_statistics(AIEngine* ai);
 
 // Recherche du meilleur coup
-Move ai_find_best_move(AIEngine* ai, Board* board);
-Move ai_find_move_with_time_limit(AIEngine* ai, Board* board, float time_limit);
+Move ai_find_best_move(AIEngine* ai, Board* board);  // 🔧 Main interface
+Move ai_find_best_move_from_snapshot(AIEngine* ai, BoardSnapshot* snapshot);
+Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int depth);
+
+// 🆕 HYBRID FUNCTIONS DECLARATIONS
+Move ai_hybrid_find_best_move(AIEngine* ai, Board* board);
+Move ai_hybrid_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot);
 
 // Évaluation de position
 PositionEvaluation ai_evaluate_position(Board* board, Player player);
@@ -157,11 +167,37 @@ uint64_t markov_hash_position(Board* board);
 bool markov_save_model(MarkovModel* model, const char* filename);
 MarkovModel* markov_load_model(const char* filename);
 
-// === FONCTIONS HYBRIDES ===
+// === INTERFACE MONTE CARLO TREE SEARCH ===
 
-// Combine minimax et Markov pour de meilleures décisions
-Move ai_hybrid_find_best_move(AIEngine* ai, Board* board);
-float ai_hybrid_evaluate_move(AIEngine* ai, Board* board, Move move);
+// 🆕 Nœud MCTS
+typedef struct MCTSNode {
+    BoardSnapshot state;
+    Move move_from_parent;
+    struct MCTSNode* parent;
+    struct MCTSNode** children;
+    int num_children;
+    int visits;
+    float total_reward;
+    bool is_fully_expanded;
+    Player player;
+} MCTSNode;
+
+// 🆕 Contexte MCTS
+typedef struct {
+    int max_iterations;
+    float exploration_constant;  // UCB1 constant (sqrt(2) par défaut)
+    int simulation_depth;
+    MCTSNode* root;
+} MCTSContext;
+
+// 🆕 Fonctions MCTS
+Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations);
+MCTSContext* mcts_create_context(int max_iterations);
+void mcts_destroy_context(MCTSContext* ctx);
+MCTSNode* mcts_select(MCTSNode* node);
+MCTSNode* mcts_expand(MCTSNode* node);
+float mcts_simulate(BoardSnapshot* state, Player ai_player);
+void mcts_backpropagate(MCTSNode* node, float reward);
 
 // === HASH ET ZOBRIST ===
 

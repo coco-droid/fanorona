@@ -58,7 +58,7 @@ static void animate_piece_capture(PlateauRenderData* data, int piece_id) {
 void log_board_state(Board* board, const char* context) {
     if (!board) return;
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 📊 ÉTAT DU PLATEAU - %s\n", context);
+    printf("║ ETAT DU PLATEAU - %s\n", context);
     printf("╠═══════════════════════════════════════════════════════════╣\n");
     printf("║     ");
     for (int c = 0; c < COLS; ++c) printf(" %d", c);
@@ -94,7 +94,7 @@ void log_board_state(Board* board, const char* context) {
             else black_count++;
         }
     }
-    printf("║ 📈 Pièces: ○ Blanc=%d  ● Noir=%d\n", white_count, black_count);
+    printf("║ Pieces: Blanc=%d  Noir=%d\n", white_count, black_count);
     printf("╚═══════════════════════════════════════════════════════════╝\n\n");
 }
 
@@ -129,11 +129,11 @@ bool has_additional_captures(PlateauRenderData* data, int from_id) {
 void apply_capture(PlateauRenderData* data, Move* move) {
     if (!data || !move || !move->is_capture) return;
     printf("\n┌────────────────────────────────────────────────────────┐\n");
-    printf("│ 💥 CAPTURE DÉTECTÉE\n");
+    printf("│ CAPTURE DETECTEE\n");
     printf("├────────────────────────────────────────────────────────┤\n");
-    printf("│ 📍 Mouvement: intersection %d → %d\n", move->from_id, move->to_id);
-    printf("│ 🎯 Nombre de captures: %d\n", move->capture_count);
-    printf("│ 📋 Pièces capturées: ");
+    printf("│ Mouvement: intersection %d → %d\n", move->from_id, move->to_id);
+    printf("│ Nombre de captures: %d\n", move->capture_count);
+    printf("│ Pieces capturees: ");
     for (int i = 0; i < move->capture_count; i++) {
         int cap_id = move->captured_ids[i];
         Piece* captured = data->board->nodes[cap_id].piece;
@@ -146,7 +146,7 @@ void apply_capture(PlateauRenderData* data, Move* move) {
         int cap_id = move->captured_ids[i];
         Piece* captured = data->board->nodes[cap_id].piece;
         if (captured) {
-            printf("   🗑️  Suppression pièce %d à l'intersection %d\n",
+            printf("   Suppression piece %d a l'intersection %d\n",
                 captured->id, cap_id);
             captured->alive = 0;
             data->board->nodes[cap_id].piece = NULL;
@@ -160,19 +160,19 @@ void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id) {
     Intersection* from = &data->board->nodes[from_id];
     Intersection* to = &data->board->nodes[to_id];
     if (!from->piece || !from->piece->alive) {
-        printf("❌ [APPLY_MOVE] Pas de pièce à déplacer sur %d\n", from_id);
+        printf("[APPLY_MOVE] Pas de piece a deplacer sur %d\n", from_id);
         return;
     }
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🎮 MOUVEMENT APPLIQUÉ\n");
+    printf("║ MOUVEMENT APPLIQUE\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 📍 Pièce %d: intersection %d → %d\n", from->piece->id, from_id, to_id);
-    printf("║ 🎨 Propriétaire: %s\n", from->piece->owner == WHITE ? "○ Blanc" : "● Noir");
+    printf("║ Piece %d: intersection %d → %d\n", from->piece->id, from_id, to_id);
+    printf("║ Proprietaire: %s\n", from->piece->owner == WHITE ? "Blanc" : "Noir");
     Move move;
     int capture_type = detect_capture(data->board, from_id, to_id, &move);
     bool is_capture = move.is_capture && move.capture_count > 0;
     if (is_capture) {
-        printf("║ 💥 TYPE: CAPTURE (%s)\n",
+        printf("║ TYPE: CAPTURE (%s)\n",
             capture_type == 1 ? "Percussion" : "Aspiration");
         apply_capture(data, &move);
         if (data->visual_state) {
@@ -187,21 +187,21 @@ void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id) {
         }
     }
     else {
-        printf("║ 🚶 TYPE: PAIKA (déplacement simple)\n");
+        printf("║ TYPE: PAIKA (deplacement simple)\n");
     }
     to->piece = from->piece;
     from->piece = NULL;
     to->piece->r = to->r;
     to->piece->c = to->c;
     printf("╚═══════════════════════════════════════════════════════════╝\n");
-    log_board_state(data->board, "APRÈS MOUVEMENT");
+    log_board_state(data->board, "APRES MOUVEMENT");
     if (is_capture) {
         bool more_captures = has_additional_captures(data, to_id);
         if (more_captures) {
             printf("\n┌────────────────────────────────────────────────────────┐\n");
-            printf("│ ⚠️  CAPTURES SUPPLÉMENTAIRES DISPONIBLES\n");
-            printf("│ 🔗 Chaîne de captures activée\n");
-            printf("│ ⏳ Le tour continue pour le même joueur\n");
+            printf("│ CAPTURES SUPPLEMENTAIRES DISPONIBLES\n");
+            printf("│ Chaine de captures activee\n");
+            printf("│ Le tour continue pour le meme joueur\n");
             printf("└────────────────────────────────────────────────────────┘\n\n");
             if (data->visual_state) {
                 data->visual_state->in_capture_chain = true;
@@ -213,8 +213,8 @@ void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id) {
         }
         else {
             printf("\n┌────────────────────────────────────────────────────────┐\n");
-            printf("│ ✅ Aucune capture supplémentaire possible\n");
-            printf("│ 🔄 Fin de la chaîne de captures\n");
+            printf("│ Aucune capture supplementaire possible\n");
+            printf("│ Fin de la chaine de captures\n");
             printf("└────────────────────────────────────────────────────────┘\n\n");
             if (data->visual_state) {
                 data->visual_state->in_capture_chain = false;
@@ -228,9 +228,9 @@ void apply_move_to_board(PlateauRenderData* data, int from_id, int to_id) {
         game_logic_switch_turn(game_logic);
         GamePlayer* after = game_logic_get_current_player_info(game_logic);
         printf("\n┌────────────────────────────────────────────────────────┐\n");
-        printf("│ 🔄 CHANGEMENT DE TOUR\n");
-        printf("│ 👤 Avant: %s\n", before->name);
-        printf("│ 👤 Après: %s\n", after->name);
+        printf("│ CHANGEMENT DE TOUR\n");
+        printf("│ Avant: %s\n", before->name);
+        printf("│ Apres: %s\n", after->name);
         printf("└────────────────────────────────────────────────────────┘\n\n");
     }
 }
@@ -245,16 +245,16 @@ void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
     Intersection* intersection = &data->board->nodes[piece_id];
     if (!intersection->piece || !intersection->piece->alive) return;
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🎯 CALCUL DES DESTINATIONS VALIDES\n");
+    printf("║ CALCUL DES DESTINATIONS VALIDES\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 📍 Pièce à l'intersection: %d\n", piece_id);
-    printf("║ 🎨 Propriétaire: %s\n",
-        intersection->piece->owner == WHITE ? "○ Blanc" : "● Noir");
-    printf("║ 🔗 En chaîne de captures: %s\n",
+    printf("║ Piece a l'intersection: %d\n", piece_id);
+    printf("║ Proprietaire: %s\n",
+        intersection->piece->owner == WHITE ? "Blanc" : "Noir");
+    printf("║ En chaine de captures: %s\n",
         data->visual_state->in_capture_chain ? "OUI" : "NON");
     Move possible_moves[MAX_MOVES];
     int move_count = generate_moves(data->board, intersection->piece->owner, possible_moves, MAX_MOVES);
-    printf("║ 📋 Coups générés au total: %d\n", move_count);
+    printf("║ Coups generes au total: %d\n", move_count);
     int* destinations = malloc(sizeof(int) * move_count);
     int dest_count = 0;
     for (int i = 0; i < move_count; i++) {
@@ -265,14 +265,14 @@ void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
                 rc_from_id(possible_moves[i].to_id, &tr, &tc);
                 Direction new_dir = { tr - fr, tc - fc };
                 if (directions_equal(&new_dir, &data->visual_state->last_capture_direction)) {
-                    printf("║   ❌ Coup %d→%d rejeté (même direction)\n",
+                    printf("║   Coup %d→%d rejete (meme direction)\n",
                         piece_id, possible_moves[i].to_id);
                     continue;
                 }
                 if (is_position_visited(possible_moves[i].to_id,
                     data->visual_state->visited_positions,
                     data->visual_state->visited_count)) {
-                    printf("║   ❌ Coup %d→%d rejeté (position déjà visitée)\n",
+                    printf("║   Coup %d→%d rejete (position deja visitee)\n",
                         piece_id, possible_moves[i].to_id);
                     continue;
                 }
@@ -286,7 +286,7 @@ void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
             }
             if (!already_added) {
                 destinations[dest_count++] = possible_moves[i].to_id;
-                printf("║   ✅ Destination valide: %d %s\n",
+                printf("║   Destination valide: %d %s\n",
                     possible_moves[i].to_id,
                     possible_moves[i].is_capture ? "(CAPTURE)" : "(PAIKA)");
             }
@@ -294,7 +294,7 @@ void calculate_valid_destinations(PlateauRenderData* data, int piece_id) {
     }
     data->visual_state->valid_destinations = destinations;
     data->visual_state->valid_count = dest_count;
-    printf("║ 🎯 Total destinations valides: %d\n", dest_count);
+    printf("║ Total destinations valides: %d\n", dest_count);
     printf("╚═══════════════════════════════════════════════════════════╝\n\n");
 }
 
@@ -302,11 +302,17 @@ bool is_valid_destination(PlateauRenderData* data, int from_id, int to_id) {
     if (!data || !data->board || !data->visual_state) return false;
     
     GameLogic* logic = (GameLogic*)data->game_logic;
-    Player current_player = logic ? logic->current_player : WHITE;
+    if (!logic) return false;
+    
+    // 🔧 SIMPLIFIED: Utiliser la couleur logique du joueur actuel
+    GamePlayer* current_player = game_logic_get_current_player_info(logic);
+    if (!current_player) return false;
+    
+    Player current_logical_color = current_player->logical_color;
     
     // Delegate to rules.c for authoritative validation
     return is_move_valide(
-        data->board, from_id, to_id, current_player,
+        data->board, from_id, to_id, current_logical_color,
         data->visual_state->in_capture_chain ? &data->visual_state->last_capture_direction : NULL,
         data->visual_state->visited_positions,
         data->visual_state->visited_count,
@@ -330,9 +336,9 @@ bool check_and_handle_game_over(PlateauRenderData* data) {
                                      logic->player1 : logic->player2;
         
         printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-        printf("║ 🏆 PARTIE TERMINÉE!\n");
-        printf("║ 🎉 Vainqueur: %s\n", winner_player->name);
-        printf("║ 📊 Pièces restantes - Blanc: %d, Noir: %d\n", 
+        printf("║ PARTIE TERMINEE!\n");
+        printf("║ Vainqueur: %s\n", winner_player->name);
+        printf("║ Pieces restantes - Blanc: %d, Noir: %d\n", 
                count_alive_pieces(data->board, WHITE),
                count_alive_pieces(data->board, BLACK));
         printf("╚═══════════════════════════════════════════════════════════╝\n");
@@ -378,22 +384,229 @@ static AIEngine* get_or_create_ai_engine(PlateauRenderData* data) {
     return cached_ai;
 }
 
-// 🆕 Moved from plateau_cnt.c
+// === PIECE ANIMATION SYSTEM ===
+PieceAnimationManager g_piece_manager = {0};  // Remove 'static' to match extern declaration
+static bool g_manager_initialized = false;
+
+static void plateau_logical_to_screen_coords(PlateauRenderData* data, int r, int c, float* x, float* y) {
+    *x = (float)(data->offset_x + c * data->cell_width);
+    *y = (float)(data->offset_y + r * data->cell_height);
+}
+
+static float ease_out_cubic(float t) {
+    return 1.0f - powf(1.0f - t, 3.0f);
+}
+
+static float ease_in_out_cubic(float t) {
+    return t < 0.5f ? 4.0f * t * t * t : 1.0f - powf(-2.0f * t + 2.0f, 3.0f) / 2.0f;
+}
+
+void piece_animation_manager_init(PieceAnimationManager* manager) {
+    if (!manager) return;
+    
+    manager->active_count = 0;
+    manager->animation_in_progress = false;
+    manager->global_speed_multiplier = 1.0f;
+    
+    for (int i = 0; i < 10; i++) {
+        manager->animations[i].is_active = false;
+        manager->animations[i].on_complete = NULL;
+    }
+    
+    printf("✨ Piece Animation Manager initialisé\n");
+}
+
+static void on_piece_animation_complete(PieceAnimation* anim) {
+    if (!anim) return;
+    
+    printf("Animation de piece terminee: %d → %d (duree: %.2fs)\n", 
+           anim->from_intersection, anim->to_intersection, anim->elapsed_time);
+    
+    anim->is_active = false;
+}
+
+bool piece_animation_start(PlateauRenderData* data, int from_id, int to_id, bool is_capture,
+                          const int* captured_pieces, int capture_count) {
+    if (!data || !data->visual_state) return false;
+    
+    // Initialize manager once
+    if (!g_manager_initialized) {
+        piece_animation_manager_init(&g_piece_manager);
+        g_manager_initialized = true;
+    }
+    
+    PieceAnimationManager* anim_manager = &g_piece_manager;
+    
+    // Trouver un slot libre
+    int slot = -1;
+    for (int i = 0; i < 10; i++) {
+        if (!anim_manager->animations[i].is_active) {
+            slot = i;
+            break;
+        }
+    }
+    
+    if (slot == -1) {
+        printf("Pas de slot d'animation disponible\n");
+        return false;
+    }
+    
+    PieceAnimation* anim = &anim_manager->animations[slot];
+    
+    // Configuration de l'animation
+    anim->piece_id = data->board->nodes[from_id].piece ? data->board->nodes[from_id].piece->id : -1;
+    anim->from_intersection = from_id;
+    anim->to_intersection = to_id;
+    anim->is_capture_move = is_capture;
+    anim->capture_count = capture_count;
+    
+    // Copier les pièces capturées
+    for (int i = 0; i < capture_count && i < MAX_CAPTURE_LIST; i++) {
+        anim->captured_pieces[i] = captured_pieces[i];
+    }
+    
+    // Calculer positions start/end
+    int from_r, from_c, to_r, to_c;
+    rc_from_id(from_id, &from_r, &from_c);
+    rc_from_id(to_id, &to_r, &to_c);
+    
+    plateau_logical_to_screen_coords(data, from_r, from_c, &anim->start_x, &anim->start_y);
+    plateau_logical_to_screen_coords(data, to_r, to_c, &anim->end_x, &anim->end_y);
+    
+    anim->current_x = anim->start_x;
+    anim->current_y = anim->start_y;
+    anim->progress = 0.0f;
+    anim->elapsed_time = 0.0f;
+    
+    // 🎨 Durée variable selon le type de mouvement et la distance - AUGMENTÉE
+    float distance = sqrtf(powf(anim->end_x - anim->start_x, 2) + powf(anim->end_y - anim->start_y, 2));
+    float base_duration = is_capture ? 2.0f : 1.5f; // Captures plus lentes, mouvements normaux plus longs
+    anim->duration = base_duration + (distance / 150.0f) * 0.8f; // Plus de variation selon la distance
+    
+    // Appliquer le multiplicateur de vitesse
+    anim->duration /= anim_manager->global_speed_multiplier;
+    
+    anim->is_active = true;
+    anim->on_complete = on_piece_animation_complete;
+    
+    anim_manager->active_count++;
+    anim_manager->animation_in_progress = true;
+    
+    printf("Animation de piece demarree:\n");
+    printf("   %d → %d (%.1f,%.1f) → (%.1f,%.1f)\n", 
+           from_id, to_id, anim->start_x, anim->start_y, anim->end_x, anim->end_y);
+    printf("   Duree: %.2fs %s\n", anim->duration, is_capture ? "(CAPTURE)" : "(PAIKA)");
+    printf("   Distance: %.1f pixels\n", distance);
+    
+    return true;
+}
+
+void piece_animation_update(PlateauRenderData* data, float delta_time) {
+    if (!data || !data->visual_state) return;
+    
+    PieceAnimationManager* manager = &g_piece_manager;
+    if (!manager->animation_in_progress) return;
+    
+    int completed_count = 0;
+    bool any_active = false;
+    
+    for (int i = 0; i < 10; i++) {
+        PieceAnimation* anim = &manager->animations[i];
+        if (!anim->is_active) continue;
+        
+        any_active = true;
+        anim->elapsed_time += delta_time;
+        
+        // Calculer le progrès avec easing
+        float raw_progress = anim->elapsed_time / anim->duration;
+        if (raw_progress >= 1.0f) {
+            raw_progress = 1.0f;
+            completed_count++;
+        }
+        
+        // Appliquer l'easing (plus fluide)
+        anim->progress = anim->is_capture_move ? 
+            ease_in_out_cubic(raw_progress) :  // Captures plus dramatiques
+            ease_out_cubic(raw_progress);      // Mouvements normaux plus fluides
+        
+        // Interpoler la position
+        anim->current_x = anim->start_x + (anim->end_x - anim->start_x) * anim->progress;
+        anim->current_y = anim->start_y + (anim->end_y - anim->start_y) * anim->progress;
+        
+        // Animation terminée
+        if (raw_progress >= 1.0f) {
+            if (anim->on_complete) {
+                anim->on_complete(anim);
+            }
+            manager->active_count--;
+        }
+    }
+    
+    // Mettre à jour l'état global
+    manager->animation_in_progress = any_active;
+    
+    // Log occasionnel du progres
+    static float debug_timer = 0.0f;
+    debug_timer += delta_time;
+    if (debug_timer > 2.0f && any_active) {
+        printf("Animations en cours: %d (completees cette frame: %d)\n", 
+               manager->active_count, completed_count);
+        debug_timer = 0.0f;
+    }
+}
+
+bool piece_animation_is_active(PlateauRenderData* data) {
+    if (!data || !data->visual_state) return false;
+    return g_piece_manager.animation_in_progress;
+}
+
+void piece_animation_set_speed(PlateauRenderData* data, float speed_multiplier) {
+    if (!data || !data->visual_state) return;
+    
+    g_piece_manager.global_speed_multiplier = speed_multiplier;
+    printf("Vitesse d'animation définie à %.1fx\n", speed_multiplier);
+}
+
+void piece_animation_clear_all(PlateauRenderData* data) {
+    if (!data || !data->visual_state) return;
+    
+    for (int i = 0; i < 10; i++) {
+        g_piece_manager.animations[i].is_active = false;
+    }
+    g_piece_manager.active_count = 0;
+    g_piece_manager.animation_in_progress = false;
+    printf("🧹 Toutes les animations de pièces effacées\n");
+}
+
+// 🔧 MODIFICATION: execute_animated_move maintenant utilise le nouveau système
 void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
     if (!data || !data->board) return;
-    printf("🎬 [ANIMATE_MOVE] Démarrage animation: %d → %d\n", from_id, to_id);
-
+    
+    printf("🎬 [ANIMATE_MOVE] Démarrage animation améliorée: %d → %d\n", from_id, to_id);
+    
+    // Detect capture BEFORE movement
+    Move move;
+    detect_capture(data->board, from_id, to_id, &move);
+    bool is_capture = move.is_capture && move.capture_count > 0;
+    
+    // Start animation BEFORE applying movement
+    bool animation_started = piece_animation_start(data, from_id, to_id, is_capture, 
+                                                  move.captured_ids, move.capture_count);
+    
+    if (!animation_started) {
+        printf("❌ Échec du démarrage de l'animation, application directe\n");
+    }
+    
     apply_move_to_board(data, from_id, to_id);
-
+    
     // 🆕 Check game over after move
     if (check_and_handle_game_over(data)) {
-        // Game is over, stop here.
+        piece_animation_clear_all(data);
         g_ai_animation.ai_is_moving = false;
         return;
     }
-
-
-    printf("✅ [ANIMATE_MOVE] Mouvement appliqué avec animation\n");
+    
+    printf("✅ [ANIMATE_MOVE] Mouvement appliqué avec animation fluide\n");
 
     // 🔧 FIX: Only trigger AI after a small delay to let animations complete
     if (is_ai_turn(data) && !g_ai_animation.ai_is_moving) {
@@ -439,30 +652,27 @@ void update_ai_animation(PlateauRenderData* data, float delta_time) {
     if (g_ai_animation.ai_move_delay <= 0.0f) {
         Move ai_move = g_ai_animation.pending_ai_move;
 
-        // 🆕 Incrémenter le compteur de coups consécutifs
         g_ai_animation.consecutive_ai_moves++;
 
         printf("\n┌────────────────────────────────────────────────────────┐\n");
-        printf("│ 🤖 IA JOUE SON COUP #%d\n", g_ai_animation.consecutive_ai_moves);
-        printf("│ 📍 Mouvement: %d → %d\n", ai_move.from_id, ai_move.to_id);
-        printf("│ 💥 Capture: %s (%d pièce(s))\n",
+        printf("│ IA JOUE SON COUP #%d\n", g_ai_animation.consecutive_ai_moves);
+        printf("│ Mouvement: %d → %d\n", ai_move.from_id, ai_move.to_id);
+        printf("│ Capture: %s (%d piece(s))\n",
                ai_move.is_capture ? "OUI" : "NON", ai_move.capture_count);
         printf("└────────────────────────────────────────────────────────┘\n");
 
         execute_animated_move(data, ai_move.from_id, ai_move.to_id);
 
-        // 🆕 DÉTECTION DE CHAÎNE DE CAPTURES
         if (ai_move.is_capture && ai_move.capture_count > 0) {
-            printf("🔍 Vérification des captures supplémentaires depuis %d...\n", ai_move.to_id);
+            printf("Verification des captures supplementaires depuis %d...\n", ai_move.to_id);
 
-            // Vérifier si l'IA peut faire une autre capture depuis la position d'arrivée
             bool more_captures = has_additional_captures(data, ai_move.to_id);
 
             if (more_captures) {
                 printf("\n┌────────────────────────────────────────────────────────┐\n");
-                printf("│ 🔗 CHAÎNE DE CAPTURES DÉTECTÉE!\n");
-                printf("│ ⚠️  L'IA DOIT continuer à capturer\n");
-                printf("│ 🔄 L'IA va jouer un autre coup immédiatement\n");
+                printf("│ CHAINE DE CAPTURES DETECTEE!\n");
+                printf("│ L'IA DOIT continuer a capturer\n");
+                printf("│ L'IA va jouer un autre coup immediatement\n");
                 printf("└────────────────────────────────────────────────────────┘\n\n");
 
                 // L'IA DOIT rejouer immédiatement
@@ -493,10 +703,10 @@ void update_ai_animation(PlateauRenderData* data, float delta_time) {
                 }
             } else {
                 printf("\n┌────────────────────────────────────────────────────────┐\n");
-                printf("│ ✅ AUCUNE CAPTURE SUPPLÉMENTAIRE\n");
-                printf("│ 🔄 Fin de la séquence de l'IA\n");
-                printf("│ 📊 Total coups IA consécutifs: %d\n", g_ai_animation.consecutive_ai_moves);
-                printf("│ 👤 Maintenant c'est au tour du joueur\n");
+                printf("│ AUCUNE CAPTURE SUPPLEMENTAIRE\n");
+                printf("│ Fin de la séquence de l'IA\n");
+                printf("│ Total coups IA consécutifs: %d\n", g_ai_animation.consecutive_ai_moves);
+                printf("│ Maintenant c'est au tour du joueur\n");
                 printf("└────────────────────────────────────────────────────────┘\n\n");
             }
         }
@@ -545,9 +755,9 @@ void execute_ai_move(PlateauRenderData* data) {
     }
 
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🤖 DÉBUT DE SÉQUENCE IA\n");
+    printf("║ DEBUT DE SEQUENCE IA\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 🧠 L'IA commence à calculer son premier coup...\n");
+    printf("║ L'IA commence a calculer son premier coup...\n");
 
      // L'IA calcule le meilleur coup
      Move best_move = ai_find_best_move(ai, data->board);
@@ -558,7 +768,7 @@ void execute_ai_move(PlateauRenderData* data) {
         return;
      }
 
-    printf("║ 🎯 Premier coup choisi: %d → %d\n", best_move.from_id, best_move.to_id);
+    printf("║ Premier coup choisi: %d → %d\n", best_move.from_id, best_move.to_id);
     printf("╚═══════════════════════════════════════════════════════════╝\n");
 
      // Store move for delayed execution
@@ -577,10 +787,10 @@ void execute_ai_move(PlateauRenderData* data) {
              g_ai_animation.captured_pieces[i] = best_move.captured_ids[i];
          }
 
-        printf("💥 Prévisualisation des captures: %d pièce(s)\n", best_move.capture_count);
+        printf("Previsualisation des captures: %d piece(s)\n", best_move.capture_count);
      }
 
-    printf("⏳ Coup programmé avec délai d'animation de %.1fs\n\n", g_ai_animation.ai_move_delay);
+    printf("Coup programme avec delai d'animation de %.1fs\n\n", g_ai_animation.ai_move_delay);
 }
 
 // 🆕 Getter for AI animation state, needed by plateau_cnt.c

@@ -6,21 +6,20 @@
 #include <limits.h>
 #include <time.h>
 
-// === CONSTANTES MINIMAX ===
+// Constantes minimax
 #define MINIMAX_INFINITY 1000000
-#define MINIMAX_DEFAULT_CACHE_SIZE 64  // MB
+#define MINIMAX_DEFAULT_CACHE_SIZE 64
 #define QUIESCENCE_MAX_DEPTH 8
 #define TT_FLAG_EXACT 0
 #define TT_FLAG_LOWERBOUND 1
 #define TT_FLAG_UPPERBOUND 2
 
-// === ZOBRIST HASHING ===
+// Hachage Zobrist
 ZobristKeys g_zobrist;
 
 void zobrist_init(void) {
     srand((unsigned int)time(NULL));
     
-    // Générer des clés aléatoires pour chaque position et couleur
     for (int pos = 0; pos < NODES; pos++) {
         for (int color = 0; color < 2; color++) {
             g_zobrist.piece_keys[pos][color] = 
@@ -51,7 +50,7 @@ uint64_t zobrist_hash_board(Board* board, Player turn) {
     return hash;
 }
 
-// === TABLE DE TRANSPOSITION ===
+// Table de transposition
 
 TranspositionTable* tt_create(int size_mb) {
     TranspositionTable* tt = (TranspositionTable*)malloc(sizeof(TranspositionTable));
@@ -91,7 +90,6 @@ void tt_store(TranspositionTable* tt, uint64_t hash, int depth, int score, int f
     int index = (int)(hash % tt->size);
     TranspositionEntry* entry = &tt->table[index];
     
-    // Remplacer si nouvelle entrée ou profondeur supérieure
     if (entry->hash == 0 || entry->depth <= depth) {
         if (entry->hash == 0) {
             tt->entries_used++;
@@ -118,32 +116,29 @@ TranspositionEntry* tt_probe(TranspositionTable* tt, uint64_t hash) {
     return NULL;
 }
 
-// === ÉVALUATION DE POSITION ===
+// Évaluation de position
 
 int ai_evaluate_simple(Board* board, Player player) {
     int score = 0;
     Player opponent = (player == WHITE) ? BLACK : WHITE;
     
-    // Matériel (pièces)
     int my_pieces = ai_count_pieces(board, player);
     int opp_pieces = ai_count_pieces(board, opponent);
     score += (my_pieces - opp_pieces) * 100;
     
-    // Mobilité
     Move my_moves[MAX_MOVES];
     Move opp_moves[MAX_MOVES];
     int my_mobility = generate_moves(board, player, my_moves, MAX_MOVES);
     int opp_mobility = generate_moves(board, opponent, opp_moves, MAX_MOVES);
     score += (my_mobility - opp_mobility) * 10;
     
-    // Positions centrales (bonus)
     for (int r = 1; r < ROWS-1; r++) {
         for (int c = 1; c < COLS-1; c++) {
             int id = node_id(r, c);
             Piece* piece = board->nodes[id].piece;
             if (piece && piece->alive) {
                 if (piece->owner == player) {
-                    score += 5; // Bonus pour position centrale
+                    score += 5;
                 } else {
                     score -= 5;
                 }
@@ -151,7 +146,6 @@ int ai_evaluate_simple(Board* board, Player player) {
         }
     }
     
-    // Intersections fortes (bonus)
     for (int i = 0; i < NODES; i++) {
         if (board->nodes[i].strong && board->nodes[i].piece) {
             if (board->nodes[i].piece->owner == player) {
@@ -169,13 +163,9 @@ PositionEvaluation ai_evaluate_position(Board* board, Player player) {
     PositionEvaluation eval = {0};
     Player opponent = (player == WHITE) ? BLACK : WHITE;
     
-    // Score matériel
     eval.material_score = (ai_count_pieces(board, player) - ai_count_pieces(board, opponent)) * 100;
-    
-    // Score de mobilité
     eval.mobility_score = (ai_calculate_mobility(board, player) - ai_calculate_mobility(board, opponent)) * 10;
     
-    // Score positionnel
     eval.position_score = 0;
     for (int i = 0; i < NODES; i++) {
         Piece* piece = board->nodes[i].piece;
@@ -189,7 +179,6 @@ PositionEvaluation ai_evaluate_position(Board* board, Player player) {
         }
     }
     
-    // Potentiel de capture
     Move moves[MAX_MOVES];
     int move_count = generate_moves(board, player, moves, MAX_MOVES);
     eval.capture_potential = 0;
@@ -205,7 +194,7 @@ PositionEvaluation ai_evaluate_position(Board* board, Player player) {
     return eval;
 }
 
-// === RECHERCHE QUIESCENCE ===
+// Recherche quiescence
 
 int minimax_quiescence_search(Board* board, int alpha, int beta, bool maximizing, Player ai_player) {
     int stand_pat = ai_evaluate_simple(board, ai_player);
@@ -218,15 +207,13 @@ int minimax_quiescence_search(Board* board, int alpha, int beta, bool maximizing
         if (beta > stand_pat) beta = stand_pat;
     }
     
-    // Générer seulement les captures
     Move moves[MAX_MOVES];
     Player current_player = maximizing ? ai_player : (ai_player == WHITE ? BLACK : WHITE);
     int move_count = generate_moves(board, current_player, moves, MAX_MOVES);
     
     for (int i = 0; i < move_count; i++) {
-        if (!moves[i].is_capture) continue; // Seulement les captures
+        if (!moves[i].is_capture) continue;
         
-        // Appliquer le coup
         apply_move(board, &moves[i]);
         
         int score = minimax_quiescence_search(board, alpha, beta, !maximizing, ai_player);
@@ -246,10 +233,9 @@ int minimax_quiescence_search(Board* board, int alpha, int beta, bool maximizing
     return maximizing ? alpha : beta;
 }
 
-// === ALGORITHME MINIMAX PRINCIPAL ===
+// Algorithme minimax principal
 
 int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing, Player ai_player, TranspositionTable* tt) {
-    // Vérifier le cache
     uint64_t hash = zobrist_hash_board(board, maximizing ? ai_player : (ai_player == WHITE ? BLACK : WHITE));
     TranspositionEntry* cached = tt_probe(tt, hash);
     
@@ -263,18 +249,15 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
         }
     }
     
-    // Cas terminal
     if (depth == 0) {
         return minimax_quiescence_search(board, alpha, beta, maximizing, ai_player);
     }
     
-    // Générer les coups LÉGAUX selon les règles Fanorona
     Player current_player = maximizing ? ai_player : (ai_player == WHITE ? BLACK : WHITE);
     Move moves[MAX_MOVES];
     int move_count = ai_generate_legal_moves(board, current_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
-        // Aucun coup possible = défaite
         return maximizing ? -MINIMAX_INFINITY : MINIMAX_INFINITY;
     }
     
@@ -282,18 +265,15 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
     int best_score = maximizing ? -MINIMAX_INFINITY : MINIMAX_INFINITY;
     
     for (int i = 0; i < move_count; i++) {
-        // Valider le coup selon les règles Fanorona
         if (!ai_validate_fanorona_move(board, &moves[i], current_player)) {
-            continue; // Skip invalid moves
+            continue;
         }
         
-        // 🔧 FIX: Allouer sur le heap au lieu de la pile pour éviter stack overflow
         Board* temp_board = (Board*)malloc(sizeof(Board));
-        if (!temp_board) continue; // Skip si allocation échoue
+        if (!temp_board) continue;
         
         memcpy(temp_board, board, sizeof(Board));
         
-        // Deep-clone pieces
         for (int j = 0; j < NODES; j++) {
             if (board->nodes[j].piece) {
                 Piece* np = (Piece*)malloc(sizeof(Piece));
@@ -310,7 +290,6 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
         
         int score = minimax_search(temp_board, depth - 1, alpha, beta, !maximizing, ai_player, tt);
         
-        // 🔧 FIX: Libérer les pièces clonées + le board heap
         for (int j = 0; j < NODES; j++) {
             if (temp_board->nodes[j].piece) {
                 free(temp_board->nodes[j].piece);
@@ -324,18 +303,17 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
                 best_move = moves[i];
             }
             alpha = (alpha > score) ? alpha : score;
-            if (beta <= alpha) break; // Élagage alpha-beta
+            if (beta <= alpha) break;
         } else {
             if (score < best_score) {
                 best_score = score;
                 best_move = moves[i];
             }
             beta = (beta < score) ? beta : score;
-            if (beta <= alpha) break; // Élagage alpha-beta
+            if (beta <= alpha) break;
         }
     }
     
-    // Sauvegarder dans le cache
     int flag = TT_FLAG_EXACT;
     if (best_score <= alpha) flag = TT_FLAG_UPPERBOUND;
     else if (best_score >= beta) flag = TT_FLAG_LOWERBOUND;
@@ -345,7 +323,123 @@ int minimax_search(Board* board, int depth, int alpha, int beta, bool maximizing
     return best_score;
 }
 
-// === INTERFACE PUBLIQUE MINIMAX ===
+// Minimax sur snapshots
+int minimax_search_snapshot(BoardSnapshot* snapshot, int depth, int alpha, int beta, 
+                           bool maximizing, Player ai_player, TranspositionTable* tt) {
+    
+    TranspositionEntry* cached = tt_probe(tt, snapshot->hash);
+    if (cached && cached->depth >= depth) {
+        if (cached->flag == TT_FLAG_EXACT) {
+            return cached->score;
+        }
+    }
+    
+    if (depth == 0 || ai_is_game_over_snapshot(snapshot)) {
+        return ai_evaluate_snapshot(snapshot, ai_player);
+    }
+    
+    Player current_player = maximizing ? ai_player : (ai_player == WHITE ? BLACK : WHITE);
+    Move moves[MAX_MOVES];
+    int move_count = ai_get_legal_moves_for_position(snapshot, current_player, moves, MAX_MOVES);
+    
+    if (move_count == 0) {
+        return maximizing ? -MINIMAX_INFINITY : MINIMAX_INFINITY;
+    }
+    
+    Move best_move = moves[0];
+    int best_score = maximizing ? -MINIMAX_INFINITY : MINIMAX_INFINITY;
+    
+    for (int i = 0; i < move_count; i++) {
+        BoardSnapshot child = *snapshot;
+        board_apply_move_to_snapshot(&child, &moves[i]);
+        
+        int score = minimax_search_snapshot(&child, depth - 1, alpha, beta, !maximizing, ai_player, tt);
+        
+        if (maximizing) {
+            if (score > best_score) {
+                best_score = score;
+                best_move = moves[i];
+            }
+            alpha = (alpha > score) ? alpha : score;
+            if (beta <= alpha) break;
+        } else {
+            if (score < best_score) {
+                best_score = score;
+                best_move = moves[i];
+            }
+            beta = (beta < score) ? beta : score;
+            if (beta <= alpha) break;
+        }
+    }
+    
+    int flag = TT_FLAG_EXACT;
+    if (best_score <= alpha) flag = TT_FLAG_UPPERBOUND;
+    else if (best_score >= beta) flag = TT_FLAG_LOWERBOUND;
+    tt_store(tt, snapshot->hash, depth, best_score, flag, best_move);
+    
+    return best_score;
+}
+
+Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int depth) {
+    if (!ai || !snapshot) {
+        Move invalid = {.from_id = -1, .to_id = -1};
+        return invalid;
+    }
+    
+    printf("\n╔═══════════════════════════════════════════════════════════╗\n");
+    printf("║ 🤖 MINIMAX SUR SNAPSHOT\n");
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
+    printf("║ 🎯 Profondeur: %d\n", depth);
+    printf("║ 🎨 Joueur: %s (W=%d, B=%d)\n", 
+           ai->ai_player == WHITE ? "Blanc" : "Noir",
+           snapshot->white_count, snapshot->black_count);
+    
+    TranspositionTable* tt = (TranspositionTable*)ai->minimax_data;
+    if (!tt) {
+        tt = tt_create(MINIMAX_DEFAULT_CACHE_SIZE);
+        ai->minimax_data = tt;
+    }
+    
+    Move moves[MAX_MOVES];
+    int move_count = ai_get_legal_moves_for_position(snapshot, ai->ai_player, moves, MAX_MOVES);
+    
+    if (move_count == 0) {
+        printf("║ ❌ Aucun coup possible\n");
+        printf("╚═══════════════════════════════════════════════════════════╝\n");
+        Move invalid = {.from_id = -1, .to_id = -1};
+        return invalid;
+    }
+    
+    Move best_move = moves[0];
+    int best_score = -MINIMAX_INFINITY;
+    
+    for (int i = 0; i < move_count; i++) {
+        BoardSnapshot child = *snapshot;
+        board_apply_move_to_snapshot(&child, &moves[i]);
+        
+        int score = minimax_search_snapshot(&child, depth - 1, -MINIMAX_INFINITY, MINIMAX_INFINITY,
+                                           false, ai->ai_player, tt);
+        
+        printf("║   %d. %d→%d: score=%d%s\n", 
+               i+1, moves[i].from_id, moves[i].to_id, score,
+               moves[i].is_capture ? " 💥" : " 🚶");
+        
+        if (score > best_score) {
+            best_score = score;
+            best_move = moves[i];
+        }
+    }
+    
+    printf("╠═══════════════════════════════════════════════════════════╣\n");
+    printf("║ ✅ MEILLEUR: %d → %d (score=%d)\n", 
+           best_move.from_id, best_move.to_id, best_score);
+    if (best_move.is_capture) {
+        printf("║ 💥 CAPTURE: %d pièce(s)\n", best_move.capture_count);
+    }
+    printf("╚═══════════════════════════════════════════════════════════╝\n\n");
+    
+    return best_move;
+}
 
 Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     if (!ai || !board) {
@@ -359,7 +453,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     printf("║ 🎯 Profondeur: %d\n", depth);
     printf("║ 🎨 Joueur IA: %s\n", ai->ai_player == WHITE ? "Blanc" : "Noir");
     
-    // 🆕 Vérifier captures obligatoires
     bool has_mandatory_captures = ai_is_mandatory_capture_situation(board, ai->ai_player);
     printf("║ ⚠️  Captures obligatoires: %s\n", has_mandatory_captures ? "OUI" : "NON");
     
@@ -373,7 +466,7 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     int move_count = generate_moves(board, ai->ai_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
-        printf("║ ❌ Aucun coup possible - L'IA ne peut pas jouer\n");
+        printf("║ ❌ Aucun coup possible\n");
         printf("╚═══════════════════════════════════════════════════════════╝\n");
         Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
@@ -381,7 +474,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     
     printf("║ 📋 Coups générés: %d\n", move_count);
     
-    // 🆕 Compter les captures disponibles
     int capture_moves = 0;
     for (int i = 0; i < move_count; i++) {
         if (moves[i].is_capture) capture_moves++;
@@ -397,7 +489,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     ai->cache_misses = 0;
     
     for (int i = 0; i < move_count; i++) {
-        // 🔧 FIX: Deep copy at root to prevent original board mutation
         Board* temp_board = (Board*)malloc(sizeof(Board));
         if (!temp_board) continue;
         memcpy(temp_board, board, sizeof(Board));
@@ -415,7 +506,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
         int score = minimax_search(temp_board, depth - 1, -MINIMAX_INFINITY, MINIMAX_INFINITY, 
                                   false, ai->ai_player, tt);
         
-        // Cleanup
         for (int j = 0; j < NODES; j++) {
             if (temp_board->nodes[j].piece) free(temp_board->nodes[j].piece);
         }
@@ -438,7 +528,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     printf("║ 📍 Mouvement: %d → %d\n", best_move.from_id, best_move.to_id);
     printf("║ 📊 Score: %d\n", best_score);
     
-    // 🆕 LOGS DÉTAILLÉS DES CONSÉQUENCES DU COUP IA
     if (best_move.is_capture) {
         printf("║ 💥 TYPE: CAPTURE (%d pièce(s))\n", best_move.capture_count);
         if (best_move.capture_count > 0) {
@@ -453,7 +542,6 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
         printf("║ 🚶 TYPE: PAIKA (pas de capture)\n");
     }
     
-    // État du plateau après simulation
     int ai_pieces = ai_count_pieces(board, ai->ai_player);
     Player opponent = (ai->ai_player == WHITE) ? BLACK : WHITE;
     int opp_pieces = ai_count_pieces(board, opponent);

@@ -19,7 +19,7 @@ static TTF_Font* default_font = NULL;
 
 void ui_set_event_logging(bool enabled) {
     event_logging_enabled = enabled;
-    printf("🔍 Logs d'événements UI : %s\n", enabled ? "ACTIVÉS" : "DÉSACTIVÉS");
+    printf("Logs d'evenements UI : %s\n", enabled ? "ACTIVES" : "DESACTIVES");
     
     // Synchroniser avec la console de logs
     if (enabled) {
@@ -69,10 +69,9 @@ void ui_log_event(const char* source, const char* event_type, const char* elemen
 
 TTF_Font* ui_get_default_font(void) {
     if (!default_font) {
-        // Charger une police par défaut
         default_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16);
         if (!default_font) {
-            printf("⚠️ Impossible de charger la police par défaut\n");
+            printf("Impossible de charger la police par defaut\n");
         }
     }
     return default_font;
@@ -269,28 +268,24 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
     
     UINode* node = ui_tree_create_node(tree, id, "button");
     if (node && text) {
-        // 🔧 FIX: FORCER la taille IMMÉDIATEMENT après création
         atomic_set_size(node->element, 150, 40);
         
-        // 🆕 VÉRIFICATION immédiate
         if (node->element->style.width != 150 || node->element->style.height != 40) {
-            printf("❌ [BUTTON_CREATE] Size not set correctly for '%s': %dx%d\n",
+            printf("[ERROR] [BUTTON_CREATE] Size not set correctly for '%s': %dx%d\n",
                    id ? id : "NoID", node->element->style.width, node->element->style.height);
         } else {
-            printf("✅ [BUTTON_CREATE] Button '%s' size confirmed: %dx%d\n",
+            printf("[OK] [BUTTON_CREATE] Button '%s' size confirmed: %dx%d\n",
                    id ? id : "NoID", node->element->style.width, node->element->style.height);
         }
         
         atomic_set_text(node->element, text);
         
-        // Log de création
-        printf("📝 Button '%s' created with text: '%s'\n", id ? id : "NoID", text);
+        printf("Button '%s' created with text: '%s'\n", id ? id : "NoID", text);
         
-        // Auto-enregistrement si onClick fourni
         if (onClick && tree->event_manager) {
             atomic_set_click_handler(node->element, (void(*)(void*, SDL_Event*))onClick);
             atomic_register_with_event_manager(node->element, tree->event_manager);
-            printf("🔗 Button '%s' auto-registered with click handler\n", id ? id : "NoID");
+            printf("Button '%s' auto-registered with click handler\n", id ? id : "NoID");
         }
     }
     
@@ -324,26 +319,26 @@ static void ui_tree_register_node_recursive(UINode* node, UITree* tree) {
 // 🆕 NOUVELLE FONCTION: Forcer le recalcul des positions avant enregistrement
 void ui_tree_update_positions(UITree* tree) {
     if (!tree || !tree->root) {
-        printf("❌ Invalid tree for position update\n");
+        printf("Invalid tree for position update\n");
         return;
     }
     
-    printf("🔧 Forcing position recalculation...\n");
+    printf("Forcing position recalculation...\n");
     
     // Forcer une mise à jour complète de l'arbre UI
     ui_tree_update(tree, 0.0f);
     
-    printf("✅ Position recalculation completed\n");
+    printf("Position recalculation completed\n");
 }
 
 // 🆕 NOUVELLE FONCTION: Enregistrer tous les boutons d'un arbre (AVEC POSITIONS FORCÉES)
 void ui_tree_register_all_events(UITree* tree) {
     if (!tree || !tree->event_manager) {
-        printf("❌ Invalid tree or no EventManager for registration\n");
+        printf("Invalid tree or no EventManager for registration\n");
         return;
     }
     
-    printf("🔗 Registering all UI elements with EventManager...\n");
+    printf("Registering all UI elements with EventManager...\n");
     
     // 🔧 FIX: Forcer le recalcul des positions AVANT l'enregistrement
     ui_tree_update_positions(tree);
@@ -353,7 +348,7 @@ void ui_tree_register_all_events(UITree* tree) {
         ui_tree_register_node_recursive(tree->root, tree);
     }
     
-    printf("✅ All UI elements registered with EventManager\n");
+    printf("All UI elements registered with EventManager\n");
 }
 
 // 🆕 NOUVELLE FONCTION: Enregistrement manuel pour les boutons existants
@@ -710,7 +705,7 @@ void ui_button_set_scale(UINode* button, float scale_factor) {
     ui_log_event("UIComponent", "ScaleEffect", button->id, 
                 "Scale applied - new dimensions calculated from original size");
     
-    printf("🔍 Button '%s' scaled to %.0f%% (%dx%d -> %dx%d)\n",
+    printf("Button '%s' scaled to %.0f%% (%dx%d -> %dx%d)\n",
            button->id ? button->id : "NoID",
            scale_factor * 100.0f,
            scale_data->original_width, scale_data->original_height,

@@ -58,23 +58,22 @@ void game_logic_start_new_game(GameLogic* logic) {
     GameMode mode = config_get_mode();
     logic->mode = mode;
     
-    // 🔧 FIX: Joueur 1 joue TOUJOURS en premier, peu importe sa couleur
+    // 🔧 SIMPLIFIED: Joueur 1 = WHITE logique (toujours premier), Joueur 2 = BLACK logique
+    // Les couleurs visuelles sont indépendantes de la logique de jeu
     if (!logic->player1) {
-        // Le joueur 1 garde sa couleur de pièce choisie
         logic->player1 = player_create(
             config_get_player1_name(), 
-            WHITE,  // Logique: premier = WHITE pour les règles
-            config_get_player1_piece_color(),  // Visuel: noir/brun/blanc selon choix
+            WHITE,  // Toujours WHITE logique (premier joueur)
+            config_get_player1_piece_color(),  // Couleur visuelle choisie
             PLAYER_TYPE_HUMAN, 
             1
         );
     }
     if (!logic->player2) {
-        // Le joueur 2 garde sa couleur de pièce choisie
         logic->player2 = player_create(
             config_get_player2_name(), 
-            BLACK,  // Logique: second = BLACK pour les règles
-            config_get_player2_piece_color(),  // Visuel: noir/brun/blanc selon choix
+            BLACK,  // Toujours BLACK logique (second joueur)
+            config_get_player2_piece_color(),  // Couleur visuelle choisie
             PLAYER_TYPE_HUMAN, 
             2
         );
@@ -86,9 +85,9 @@ void game_logic_start_new_game(GameLogic* logic) {
             printf("🎮 Mode MULTIJOUEUR LOCAL\n");
             logic->player1->type = PLAYER_TYPE_HUMAN;
             logic->player2->type = PLAYER_TYPE_HUMAN;
-            printf("   👤 Joueur 1 (joue en premier): %s (%s)\n", 
+            printf("   👤 Joueur 1 (premier): %s (pièces %s)\n", 
                    logic->player1->name, piece_color_to_string(logic->player1->piece_color));
-            printf("   👤 Joueur 2: %s (%s)\n", 
+            printf("   👤 Joueur 2 (second): %s (pièces %s)\n", 
                    logic->player2->name, piece_color_to_string(logic->player2->piece_color));
             break;
             
@@ -115,7 +114,12 @@ void game_logic_start_new_game(GameLogic* logic) {
             break;
     }
     
-    logic->current_player = PLAYER_1;  // 🔧 FIX: Toujours le joueur 1 commence
+    // 🔧 SIMPLIFIED: Joueur 1 commence toujours (WHITE logique = premier)
+    logic->current_player = PLAYER_1;
+    logic->player1->is_current_turn = true;
+    logic->player2->is_current_turn = false;
+    printf("✅ Joueur 1 (%s) commence car il a WHITE logique\n", logic->player1->name);
+    
     logic->turn_number = 1;
     logic->game_finished = false;
     logic->winner = NOBODY;
@@ -382,55 +386,72 @@ bool game_logic_can_player_interact(GameLogic* logic, Player piece_owner) {
     
     if (!current_player) return false;
     
-    // 🎮 MODE MULTIJOUEUR LOCAL : Alterner selon le tour
+    // 🔧 SIMPLIFIED: Comparer directement avec la couleur logique du joueur actuel
+    Player current_logical_color = current_player->logical_color;
+    
+    printf("🔍 [INTERACTION_CHECK] Pièce: %s, Joueur actuel: %s (logical: %s)\n",
+           piece_owner == WHITE ? "WHITE" : "BLACK",
+           current_player->name,
+           current_logical_color == WHITE ? "WHITE" : "BLACK");
+    
+    // 🎮 MODE MULTIJOUEUR LOCAL : Simple comparaison
     if (mode == GAME_MODE_LOCAL_MULTIPLAYER) {
-        // Seul le joueur dont c'est le tour peut interagir avec ses pièces
-        bool is_player1_turn = (logic->current_player == PLAYER_1);
-        bool is_player1_piece = (piece_owner == logic->player1->logical_color);
-        bool is_player2_turn = (logic->current_player == PLAYER_2);
-        bool is_player2_piece = (piece_owner == logic->player2->logical_color);
-        
-        if (is_player1_turn && is_player1_piece) {
-            return true;
-        }
-        if (is_player2_turn && is_player2_piece) {
-            return true;
-        }
-        return false;
+        bool can_interact = (piece_owner == current_logical_color);
+        printf("🎮 [LOCAL_MULTIPLAYER] Interaction %s\n",
+               can_interact ? "AUTORISÉE" : "REFUSÉE");
+        return can_interact;
     }
     
-    // 🤖 MODE VS IA : Seul le joueur humain (J1) peut interagir, et seulement à son tour
+    // 🤖 MODE VS IA : Seul le joueur humain peut interagir avec ses pièces
     if (mode == GAME_MODE_VS_AI) {
-        bool is_human_player1 = (logic->player1->type == PLAYER_TYPE_HUMAN);
-        bool is_human_player2 = (logic->player2->type == PLAYER_TYPE_HUMAN);
-        
-        if (is_human_player1) {
-            bool is_player1_turn = (logic->current_player == PLAYER_1);
-            bool is_player1_piece = (piece_owner == logic->player1->logical_color);
-            return is_player1_turn && is_player1_piece;
-        } else if (is_human_player2) {
-            bool is_player2_turn = (logic->current_player == PLAYER_2);
-            bool is_player2_piece = (piece_owner == logic->player2->logical_color);
-            return is_player2_turn && is_player2_piece;
+        // Trouver quel joueur est humain
+        GamePlayer* human_player = NULL;
+        if (logic->player1->type == PLAYER_TYPE_HUMAN) {
+            human_player = logic->player1;
+        } else if (logic->player2->type == PLAYER_TYPE_HUMAN) {
+            human_player = logic->player2;
         }
-        return false;
+        
+        if (!human_player) return false;
+        
+        // L'interaction est autorisée si :
+        // 1. C'est le tour du joueur humain
+        // 2. La pièce appartient au joueur humain
+        bool is_human_turn = (current_player == human_player);
+        bool is_human_piece = (piece_owner == human_player->logical_color);
+        
+        bool can_interact = is_human_turn && is_human_piece;
+        printf("🤖 [VS_AI] Interaction %s (tour humain: %s, pièce humaine: %s)\n",
+               can_interact ? "AUTORISÉE" : "REFUSÉE",
+               is_human_turn ? "OUI" : "NON",
+               is_human_piece ? "OUI" : "NON");
+        return can_interact;
     }
     
-    // 🌐 MODE MULTIJOUEUR EN LIGNE : Seul le joueur local peut interagir à son tour
+    // 🌐 MODE MULTIJOUEUR EN LIGNE : Seul le joueur local peut interagir avec ses pièces
     if (mode == GAME_MODE_ONLINE_MULTIPLAYER) {
-        bool is_local_player1 = (logic->player1->type == PLAYER_TYPE_HUMAN);
-        bool is_local_player2 = (logic->player2->type == PLAYER_TYPE_HUMAN);
-        
-        if (is_local_player1) {
-            bool is_player1_turn = (logic->current_player == PLAYER_1);
-            bool is_player1_piece = (piece_owner == logic->player1->logical_color);
-            return is_player1_turn && is_player1_piece;
-        } else if (is_local_player2) {
-            bool is_player2_turn = (logic->current_player == PLAYER_2);
-            bool is_player2_piece = (piece_owner == logic->player2->logical_color);
-            return is_player2_turn && is_player2_piece;
+        // Trouver quel joueur est local (HUMAN)
+        GamePlayer* local_player = NULL;
+        if (logic->player1->type == PLAYER_TYPE_HUMAN) {
+            local_player = logic->player1;
+        } else if (logic->player2->type == PLAYER_TYPE_HUMAN) {
+            local_player = logic->player2;
         }
-        return false;
+        
+        if (!local_player) return false;
+        
+        // L'interaction est autorisée si :
+        // 1. C'est le tour du joueur local
+        // 2. La pièce appartient au joueur local
+        bool is_local_turn = (current_player == local_player);
+        bool is_local_piece = (piece_owner == local_player->logical_color);
+        
+        bool can_interact = is_local_turn && is_local_piece;
+        printf("🌐 [ONLINE_MULTIPLAYER] Interaction %s (tour local: %s, pièce locale: %s)\n",
+               can_interact ? "AUTORISÉE" : "REFUSÉE",
+               is_local_turn ? "OUI" : "NON",
+               is_local_piece ? "OUI" : "NON");
+        return can_interact;
     }
     
     return false;
@@ -485,31 +506,31 @@ const char* game_logic_player_type_to_string(PlayerType type) {
 void game_logic_debug_print(GameLogic* logic) {
     if (!logic) return;
     
-    printf("\n=== 🧠 DEBUG GAME LOGIC ===\n");
-    printf("État: %s\n", game_logic_state_to_string(logic->state));
+    printf("\n=== DEBUG GAME LOGIC ===\n");
+    printf("Etat: %s\n", game_logic_state_to_string(logic->state));
     printf("Mode: %s\n", config_mode_to_string(logic->mode));
     printf("Tour: %d\n", logic->turn_number);
     printf("Joueur actuel: %s (%s)\n", 
            logic->current_player == PLAYER_1 ? "Joueur 1" : "Joueur 2",
            logic->current_player == PLAYER_1 ? logic->player1->name : logic->player2->name);
     
-    printf("\n👤 Joueur 1 (joue en premier):\n");
+    printf("\nJoueur 1 (joue en premier):\n");
     printf("   Nom: %s\n", logic->player1->name);
     printf("   Type: %s\n", game_logic_player_type_to_string(logic->player1->type));
     printf("   Couleur visuelle: %s\n", piece_color_to_string(logic->player1->piece_color));
     printf("   Son tour: %s\n", logic->player1->is_current_turn ? "Oui" : "Non");
     printf("   Captures: %d\n", logic->player1->captures_made);
-    printf("   Temps de réflexion: %.1fs\n", logic->player1->thinking_time);
+    printf("   Temps de reflexion: %.1fs\n", logic->player1->thinking_time);
     
-    printf("\n👤 Joueur 2:\n");
+    printf("\nJoueur 2:\n");
     printf("   Nom: %s\n", logic->player2->name);
     printf("   Type: %s\n", game_logic_player_type_to_string(logic->player2->type));
     printf("   Couleur visuelle: %s\n", piece_color_to_string(logic->player2->piece_color));
     printf("   Son tour: %s\n", logic->player2->is_current_turn ? "Oui" : "Non");
     printf("   Captures: %d\n", logic->player2->captures_made);
-    printf("   Temps de réflexion: %.1fs\n", logic->player2->thinking_time);
+    printf("   Temps de reflexion: %.1fs\n", logic->player2->thinking_time);
     
     printf("\nTemps total: %.1fs\n", logic->total_game_time);
-    printf("Partie terminée: %s\n", logic->game_finished ? "Oui" : "Non");
+    printf("Partie terminee: %s\n", logic->game_finished ? "Oui" : "Non");
     printf("========================\n\n");
 }
