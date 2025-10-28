@@ -563,7 +563,23 @@ void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player)
     }
 }
 
-// 🆕 NOUVELLE FONCTION: Mettre à jour l'affichage du timer en temps réel
+// 🔧 CRITICAL FIX: Proper text update function
+static void update_node_text_safe(UINode* node, const char* new_text) {
+    if (!node || !node->element || !new_text) return;
+    
+    // 🔧 FIX: Free old text and set new text properly
+    if (node->element->content.text) {
+        free(node->element->content.text);
+    }
+    node->element->content.text = strdup(new_text);
+    
+    // Only log for debugging specific issues
+    if (strstr(new_text, "Captures:") && !strstr(new_text, "Captures: 0")) {
+        printf("🎯 [TEXT_UPDATE] Capture update: '%s'\n", new_text);
+    }
+}
+
+// 🆕 FIXED: Timer implementation with proper per-player tracking
 void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player) {
     if (!sidebar || !player) return;
     
@@ -582,40 +598,107 @@ void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player) {
     UINode* time_text_node = time_container->children[1];
     if (!time_text_node || !time_text_node->element) return;
     
-    // 🔧 CRITICAL FIX: Force text update every frame
+    // 🔧 CRITICAL FIX: Use separate timer tracking per player
+    static float player1_time = 0.0f;
+    static float player2_time = 0.0f;
+    static Uint32 last_update = 0;
+    
+    Uint32 current_time = SDL_GetTicks();
+    if (last_update == 0) last_update = current_time;
+    
+    float delta_time = (current_time - last_update) / 1000.0f;
+    last_update = current_time;
+    
     char time_text[16];
     float display_time = 0.0f;
     
-    if (player->is_current_turn && player->stats && player->stats->is_timer_running) {
-        display_time = player->stats->current_turn_time;
+    if (player->is_current_turn) {
+        // Only increment timer for current player
+        if (player->player_number == 1) {
+            player1_time += delta_time;
+            display_time = player1_time;
+        } else {
+            player2_time += delta_time;
+            display_time = player2_time;
+        }
+        
+        // 🔧 FIX: Update player stats with correct time
+        if (player->stats) {
+            player->stats->current_turn_time = display_time;
+            player->stats->is_timer_running = true;
+        }
+        player->thinking_time = display_time; // Keep in sync
+        
+    } else {
+        // Show accumulated time for inactive player
+        if (player->player_number == 1) {
+            display_time = player1_time;
+        } else {
+            display_time = player2_time;
+        }
+        
+        if (player->stats) {
+            player->stats->is_timer_running = false;
+        }
     }
     
     int minutes = ((int)display_time) / 60;
     int seconds = ((int)display_time) % 60;
     snprintf(time_text, sizeof(time_text), "%02d:%02d", minutes, seconds);
     
-    // 🔧 CRITICAL FIX: Force atomic text update
-    atomic_set_text(time_text_node->element, time_text);
+    update_node_text_safe(time_text_node, time_text);
     
-    // 🆕 ALSO UPDATE CAPTURES COUNT
+    // 🔧 CRITICAL FIX: Get captures from the correct source
     UINode* info_container = player_node->children[1]; // Info container
     if (info_container && info_container->children_count >= 2) {
         UINode* captures_node = info_container->children[1]; // Captures text
         if (captures_node && captures_node->element) {
+            // 🔧 FIX: Use the actual captures_made field which gets updated by game logic
+            int actual_captures = player->captures_made;
+            
+            // 🔧 DEBUG: Check if captures are being updated elsewhere
+            if (actual_captures > 0) {
+                printf("🎯 [CAPTURES_DEBUG] Player %s has %d captures (field value)\n", 
+                       player->name, actual_captures);
+            }
+            
             char captures_text[32];
-            snprintf(captures_text, sizeof(captures_text), "Captures: %d", player->captures_made);
-            atomic_set_text(captures_node->element, captures_text);
+            snprintf(captures_text, sizeof(captures_text), "Captures: %d", actual_captures);
+            update_node_text_safe(captures_node, captures_text);
         }
     }
     
-    // Debug log every 2 seconds for active player
-    static float last_debug = 0.0f;
+    // Debug timer progress every 5 seconds for active player
+    static float debug_timer = 0.0f;
     if (player->is_current_turn) {
-        last_debug += 0.016f; // Approximate frame time
-        if (last_debug >= 2.0f) {
-            printf("🔄 [SIDEBAR_UPDATE] %s: %s, Captures: %d\n", 
+        debug_timer += delta_time;
+        if (debug_timer >= 5.0f) {
+            printf("⏱️ [TIMER_PROGRESS] %s: %s active, Captures: %d\n", 
                    player->name, time_text, player->captures_made);
-            last_debug = 0.0f;
+            debug_timer = 0.0f;
         }
     }
+}
+
+// 🔧 FIX: Update captures immediately when they change
+void ui_sidebar_update_player_captures(UINode* sidebar, GamePlayer* player) {
+    if (!sidebar || !player) return;
+    
+    char player_id[32];
+    snprintf(player_id, sizeof(player_id), "player%d", player->player_number);
+    UINode* player_node = ui_tree_find_node(sidebar->tree, player_id);
+    
+    if (!player_node || player_node->children_count < 2) return;
+    
+    UINode* info_container = player_node->children[1];
+    if (!info_container || info_container->children_count < 2) return;
+    
+    UINode* captures_node = info_container->children[1];
+    if (!captures_node) return;
+    
+    char captures_text[32];
+    snprintf(captures_text, sizeof(captures_text), "Captures: %d", player->captures_made);
+    update_node_text_safe(captures_node, captures_text);
+    
+    printf("🎯 [CAPTURES_UPDATE] %s captures updated to: %d\n", player->name, player->captures_made);
 }

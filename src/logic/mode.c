@@ -218,6 +218,50 @@ void game_logic_switch_turn(GameLogic* logic) {
                current->name, current->stats ? current->stats->current_turn_time : 0.0f);
     }
     
+    // 🔧 CRITICAL FIX: Sync captures from board/game state to players
+    if (logic->board) {
+        // Count actual pieces on board for each player using existing board structure
+        int white_pieces = 0, black_pieces = 0;
+        for (int i = 0; i < NODES; i++) {
+            Piece* piece = logic->board->nodes[i].piece;
+            if (piece && piece->alive) {
+                if (piece->owner == WHITE) white_pieces++;
+                else if (piece->owner == BLACK) black_pieces++;
+            }
+        }
+        
+        // Calculate captures (starting pieces - current pieces)
+        int initial_pieces = 22; // Each player starts with 22 pieces
+        
+        if (logic->player1->logical_color == WHITE) {
+            int p1_captures = initial_pieces - black_pieces; // White captured black pieces
+            int p2_captures = initial_pieces - white_pieces; // Black captured white pieces
+            
+            if (p1_captures != logic->player1->captures_made) {
+                printf("🔄 [CAPTURE_SYNC] %s: %d -> %d captures\n", 
+                       logic->player1->name, logic->player1->captures_made, p1_captures);
+                player_set_captures(logic->player1, p1_captures);
+            }
+            
+            if (p2_captures != logic->player2->captures_made) {
+                printf("🔄 [CAPTURE_SYNC] %s: %d -> %d captures\n", 
+                       logic->player2->name, logic->player2->captures_made, p2_captures);
+                player_set_captures(logic->player2, p2_captures);
+            }
+        } else {
+            int p1_captures = initial_pieces - white_pieces; // Black captured white pieces  
+            int p2_captures = initial_pieces - black_pieces; // White captured black pieces
+            
+            if (p1_captures != logic->player1->captures_made) {
+                player_set_captures(logic->player1, p1_captures);
+            }
+            
+            if (p2_captures != logic->player2->captures_made) {
+                player_set_captures(logic->player2, p2_captures);
+            }
+        }
+    }
+    
     // Changer le joueur actuel
     logic->current_player = (logic->current_player == PLAYER_1) ? PLAYER_2 : PLAYER_1;
     logic->turn_number++;

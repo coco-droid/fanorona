@@ -90,8 +90,11 @@ void player_init_online(GamePlayer* player, const char* name, Player logical_col
 const char* piece_color_to_string(PieceColor color);
 const char* player_type_to_string(PlayerType type);
 SDL_Texture* piece_get_current_texture(Piece* piece);
+
+// Fonctions de gestion des statistiques
 void player_reset_stats(GamePlayer* player);
 void player_add_capture(GamePlayer* player);
+void player_set_captures(GamePlayer* player, int capture_count); // 🆕 NEW
 void player_set_turn(GamePlayer* player, bool is_turn);
 
 #endif

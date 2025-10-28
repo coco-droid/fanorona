@@ -610,8 +610,27 @@ void atomic_set_text_align(AtomicElement* element, TextAlign align) {
 
 void atomic_set_text(AtomicElement* element, const char* text) {
     if (!element) return;
-    free(element->content.text);
-    element->content.text = text ? strdup(text) : NULL;
+    
+    // 🔧 CRITICAL FIX: Properly free old text before setting new one
+    if (element->content.text) {
+        free(element->content.text);
+        element->content.text = NULL;
+    }
+    
+    // Set new text with proper memory management
+    if (text) {
+        element->content.text = strdup(text);
+        if (!element->content.text) {
+            printf("❌ [ATOMIC_TEXT] Failed to allocate memory for text: '%s'\n", text);
+            return;
+        }
+    }
+    
+    // 🔧 DEBUG: Log text changes for timer and capture nodes
+    if (element->id && (strstr(element->id, "time-text") || strstr(element->id, "captures"))) {
+        printf("📝 [ATOMIC_TEXT] Updated '%s' text to: '%s'\n", 
+               element->id ? element->id : "NoID", text ? text : "NULL");
+    }
 }
 
 // === CONTENT FUNCTIONS ===

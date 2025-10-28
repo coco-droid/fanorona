@@ -107,10 +107,10 @@ SOURCES=(
     "$SRC_DIR/ai/ai.c"
     "$SRC_DIR/ai/minimax.c"
     "$SRC_DIR/ai/markov.c"
-    "$SRC_DIR/stats/game_stats.c"  # 🔧 FIX: Add missing stats module
+    "$SRC_DIR/stats/game_stats.c"
     "$SRC_DIR/types/plateau_types.c"
-    "$SRC_DIR/net/protocol.c"
     "$SRC_DIR/net/network.c"
+    "$SRC_DIR/net/protocol.c"
     "$SRC_DIR/serializer/serializer.c"
     "$SRC_DIR/utils/asset_manager.c"
     "$SRC_DIR/utils/log_console.c"

@@ -1,7 +1,7 @@
 # Makefile pour Fanorona
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g
-LIBS = -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm
+LIBS = -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_net -lm
 
 # Dossiers
 SRC_DIR = src
@@ -50,6 +50,8 @@ SOURCES = main.c \
           src/pions/pions.c \
           src/logic/rules.c \
           src/types/plateau_types.c \
+          src/net/network.c \
+          src/net/protocol.c \
           src/config.c \
           src/utils/asset_manager.c \
           src/utils/log_console.c
@@ -85,6 +87,7 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ai
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/plateau
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/pions
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/net
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/native
 	mkdir -p $(OBJ_DIR)/$(SRC_DIR)/ui/components
 

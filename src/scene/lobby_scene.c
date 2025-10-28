@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../net/network.h"  // 🆕 ADD
 
 // États du lobby
 typedef enum {
@@ -29,6 +30,7 @@ typedef struct LobbySceneData {
     UINode* back_link;
     LobbyState current_state;
     float state_timer;
+    NetworkManager* network;  // 🆕 ADD
 } LobbySceneData;
 
 static void lobby_scene_init(Scene* scene) {
@@ -50,6 +52,27 @@ static void lobby_scene_init(Scene* scene) {
     data->back_link = NULL;
     data->current_state = LOBBY_STATE_SEARCHING;
     data->state_timer = 0.0f;
+    data->network = NULL;  // 🆕 ADD
+    
+    // 🆕 NETWORK EXPOSURE: If invite mode, expose player on network
+    if (config_is_network_invite()) {
+        printf("🌐 Mode INVITÉ: Exposition du profil sur le réseau...\n");
+        
+        data->network = network_create();
+        if (data->network && network_init(data->network)) {
+            const char* player_name = config_get_player1_name();
+            
+            if (network_host_game(data->network, "Partie Fanorona", player_name)) {
+                printf("✅ Profil exposé: '%s'\n", player_name);
+                data->current_state = LOBBY_STATE_WAITING;
+                atomic_set_text(data->status_text->element, "ATTENTE INVITATION...");
+                ui_set_text_color(data->status_text, "rgb(255, 165, 0)");
+            } else {
+                printf("❌ Échec exposition réseau: %s\n", 
+                       network_get_last_error(data->network));
+            }
+        }
+    }
     
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
@@ -252,26 +275,50 @@ static void lobby_scene_update(Scene* scene, float delta_time) {
     
     ui_update_animations(delta_time);
     
-    // Simulation d'évolution d'état (à remplacer par vraie logique réseau)
-    data->state_timer += delta_time;
-    
-    if (data->state_timer > 3.0f && data->current_state == LOBBY_STATE_SEARCHING) {
-        data->current_state = LOBBY_STATE_WAITING;
-        atomic_set_text(data->status_text->element, "ATTENTE...");
-        ui_set_text_color(data->status_text, "rgb(255, 165, 0)");
-        data->state_timer = 0.0f;
-    }
-    
-    if (data->state_timer > 5.0f && data->current_state == LOBBY_STATE_WAITING) {
-        data->current_state = LOBBY_STATE_CONNECTED;
-        atomic_set_text(data->status_text->element, "CONNECTÉ");
-        ui_set_text_color(data->status_text, "rgb(0, 255, 0)");
+    // 🆕 NETWORK UPDATE: Check for connection from host
+    if (data->network) {
+        network_update(data->network, delta_time);
         
-        // Mettre à jour joueur 2 (simulé)
-        atomic_set_text(data->player2_name->element, "Adversaire");
-        ui_set_text_color(data->player2_name, "rgb(255, 255, 255)");
+        // Check for incoming invitation
+        if (network_has_pending_messages(data->network)) {
+            ProtocolMessage* msg = network_poll_message(data->network);
+            if (msg && msg->header.type == MSG_CONNECT_REQUEST) {
+                printf("📩 Invitation reçue!\n");
+                
+                data->current_state = LOBBY_STATE_CONNECTED;
+                atomic_set_text(data->status_text->element, "CONNECTÉ");
+                ui_set_text_color(data->status_text, "rgb(0, 255, 0)");
+                
+                // TODO: Extract remote player profile from message
+                atomic_set_text(data->player2_name->element, "Hôte");
+                ui_set_text_color(data->player2_name, "rgb(255, 255, 255)");
+                
+                protocol_message_destroy(msg);
+            }
+        }
+    } else {
+        // Fallback to old simulation if no network
+        // Simulation d'évolution d'état (à remplacer par vraie logique réseau)
+        data->state_timer += delta_time;
+    
+        if (data->state_timer > 3.0f && data->current_state == LOBBY_STATE_SEARCHING) {
+            data->current_state = LOBBY_STATE_WAITING;
+            atomic_set_text(data->status_text->element, "ATTENTE...");
+            ui_set_text_color(data->status_text, "rgb(255, 165, 0)");
+            data->state_timer = 0.0f;
+        }
+    
+        if (data->state_timer > 5.0f && data->current_state == LOBBY_STATE_WAITING) {
+            data->current_state = LOBBY_STATE_CONNECTED;
+            atomic_set_text(data->status_text->element, "CONNECTÉ");
+            ui_set_text_color(data->status_text, "rgb(0, 255, 0)");
         
-        data->state_timer = 0.0f;
+            // Mettre à jour joueur 2 (simulé)
+            atomic_set_text(data->player2_name->element, "Adversaire");
+            ui_set_text_color(data->player2_name, "rgb(255, 255, 255)");
+        
+            data->state_timer = 0.0f;
+        }
     }
     
     if (data->ui_tree) {
@@ -305,6 +352,13 @@ static void lobby_scene_cleanup(Scene* scene) {
     if (data->ui_tree) {
         ui_tree_destroy(data->ui_tree);
         data->ui_tree = NULL;
+    }
+    
+    // 🆕 CLEANUP NETWORK
+    if (data->network) {
+        network_disconnect(data->network);
+        network_destroy(data->network);
+        data->network = NULL;
     }
     
     free(data);

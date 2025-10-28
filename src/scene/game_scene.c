@@ -163,6 +163,27 @@ static void game_scene_update(Scene* scene, float delta_time) {
         }
     }
     
+    // 🔧 FIX: Update sidebar timers and captures every frame - use game_logic members
+    if (data && data->sidebar && data->game_logic && data->game_logic->player1 && data->game_logic->player2) {
+        // Update both players' display
+        ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player1);
+        ui_sidebar_update_player_timer(data->sidebar, data->game_logic->player2);
+        
+        // Update captures when they change
+        static int last_p1_captures = -1;
+        static int last_p2_captures = -1;
+        
+        if (data->game_logic->player1->captures_made != last_p1_captures) {
+            ui_sidebar_update_player_captures(data->sidebar, data->game_logic->player1);
+            last_p1_captures = data->game_logic->player1->captures_made;
+        }
+        
+        if (data->game_logic->player2->captures_made != last_p2_captures) {
+            ui_sidebar_update_player_captures(data->sidebar, data->game_logic->player2);
+            last_p2_captures = data->game_logic->player2->captures_made;
+        }
+    }
+    
     // 🆕 AJOUT: Mettre à jour les animations (inclut les animations de pièces)
     ui_update_animations(delta_time);
     

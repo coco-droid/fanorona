@@ -226,12 +226,31 @@ void player_add_capture(GamePlayer* player) {
     if (!player) return;
     
     player->captures_made++;
-    printf("🎯 Capture pour '%s': %d captures au total\n", 
+    printf("🎯 Capture pour '%s': %d captures total\n", 
            player->name, player->captures_made);
            
     // 🆕 CRITICAL FIX: Update stats manager too
     if (player->stats) {
         player->stats->captures_made = player->captures_made;
+        printf("📊 Stats updated: %s now has %d captures\n", 
+               player->name, player->stats->captures_made);
+    }
+}
+
+// 🆕 NEW FUNCTION: Force capture count update
+void player_set_captures(GamePlayer* player, int capture_count) {
+    if (!player) return;
+    
+    int old_count = player->captures_made;
+    player->captures_made = capture_count;
+    
+    if (player->stats) {
+        player->stats->captures_made = capture_count;
+    }
+    
+    if (old_count != capture_count) {
+        printf("🔄 [CAPTURE_UPDATE] %s: %d -> %d captures\n", 
+               player->name, old_count, capture_count);
     }
 }
 

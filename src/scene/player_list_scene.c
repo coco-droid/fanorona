@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../net/network.h"  // 🆕 ADD
 
 #define MAX_PLAYERS_PER_PAGE 3
 #define MAX_DISCOVERED_PLAYERS 20
@@ -34,6 +35,8 @@ typedef struct PlayerListSceneData {
     int total_players;
     int current_page;
     int total_pages;
+    NetworkManager* network;  // 🆕 ADD
+    Uint32 last_refresh;     // 🆕 ADD
 } PlayerListSceneData;
 
 // Simulation: découvrir des joueurs réseau
@@ -53,13 +56,61 @@ static void simulate_discover_players(PlayerListSceneData* data) {
     data->current_page = 0;
 }
 
+// 🔧 REPLACE simulation with real network discovery
+static void discover_network_players(PlayerListSceneData* data) {
+    if (!data->network) return;
+    
+    printf("🔍 Découverte des joueurs sur le réseau...\n");
+    
+    network_refresh_lobby(data->network);
+    
+    int count = network_get_lobby_game_count(data->network);
+    data->total_players = count;
+    
+    for (int i = 0; i < count && i < MAX_DISCOVERED_PLAYERS; i++) {
+        const LobbyGameEntry* entry = network_get_lobby_game(data->network, i);
+        if (entry && entry->active) {
+            strncpy(data->discovered_players[i].name, entry->game_name, 63);
+            strncpy(data->discovered_players[i].remote_id, entry->host_ip, 31);
+            data->discovered_players[i].avatar = AVATAR_WARRIOR;  // Default until profile sync
+            data->discovered_players[i].is_available = (entry->status == GAME_STATUS_WAITING);
+        }
+    }
+    
+    data->total_pages = (data->total_players + MAX_PLAYERS_PER_PAGE - 1) / MAX_PLAYERS_PER_PAGE;
+    
+    printf("✅ %d joueur(s) découvert(s)\n", count);
+}
+
 static void invite_player_callback(void* element, SDL_Event* event) {
     (void)event;
     AtomicElement* atomic = (AtomicElement*)element;
     int player_index = (int)(intptr_t)atomic->user_data;
     
-    printf("📩 Invitation envoyée au joueur #%d\n", player_index);
-    // TODO: Logique réseau réelle
+    extern PlayerListSceneData* g_current_player_list_data;
+    PlayerListSceneData* data = g_current_player_list_data;
+    
+    if (!data || !data->network) {
+        printf("❌ Network non disponible\n");
+        return;
+    }
+    
+    NetworkPlayer* player = &data->discovered_players[player_index];
+    
+    printf("📩 Envoi invitation à '%s' (%s)\n", player->name, player->remote_id);
+    
+    // 🆕 SEND INVITATION with player profile
+    const char* local_name = config_get_player1_name();
+    ProtocolMessage* invite = protocol_create_discover_request(local_name);
+    
+    if (network_send_message(data->network, invite)) {
+        printf("✅ Invitation envoyée\n");
+        // TODO: Transition to game after acceptance
+    } else {
+        printf("❌ Échec envoi invitation\n");
+    }
+    
+    protocol_message_destroy(invite);
 }
 
 static void render_player_page(PlayerListSceneData* data) {
@@ -165,9 +216,26 @@ static void player_list_scene_init(Scene* scene) {
     if (!data) return;
     
     data->initialized = true;
+    data->network = NULL;  // 🆕 ADD
+    data->last_refresh = 0;  // 🆕 ADD
     g_current_player_list_data = data;
     
-    simulate_discover_players(data);
+    // 🆕 INITIALIZE NETWORK for host mode
+    data->network = network_create();
+    if (data->network && network_init(data->network)) {
+        const char* player_name = config_get_player1_name();
+        if (network_discover_games(data->network, player_name)) {
+            printf("🔍 Découverte réseau initiée\n");
+            SDL_Delay(500);  // Wait for responses
+            discover_network_players(data);
+        } else {
+            printf("⚠️ Échec découverte, mode simulation\n");
+            simulate_discover_players(data);  // Fallback
+        }
+    } else {
+        printf("⚠️ Network non disponible, mode simulation\n");
+        simulate_discover_players(data);  // Fallback
+    }
     
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
@@ -290,6 +358,14 @@ static void player_list_scene_update(Scene* scene, float delta_time) {
     
     ui_update_animations(delta_time);
     
+    // 🆕 AUTO-REFRESH every 3 seconds
+    Uint32 now = SDL_GetTicks();
+    if (data->network && (now - data->last_refresh) > 3000) {
+        discover_network_players(data);
+        render_player_page(data);
+        data->last_refresh = now;
+    }
+    
     if (data->ui_tree) {
         ui_tree_update(data->ui_tree, delta_time);
         if (data->cancel_link) ui_link_update(data->cancel_link, delta_time);
@@ -313,6 +389,13 @@ static void player_list_scene_cleanup(Scene* scene) {
     
     PlayerListSceneData* data = (PlayerListSceneData*)scene->data;
     if (g_current_player_list_data == data) g_current_player_list_data = NULL;
+    
+    // 🆕 CLEANUP NETWORK
+    if (data->network) {
+        network_disconnect(data->network);
+        network_destroy(data->network);
+        data->network = NULL;
+    }
     
     if (data->ui_tree) {
         ui_tree_destroy(data->ui_tree);
