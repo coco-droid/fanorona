@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
     
     printf("Demarrage de Fanorona...\n");
     printf("PRESENTED BY BOULDIMAS\n");
+    printf("Directed by ROBENS,SHAMMA,GERARDO\n");
 #ifdef ENABLE_LOG_CONSOLE
     // Initialize log console if flag is enabled
     printf("Mode debug : Console de logs activee\n");
