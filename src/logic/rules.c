@@ -56,7 +56,7 @@ int detect_capture(Board *b, int from_id, int to_id, Move *mv) {
     int aspiration_count = 0;
     collect_captures_along(b, from_id, -vr, -vc, enemy, aspiration_capture_ids, &aspiration_count);
 
-    // ✅ CORRECTION: Handle choice between both capture types
+    // CORRECTION: Handle choice between both capture types
     if (percussion_count > 0 && aspiration_count > 0) {
         // Both captures possible - return special code for UI choice
         return 3; // Caller must decide which capture type to use
@@ -180,7 +180,7 @@ void print_move(Board *b, const Move *m) {
         printf("MOVE (paika) from (%d,%d) -> (%d,%d)\n", fr,fc,tr,tc);
 }
 
-// 🆕 Helper: Check if any capture move is available for the player
+// Helper: Check if any capture move is available for the player
 int has_any_capture_available(Board *b, Player player) {
     for (int id = 0; id < NODES; ++id) {
         Piece *pc = b->nodes[id].piece;
@@ -200,7 +200,7 @@ int has_any_capture_available(Board *b, Player player) {
     return 0; // No captures available
 }
 
-// 🆕 Helper: Check if position was already visited during capture chain
+// Helper: Check if position was already visited during capture chain
 int is_position_visited(int position_id, int *visited_positions, int visited_count) {
     for (int i = 0; i < visited_count; ++i) {
         if (visited_positions[i] == position_id) {
@@ -210,13 +210,13 @@ int is_position_visited(int position_id, int *visited_positions, int visited_cou
     return 0;
 }
 
-// 🆕 Helper: Check if two directions are equal
+// Helper: Check if two directions are equal
 int directions_equal(Direction *d1, Direction *d2) {
     if (!d1 || !d2) return 0;
     return (d1->vr == d2->vr && d1->vc == d2->vc);
 }
 
-// 🆕 Main move validation function
+// Main move validation function
 int is_move_valide(Board *b, int from_id, int to_id, Player player, 
                    Direction *last_direction, int *visited_positions, int visited_count, 
                    int during_capture) {
@@ -306,7 +306,7 @@ int is_move_valide(Board *b, int from_id, int to_id, Player player,
     return 1; // Default valid
 }
 
-// 🆕 Count alive pieces for a player
+// Count alive pieces for a player
 int count_alive_pieces(Board *b, Player player) {
     int count = 0;
     for (int id = 0; id < NODES; ++id) {
@@ -318,14 +318,14 @@ int count_alive_pieces(Board *b, Player player) {
     return count;
 }
 
-// 🆕 Check if player has any legal move (capture or paika)
+// Check if player has any legal move (capture or paika)
 int has_any_legal_move(Board *b, Player player) {
     Move temp_moves[MAX_MOVES];
     int move_count = generate_moves(b, player, temp_moves, MAX_MOVES);
     return move_count > 0;
 }
 
-// 🆕 Check game over conditions and return winner (or NOBODY if ongoing/draw)
+// Check game over conditions and return winner (or NOBODY if ongoing/draw)
 Player check_game_over(Board *b) {
     int white_count = count_alive_pieces(b, WHITE);
     int black_count = count_alive_pieces(b, BLACK);
@@ -345,7 +345,7 @@ Player check_game_over(Board *b) {
     return NOBODY; // Partie continue
 }
 
-// 🆕 AI RULE VALIDATION: Check if move follows Fanorona rules
+// AI RULE VALIDATION: Check if move follows Fanorona rules
 bool ai_validate_fanorona_move(Board* board, Move* move, Player current_player) {
     if (!board || !move) return false;
     
@@ -378,7 +378,7 @@ bool ai_validate_fanorona_move(Board* board, Move* move, Player current_player) 
     return is_adjacent;
 }
 
-// 🆕 AI RULE UNDERSTANDING: Generate only legal moves according to Fanorona rules
+// AI RULE UNDERSTANDING: Generate only legal moves according to Fanorona rules
 int ai_generate_legal_moves(Board* board, Player player, Move* moves, int max_moves) {
     if (!board || !moves) return 0;
     
@@ -419,12 +419,12 @@ int ai_generate_legal_moves(Board* board, Player player, Move* moves, int max_mo
     return move_count;
 }
 
-// 🆕 AI NEURO-SYMBOLIC RULE VALIDATION: Check mandatory capture situation
+// AI NEURO-SYMBOLIC RULE VALIDATION: Check mandatory capture situation
 bool ai_is_mandatory_capture_situation(Board* board, Player player) {
     return has_any_capture_available(board, player);
 }
 
-// 🆕 AI NEURO-SYMBOLIC RULE VALIDATION: Check if can continue capture chain
+// AI NEURO-SYMBOLIC RULE VALIDATION: Check if can continue capture chain
 bool ai_can_continue_capture_chain(Board* board, int position, Player player, Direction* last_direction) {
     if (!board || position < 0 || position >= NODES) return false;
     
@@ -454,7 +454,7 @@ bool ai_can_continue_capture_chain(Board* board, int position, Player player, Di
     return false;
 }
 
-// 🆕 SNAPSHOT: Créer une copie légère du plateau
+// SNAPSHOT: Créer une copie légère du plateau
 BoardSnapshot board_create_snapshot(Board* board) {
     BoardSnapshot snapshot = {0};
     
@@ -483,7 +483,7 @@ BoardSnapshot board_create_snapshot(Board* board) {
     return snapshot;
 }
 
-// 🆕 SNAPSHOT: Appliquer un coup sur le snapshot (simulation légère)
+// SNAPSHOT: Appliquer un coup sur le snapshot (simulation légère)
 void board_apply_move_to_snapshot(BoardSnapshot* snapshot, const Move* move) {
     if (!snapshot || !move) return;
     
@@ -519,7 +519,7 @@ void board_apply_move_to_snapshot(BoardSnapshot* snapshot, const Move* move) {
     }
 }
 
-// 🆕 SNAPSHOT: Restaurer le Board depuis un snapshot (pour validation finale uniquement)
+// SNAPSHOT: Restaurer le Board depuis un snapshot (pour validation finale uniquement)
 bool board_restore_from_snapshot(Board* board, const BoardSnapshot* snapshot) {
     (void)board;
     (void)snapshot;
@@ -527,7 +527,7 @@ bool board_restore_from_snapshot(Board* board, const BoardSnapshot* snapshot) {
     return false; // Non implémenté car non nécessaire
 }
 
-// 🆕 IA: Générer coups légaux depuis un snapshot
+// IA: Générer coups légaux depuis un snapshot
 int ai_get_legal_moves_for_position(BoardSnapshot* snapshot, Player player, Move* out_moves, int max_moves) {
     if (!snapshot || !out_moves) return 0;
     
@@ -633,7 +633,7 @@ int ai_get_legal_moves_for_position(BoardSnapshot* snapshot, Player player, Move
     return move_count;
 }
 
-// 🆕 IA: Évaluation simple d'un snapshot
+// IA: Évaluation simple d'un snapshot
 int ai_evaluate_snapshot(BoardSnapshot* snapshot, Player player) {
     if (!snapshot) return 0;
     
@@ -663,7 +663,7 @@ int ai_evaluate_snapshot(BoardSnapshot* snapshot, Player player) {
     return score;
 }
 
-// 🆕 IA: Vérifier game over sur snapshot
+// IA: Vérifier game over sur snapshot
 bool ai_is_game_over_snapshot(BoardSnapshot* snapshot) {
     if (!snapshot) return true;
     
@@ -680,7 +680,7 @@ bool ai_is_game_over_snapshot(BoardSnapshot* snapshot) {
     return (white_moves == 0 && black_moves == 0);
 }
 
-// 🆕 IA: Validation stricte d'un coup sur snapshot
+// IA: Validation stricte d'un coup sur snapshot
 bool ai_validate_move_strict(BoardSnapshot* snapshot, const Move* move, Player player) {
     if (!snapshot || !move) return false;
     

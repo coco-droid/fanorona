@@ -9,7 +9,7 @@
 // Forward declaration for TTF_Font
 typedef struct _TTF_Font TTF_Font;
 
-// 🔧 FIX: Déplacer le typedef AVANT la structure AtomicElement
+// FIX: Déplacer le typedef AVANT la structure AtomicElement
 typedef struct CustomDataEntry CustomDataEntry;
 
 struct CustomDataEntry {
@@ -18,7 +18,7 @@ struct CustomDataEntry {
     struct CustomDataEntry* next;
 };
 
-// 🔧 FIX: Ajouter les types manquants
+// FIX: Ajouter les types manquants
 typedef struct AtomicContext {
     SDL_Renderer* renderer;
     int screen_width;
@@ -26,7 +26,7 @@ typedef struct AtomicContext {
     bool debug_mode;
 } AtomicContext;
 
-// 🔧 FIX: Ajouter l'enum PositioningSystem manquant
+// FIX: Ajouter l'enum PositioningSystem manquant
 typedef enum {
     POSITIONING_RELATIVE,
     POSITIONING_ABSOLUTE,
@@ -34,7 +34,7 @@ typedef enum {
     POSITIONING_STATIC
 } PositioningSystem;
 
-// 🆕 ERROR HANDLING SYSTEM - MOVE BEFORE AtomicElement
+// ERROR HANDLING SYSTEM - MOVE BEFORE AtomicElement
 typedef enum {
     ATOMIC_SUCCESS = 0,
     ATOMIC_ERROR_NULL_POINTER,
@@ -46,14 +46,14 @@ typedef enum {
     ATOMIC_ERROR_FONT_LOADING
 } AtomicError;
 
-// 🆕 DESTRUCTION STATE TRACKING - MOVE BEFORE AtomicElement
+// DESTRUCTION STATE TRACKING - MOVE BEFORE AtomicElement
 typedef enum {
     ELEMENT_STATE_ACTIVE,
     ELEMENT_STATE_DESTROYING,
     ELEMENT_STATE_DESTROYED
 } ElementState;
 
-// 🆕 TEXTURE REFERENCE COUNTING SYSTEM - MOVE BEFORE AtomicElement
+// TEXTURE REFERENCE COUNTING SYSTEM - MOVE BEFORE AtomicElement
 typedef struct AtomicTextureRef {
     SDL_Texture* texture;
     char* path;
@@ -69,7 +69,7 @@ typedef enum {
     POSITION_FIXED
 } PositionType;
 
-// 🆕 AJOUT: Enum pour la gestion des débordements
+// AJOUT: Enum pour la gestion des débordements
 typedef enum {
     OVERFLOW_VISIBLE,   // Les enfants peuvent déborder (comportement par défaut)
     OVERFLOW_HIDDEN,    // Les enfants sont contraints dans les limites du parent
@@ -77,7 +77,7 @@ typedef enum {
     OVERFLOW_AUTO       // Automatique selon le contenu
 } OverflowType;
 
-// 🆕 AJOUT: Enum pour align-self (centrage automatique par axe)
+// AJOUT: Enum pour align-self (centrage automatique par axe)
 typedef enum {
     ALIGN_SELF_AUTO,        // Pas de centrage automatique
     ALIGN_SELF_CENTER_X,    // Centrage horizontal automatique
@@ -155,14 +155,14 @@ typedef struct {
     AlignType align_content;
     bool wrap;
     int gap;
-    int grow;      // 🔧 FIX: Ajouter le champ grow manquant
-    int shrink;    // 🔧 FIX: Ajouter le champ shrink manquant
+    int grow;      // FIX: Ajouter le champ grow manquant
+    int shrink;    // FIX: Ajouter le champ shrink manquant
 } FlexProperties;
 
 // Structure pour les propriétés de texte
 typedef struct {
     char* font_path;           // Chemin vers la police
-    TTF_Font* font;            // 🔧 FIX: Ajouter le champ manquant
+    TTF_Font* font;            // FIX: Ajouter le champ manquant
     TTF_Font* ttf_font;        // Police TTF chargée (pour compatibilité)
     int font_size;             // Taille de la police
     SDL_Color color;           // Couleur du texte
@@ -177,7 +177,7 @@ typedef struct {
     AlignType vertical;        // top, middle, bottom
     bool auto_center_x;        // Centrage automatique X
     bool auto_center_y;        // Centrage automatique Y
-    AlignSelf align_self;      // 🆕 AJOUT: Centrage automatique par axe
+    AlignSelf align_self;      // AJOUT: Centrage automatique par axe
 } AlignmentProperties;
 
 // Structure pour les propriétés de style CSS-like
@@ -196,7 +196,7 @@ typedef struct {
     int z_index;
     bool visible;
     
-    // 🆕 AJOUT: Gestion des débordements
+    // AJOUT: Gestion des débordements
     OverflowType overflow;       // Contrôle du débordement des enfants
     
     // Couleurs
@@ -232,7 +232,7 @@ typedef struct {
 typedef struct {
     void (*on_click)(void* element, SDL_Event* event);
     void (*on_hover)(void* element, SDL_Event* event);
-    void (*on_unhover)(void* element, SDL_Event* event);  // 🆕 AJOUT: Handler pour unhover
+    void (*on_unhover)(void* element, SDL_Event* event);  // AJOUT: Handler pour unhover
     void (*on_focus)(void* element, SDL_Event* event);
     void (*on_blur)(void* element, SDL_Event* event);
     void (*on_key_down)(void* element, SDL_Event* event);
@@ -272,15 +272,15 @@ typedef struct AtomicElement {
     void (*custom_render)(struct AtomicElement* element, SDL_Renderer* renderer);
     void (*custom_update)(struct AtomicElement* element, float delta_time);
     
-    // 🆕 ERROR HANDLING & STATE
+    // ERROR HANDLING & STATE
     ElementState state;                 // État de l'élément pour éviter la double destruction
     AtomicError last_error;             // Dernière erreur rencontrée
     char* error_message;                // Message d'erreur détaillé
     
-    // 🆕 TEXTURE REFERENCE
+    // TEXTURE REFERENCE
     AtomicTextureRef* texture_ref;      // Référence vers la texture partagée
 
-    // 🔧 FIX: Ajouter le champ custom_data manquant
+    // FIX: Ajouter le champ custom_data manquant
     CustomDataEntry* custom_data;       // Données personnalisées
 } AtomicElement;
 
@@ -298,19 +298,19 @@ void atomic_clear_error(AtomicElement* element);
 // Convertir un code d'erreur en message
 const char* atomic_error_to_string(AtomicError error);
 
-// 🆕 TEXTURE REFERENCE COUNTING FUNCTIONS
+// TEXTURE REFERENCE COUNTING FUNCTIONS
 AtomicError atomic_set_background_image_with_path(AtomicElement* element, const char* path, SDL_Renderer* renderer);
 void atomic_texture_ref_add(const char* path, SDL_Texture* texture);
 SDL_Texture* atomic_texture_ref_get(const char* path);
 void atomic_texture_ref_release(const char* path);
 void atomic_texture_ref_cleanup_all(void);
 
-// 🆕 SAFE DESTRUCTION FUNCTIONS
+// SAFE DESTRUCTION FUNCTIONS
 AtomicError atomic_destroy_safe(AtomicElement* element);
 bool atomic_is_destroying(AtomicElement* element);
 AtomicError atomic_remove_child_safe(AtomicElement* parent, AtomicElement* child);
 
-// 🆕 COMPLETE FLEXBOX FUNCTIONS
+// COMPLETE FLEXBOX FUNCTIONS
 AtomicError atomic_set_flex_wrap_safe(AtomicElement* element, bool wrap);
 AtomicError atomic_set_flex_shrink_safe(AtomicElement* element, int shrink);
 AtomicError atomic_set_flex_basis(AtomicElement* element, int basis);
@@ -318,7 +318,7 @@ void atomic_apply_flex_shrink(AtomicElement* container);
 
 // Fonctions de création et destruction
 AtomicElement* atomic_create(const char* id);
-void atomic_destroy(AtomicElement* element);  // 🔧 FIX: S'assurer que cette déclaration existe
+void atomic_destroy(AtomicElement* element);  // FIX: S'assurer que cette déclaration existe
 
 // Fonctions de style
 void atomic_set_position(AtomicElement* element, int x, int y);
@@ -348,7 +348,7 @@ void atomic_set_alignment(AtomicElement* element, AlignType horizontal, AlignTyp
 void atomic_set_auto_center(AtomicElement* element, bool center_x, bool center_y);
 void atomic_center_in_parent(AtomicElement* element);
 
-// 🆕 NOUVELLES FONCTIONS pour align-self
+// NOUVELLES FONCTIONS pour align-self
 void atomic_set_align_self(AtomicElement* element, AlignSelf align_self);
 void atomic_set_align_self_center_x(AtomicElement* element);
 void atomic_set_align_self_center_y(AtomicElement* element);
@@ -369,7 +369,7 @@ void atomic_set_font_ttf(AtomicElement* element, TTF_Font* font);
 void atomic_set_text_color(AtomicElement* element, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 void atomic_set_text_align(AtomicElement* element, TextAlign align);
 void atomic_set_text_style(AtomicElement* element, bool bold, bool italic);
-// 🆕 Fonction pour définir la transparence du texte
+// Fonction pour définir la transparence du texte
 void atomic_set_text_alpha(AtomicElement* element, Uint8 alpha);
 
 // Fonctions de contenu
@@ -381,10 +381,10 @@ void atomic_remove_child(AtomicElement* parent, AtomicElement* child);
 // Fonctions d'événements
 void atomic_set_click_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
 void atomic_set_hover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
-void atomic_set_unhover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));  // 🆕 AJOUT
+void atomic_set_unhover_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));  // AJOUT
 void atomic_set_focus_handler(AtomicElement* element, void (*handler)(void*, SDL_Event*));
 
-// 🆕 NOUVELLES FONCTIONS: Feedback sonore automatique
+// NOUVELLES FONCTIONS: Feedback sonore automatique
 void atomic_enable_sound_feedback(AtomicElement* element);  // Active click + hover sons
 void atomic_set_click_sound(AtomicElement* element, int sound_effect);  // Son au clic
 void atomic_set_hover_sound(AtomicElement* element, int sound_effect);  // Son au survol
@@ -393,14 +393,14 @@ void atomic_set_hover_sound(AtomicElement* element, int sound_effect);  // Son a
 void atomic_render(AtomicElement* element, SDL_Renderer* renderer);
 void atomic_update(AtomicElement* element, float delta_time);
 
-// 🆕 Police par défaut
+// Police par défaut
 TTF_Font* atomic_get_default_font(void);
 
 // Fonctions utilitaires
 bool atomic_is_point_inside(AtomicElement* element, int x, int y);
 SDL_Rect atomic_get_render_rect(AtomicElement* element);
 SDL_Rect atomic_get_content_rect(AtomicElement* element);
-SDL_Rect atomic_get_final_render_rect(AtomicElement* element);  // 🆕 AJOUT: Position finale après calculs
+SDL_Rect atomic_get_final_render_rect(AtomicElement* element);  // AJOUT: Position finale après calculs
 
 // Nouvelles fonctions pour le système de logs et z-index
 bool atomic_has_explicit_z_index(AtomicElement* element);
@@ -436,14 +436,14 @@ void atomic_handle_event(SDL_Event* event, void* user_data) ;
 void atomic_register_with_event_manager(AtomicElement* element, EventManager* manager);
 void atomic_unregister_from_event_manager(AtomicElement* element, EventManager* manager);
 
-// 🆕 NOUVELLES FONCTIONS pour la gestion de l'overflow
+// NOUVELLES FONCTIONS pour la gestion de l'overflow
 void atomic_set_overflow(AtomicElement* element, OverflowType overflow);
 void atomic_set_overflow_str(AtomicElement* element, const char* overflow);
 SDL_Rect atomic_constrain_child_position(AtomicElement* parent, AtomicElement* child, int desired_x, int desired_y);
 void atomic_apply_overflow_constraints(AtomicElement* parent);
 bool atomic_is_child_overflowing(AtomicElement* parent, AtomicElement* child);
 
-// 🔧 FIX: Ajouter les fonctions manquantes
+// FIX: Ajouter les fonctions manquantes
 void atomic_set_context(AtomicContext* context);
 AtomicContext* atomic_get_context(void);
 
@@ -455,10 +455,10 @@ void atomic_apply_flex_layout_improved(AtomicElement* container);
 // Système de positionnement unifié
 void atomic_calculate_layout(AtomicElement* element);
 
-// 🆕 NEW UTILITY FUNCTION FOR EVENT MANAGER SYNC
+// NEW UTILITY FUNCTION FOR EVENT MANAGER SYNC
 void atomic_sync_event_manager_position(AtomicElement* element, EventManager* manager);
 
-// 🆕 HITBOX VISUALIZATION SYSTEM
+// HITBOX VISUALIZATION SYSTEM
 // Contrôler l'affichage des hitboxes
 void atomic_set_hitbox_visualization(bool enabled);
 bool atomic_is_hitbox_visualization_enabled(void);
@@ -469,15 +469,15 @@ void atomic_render_hitbox(AtomicElement* element, SDL_Renderer* renderer);
 // Dessiner les hitboxes de tous les éléments enregistrés dans l'EventManager
 void atomic_render_all_hitboxes(EventManager* manager, SDL_Renderer* renderer);
 
-// 🆕 FONCTIONS pour gérer les données personnalisées
+// FONCTIONS pour gérer les données personnalisées
 void atomic_set_custom_data(AtomicElement* element, const char* key, void* value);
 void* atomic_get_custom_data(AtomicElement* element, const char* key);
 void atomic_cleanup_custom_data(AtomicElement* element);
 
-// 🆕 CUSTOM RENDER FUNCTION
+// CUSTOM RENDER FUNCTION
 void atomic_set_custom_render(AtomicElement* element, void (*custom_render)(AtomicElement*, SDL_Renderer*));
 
-// 🆕 INTERACTIVITY CONTROL FUNCTION
+// INTERACTIVITY CONTROL FUNCTION
 void atomic_set_interactive(AtomicElement* element, bool interactive);
 
 #endif // ATOMIC_H

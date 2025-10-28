@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --logs|-l)
             ENABLE_LOG_CONSOLE=true
-            echo "🖥️ Console de logs séparée : ACTIVÉE"
+            echo "Console de logs séparée : ACTIVÉE"
             shift
             ;;
         --help|-h)
@@ -56,7 +56,7 @@ done
 # Ajouter le flag de compilation si nécessaire
 if [ "$ENABLE_LOG_CONSOLE" = true ]; then
     CFLAGS="$CFLAGS -DENABLE_LOG_CONSOLE"
-    echo "📝 Flag de compilation ajouté : -DENABLE_LOG_CONSOLE"
+    echo "Flag de compilation ajouté : -DENABLE_LOG_CONSOLE"
 fi
 
 # Créer les répertoires nécessaires
@@ -125,51 +125,51 @@ SOURCES=(
 missing_files=false
 for source in "${SOURCES[@]}"; do
     if [ ! -f "$source" ]; then
-        echo "⚠️ Fichier manquant: $source"
+        echo "Fichier manquant: $source"
         missing_files=true
     fi
 done
 
 if [ "$missing_files" = true ]; then
-    echo "❌ Certains fichiers sont manquants. Veuillez vérifier les chemins."
+    echo "Certains fichiers sont manquants. Veuillez vérifier les chemins."
     echo "Compilation annulée."
     exit 1
 fi
 
-# 🔧 VÉRIFICATION SPÉCIFIQUE pour ui_link.c
-echo "🔧 Vérification spécifique de ui_link.c..."
+# VÉRIFICATION SPÉCIFIQUE pour ui_link.c
+echo "Vérification spécifique de ui_link.c..."
 if [ -f "$SRC_DIR/ui/components/ui_link.c" ]; then
     if grep -q "scene_manager_transition_to_scene_from_element" "$SRC_DIR/ui/components/ui_link.c"; then
-        echo "   ✅ ui_link.c: Fonction de transition trouvée"
+        echo "   ui_link.c: Fonction de transition trouvée"
     else
-        echo "   ❌ ui_link.c: Fonction de transition manquante"
-        echo "   🔧 Vérifiez que scene_manager.c implémente cette fonction"
+        echo "   ui_link.c: Fonction de transition manquante"
+        echo "   Vérifiez que scene_manager.c implémente cette fonction"
     fi
     
     if grep -q "ui_link_connect_to_manager" "$SRC_DIR/ui/components/ui_link.c"; then
-        echo "   ✅ ui_link.c: Fonction de connexion trouvée"
+        echo "   ui_link.c: Fonction de connexion trouvée"
     else
-        echo "   ❌ ui_link.c: Fonction de connexion manquante"
+        echo "   ui_link.c: Fonction de connexion manquante"
     fi
 else
-    echo "   ⚠️ ui_link.c non trouvé - sera ignoré lors de la compilation"
+    echo "   ui_link.c non trouvé - sera ignoré lors de la compilation"
     # Retirer ui_link.c de la liste si le fichier n'existe pas
     SOURCES=(${SOURCES[@]/*ui_link.c*/})
 fi
 
-# 🔧 VÉRIFICATION SPÉCIFIQUE pour les conflits de définition
-echo "🔧 Vérification des conflits de définition..."
+# VÉRIFICATION SPÉCIFIQUE pour les conflits de définition
+echo "Vérification des conflits de définition..."
 if grep -n "ui_neon_button" "$SRC_DIR/ui/ui_components.c" | grep -q "^[0-9]*:.*{"; then
-    echo "   ⚠️ ATTENTION: ui_neon_button défini dans ui_components.c"
-    echo "   🔧 Assurez-vous qu'il n'y a pas de conflit avec neon_btn.c"
+    echo "   ATTENTION: ui_neon_button défini dans ui_components.c"
+    echo "   Assurez-vous qu'il n'y a pas de conflit avec neon_btn.c"
 fi
 
 if [ -f "$SRC_DIR/ui/neon_btn.c" ]; then
     if grep -q "ui_neon_button" "$SRC_DIR/ui/neon_btn.c"; then
-        echo "   ✅ neon_btn.c: Implémentation complète trouvée"
+        echo "   neon_btn.c: Implémentation complète trouvée"
     fi
 else
-    echo "   ❌ neon_btn.c non trouvé"
+    echo "   neon_btn.c non trouvé"
 fi
 
 # Compilation
@@ -179,12 +179,12 @@ $CC $CFLAGS "${SOURCES[@]}" -o "$BUILD_DIR/$PROJECT_NAME" $LIBS
 
 # Vérifier le résultat de la compilation
 if [ $? -eq 0 ]; then
-    echo "✓ Compilation réussie!"
+    echo "Compilation réussie!"
     echo "L'exécutable se trouve dans: $BUILD_DIR/$PROJECT_NAME"
     
     if [ "$ENABLE_LOG_CONSOLE" = true ]; then
         echo ""
-        echo "🖥️ Console de logs activée :"
+        echo "Console de logs activée :"
         echo "   - Une fenêtre séparée s'ouvrira pour les logs"
         echo "   - Les événements souris seront trackés dès l'entrée dans la fenêtre"
         echo "   - Utilisez Ctrl+C dans le terminal principal pour fermer"
@@ -198,21 +198,21 @@ if [ $? -eq 0 ]; then
         echo "=== Lancement de $PROJECT_NAME ==="
         
         if [ "$ENABLE_LOG_CONSOLE" = true ]; then
-            echo "🖥️ Ouverture de la console d'événements..."
-            echo "🎯 DEUX fenêtres vont s'ouvrir :"
-            echo "   1. 🎮 Fenêtre de jeu (Fanorona)"
-            echo "   2. 🔍 Console d'événements UI (debugging)"
+            echo "Ouverture de la console d'événements..."
+            echo "DEUX fenêtres vont s'ouvrir :"
+            echo "   1. Fenêtre de jeu (Fanorona)"
+            echo "   2. Console d'événements UI (debugging)"
             echo ""
-            echo "💡 Dans la console d'événements vous verrez :"
-            echo "   • 🖱️ Mouvements de souris en temps réel"
-            echo "   • 👆 Clics sur les boutons"
-            echo "   • 🎯 Tests de collision (hit testing)"
-            echo "   • 🔄 Événements de hover/unhover"
-            echo "   • 📊 Debugging complet des interactions"
+            echo "Dans la console d'événements vous verrez :"
+            echo "   • Mouvements de souris en temps réel"
+            echo "   • Clics sur les boutons"
+            echo "   • Tests de collision (hit testing)"
+            echo "   • Événements de hover/unhover"
+            echo "   • Debugging complet des interactions"
             echo ""
             # Vérifier que nous avons un serveur X
             if [ -z "$DISPLAY" ]; then
-                echo "⚠️ Attention: Variable DISPLAY non définie, la console d'événements pourrait ne pas s'ouvrir"
+                echo "Attention: Variable DISPLAY non définie, la console d'événements pourrait ne pas s'ouvrir"
             fi
         fi
         
@@ -220,13 +220,13 @@ if [ $? -eq 0 ]; then
         "./$BUILD_DIR/$PROJECT_NAME"
         
         if [ "$ENABLE_LOG_CONSOLE" = true ]; then
-            echo "🧹 Nettoyage des processus de logs..."
+            echo "Nettoyage des processus de logs..."
             # Tuer les processus de terminal qui pourraient rester
             pkill -f "Fanorona.*Console.*Événements" 2>/dev/null || true
             pkill -f "Events Console" 2>/dev/null || true
         fi
     fi
 else
-    echo "✗ Erreur de compilation!"
+    echo "Erreur de compilation!"
     exit 1
 fi

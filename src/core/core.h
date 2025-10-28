@@ -19,7 +19,7 @@ typedef struct GameCore {
 GameCore* game_core_create(void);
 void game_core_destroy(GameCore* core);
 bool game_core_finalize_init(GameCore* core);
-void game_core_handle_events(GameCore* core);  // 🔧 Maintenant mono-thread simple
+void game_core_handle_events(GameCore* core);  // FIX: Maintenant mono-thread simple
 void game_core_update(GameCore* core);
 void game_core_render(GameCore* core);
 bool game_core_is_running(GameCore* core);

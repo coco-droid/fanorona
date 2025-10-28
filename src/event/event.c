@@ -109,7 +109,7 @@ void event_manager_clear_all(EventManager* manager) {
 void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     if (!manager || !event) return;
     
-    // 🔧 FERMETURE DE FENÊTRE (garder)
+    // FERMETURE DE FENÊTRE (garder)
     if (event->type == SDL_WINDOWEVENT && event->window.event == SDL_WINDOWEVENT_CLOSE) {
         log_console_write_event("EventManager", "WindowClose", "event.c", 
                                "[event.c] Window close detected", event->type);
@@ -117,7 +117,7 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
         return;
     }
     
-    // 🔧 QUIT (garder)
+    // QUIT (garder)
     if (event->type == SDL_QUIT) {
         log_console_write_event("EventManager", "Quit", "event.c", 
                                "[event.c] SDL_QUIT received", event->type);
@@ -125,7 +125,7 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
         return;
     }
     
-    // 🆕 NOUVEAU: Transmettre TOUS les événements (y compris clavier) aux éléments
+    // NOUVEAU: Transmettre TOUS les événements (y compris clavier) aux éléments
     if (event->type == SDL_TEXTINPUT || event->type == SDL_KEYDOWN) {
         // Transmettre les événements clavier à TOUS les éléments
         EventElement* current = manager->elements;
@@ -165,7 +165,7 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event) {
     }
 }
 
-// 🆕 HITBOX VISUALIZATION SUPPORT
+// HITBOX VISUALIZATION SUPPORT
 void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer) {
     if (!manager || !renderer) return;
     
@@ -192,11 +192,11 @@ void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer
         if (current->display) {
             SDL_Rect hitbox_rect = {current->x, current->y, current->width, current->height};
             
-            // 🔴 FOND ROUGE TRANSPARENT
+            // FOND ROUGE TRANSPARENT
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 30);
             SDL_RenderFillRect(renderer, &hitbox_rect);
             
-            // 🔵 BORDURE BLEUE OPAQUE (2px)
+            // BORDURE BLEUE OPAQUE (2px)
             SDL_SetRenderDrawColor(renderer, 0, 0, 255, 200);
             for (int i = 0; i < 2; i++) {
                 SDL_Rect border_rect = {

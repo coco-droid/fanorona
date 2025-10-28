@@ -20,13 +20,13 @@ MarkovModel* markov_create_model(int table_size) {
     
     MarkovModel* model = (MarkovModel*)calloc(1, sizeof(MarkovModel));
     if (!model) {
-        printf("❌ Impossible d'allouer MarkovModel\n");
+        printf("Impossible d'allouer MarkovModel\n");
         return NULL;
     }
     
     model->transition_table = (MarkovTransition**)calloc(table_size, sizeof(MarkovTransition*));
     if (!model->transition_table) {
-        printf("❌ Impossible d'allouer la table de transitions\n");
+        printf("Impossible d'allouer la table de transitions\n");
         free(model);
         return NULL;
     }
@@ -36,7 +36,7 @@ MarkovModel* markov_create_model(int table_size) {
     model->learning_games = 0;
     model->learning_mode = true;
     
-    printf("🧠 Modèle Markov créé avec table de %d entrées\n", table_size);
+    printf("Modèle Markov créé avec table de %d entrées\n", table_size);
     return model;
 }
 
@@ -44,7 +44,7 @@ MarkovModel* markov_create_model(int table_size) {
 void markov_destroy_model(MarkovModel* model) {
     if (!model) return;
     
-    printf("🧹 Destruction du modèle Markov (%d transitions)\n", model->total_transitions);
+    printf("Destruction du modèle Markov (%d transitions)\n", model->total_transitions);
     
     // Libérer toutes les chaînes de transitions
     for (int i = 0; i < model->table_size; i++) {
@@ -142,7 +142,7 @@ void markov_add_transition(MarkovModel* model, PositionPattern from, Move move, 
     model->total_transitions++;
     
     if (model->total_transitions % 1000 == 0) {
-        printf("📈 Modèle Markov: %d transitions apprises\n", model->total_transitions);
+        printf("Modèle Markov: %d transitions apprises\n", model->total_transitions);
     }
 }
 
@@ -170,7 +170,7 @@ float markov_get_move_probability(MarkovModel* model, PositionPattern pattern, M
 void markov_learn_from_game(MarkovModel* model, Move* game_moves, int move_count, Player winner) {
     if (!model || !game_moves || move_count < 2) return;
     
-    printf("📚 Apprentissage Markov d'une partie de %d coups (gagnant: %s)\n", 
+    printf("Apprentissage Markov d'une partie de %d coups (gagnant: %s)\n", 
            move_count, winner == WHITE ? "Blanc" : "Noir");
     
     // Simuler la partie pour extraire les patterns
@@ -195,13 +195,13 @@ void markov_learn_from_game(MarkovModel* model, Move* game_moves, int move_count
     model->learning_games++;
     board_free(&temp_board);
     
-    printf("✅ Apprentissage terminé (%d parties au total)\n", model->learning_games);
+    printf("Apprentissage terminé (%d parties au total)\n", model->learning_games);
 }
 
 // Trouver le meilleur coup avec Markov
 Move markov_find_best_move(AIEngine* ai, Board* board) {
     if (!ai || !ai->markov_data) {
-        printf("❌ Données Markov manquantes\n");
+        printf("Données Markov manquantes\n");
         Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
@@ -225,7 +225,7 @@ Move markov_find_best_move(AIEngine* ai, Board* board) {
     float best_score = -1.0f;
     Move best_move = possible_moves[0];
     
-    printf("🔍 Évaluation Markov de %d coups possibles...\n", move_count);
+    printf("Évaluation Markov de %d coups possibles...\n", move_count);
     
     for (int i = 0; i < move_count; i++) {
         float move_probability = markov_get_move_probability(model, current_pattern, possible_moves[i]);
@@ -251,7 +251,7 @@ Move markov_find_best_move(AIEngine* ai, Board* board) {
                move_probability, possible_moves[i].is_capture, total_score);
     }
     
-    printf("🎯 Meilleur coup Markov: %d→%d (score: %.3f)\n", 
+    printf("Meilleur coup Markov: %d→%d (score: %.3f)\n", 
            best_move.from_id, best_move.to_id, best_score);
     
     ai->moves_evaluated = move_count;
@@ -265,7 +265,7 @@ bool markov_save_model(MarkovModel* model, const char* filename) {
     
     FILE* file = fopen(filename, "wb");
     if (!file) {
-        printf("❌ Impossible d'ouvrir %s pour écriture\n", filename);
+        printf("Impossible d'ouvrir %s pour écriture\n", filename);
         return false;
     }
     
@@ -287,7 +287,7 @@ bool markov_save_model(MarkovModel* model, const char* filename) {
     
     fclose(file);
     
-    printf("💾 Modèle Markov sauvegardé: %d transitions dans %s\n", 
+    printf("Modèle Markov sauvegardé: %d transitions dans %s\n", 
            saved_transitions, filename);
     return true;
 }
@@ -297,7 +297,7 @@ MarkovModel* markov_load_model(const char* filename) {
     
     FILE* file = fopen(filename, "rb");
     if (!file) {
-        printf("📂 Fichier %s non trouvé, création d'un nouveau modèle\n", filename);
+        printf("Fichier %s non trouvé, création d'un nouveau modèle\n", filename);
         return markov_create_model(MARKOV_DEFAULT_TABLE_SIZE);
     }
     
@@ -337,7 +337,7 @@ MarkovModel* markov_load_model(const char* filename) {
     
     fclose(file);
     
-    printf("📖 Modèle Markov chargé: %d transitions, %d parties d'apprentissage\n", 
+    printf("Modèle Markov chargé: %d transitions, %d parties d'apprentissage\n", 
            loaded_transitions, learning_games);
     
     return model;

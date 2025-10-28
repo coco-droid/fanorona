@@ -4,7 +4,7 @@
 #include "native/atomic.h"
 #include "../utils/asset_manager.h"
 #include "../utils/log_console.h"
-#include "../window/window.h"  // 🔧 FIX: Include pour WindowDimensions
+#include "../window/window.h"  // FIX: Include pour WindowDimensions
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +30,7 @@ void ui_set_event_logging(bool enabled) {
     }
 }
 
-// 🆕 HITBOX VISUALIZATION WRAPPERS
+// HITBOX VISUALIZATION WRAPPERS
 void ui_set_hitbox_visualization(bool enabled) {
     // Appeler la fonction du système atomique
     extern void atomic_set_hitbox_visualization(bool enabled);
@@ -54,7 +54,7 @@ bool ui_is_event_logging_enabled(void) {
 void ui_log_event(const char* source, const char* event_type, const char* element_id, const char* message) {
     if (!event_logging_enabled) return;
     
-    // 🔧 SUPPRESSION: Plus d'affichage dans la console standard
+    // SUPPRESSION: Plus d'affichage dans la console standard
     // printf("[EVENT] [%s] [%s] [%s] : %s\n", 
     //        source ? source : "Unknown",
     //        event_type ? event_type : "Unknown", 
@@ -90,7 +90,7 @@ void ui_cleanup_fonts(void) {
 static int calculate_z_index_recursive(UINode* node, int base_z_index) {
     if (!node) return base_z_index;
     
-    // 🔧 FIX: Vérification directe du z-index au lieu de la fonction manquante
+    // FIX: Vérification directe du z-index au lieu de la fonction manquante
     if (node->element->style.z_index == 0) { // z-index implicite
         atomic_set_z_index(node->element, base_z_index);
         ui_log_event("UIComponent", "ZIndexCalculation", node->id, 
@@ -126,7 +126,7 @@ void ui_calculate_implicit_z_index(UITree* tree) {
 void ui_node_set_implicit_z_index(UINode* node, int base_z_index) {
     if (!node) return;
     
-    // 🔧 FIX: Vérification directe
+    // FIX: Vérification directe
     if (node->element->style.z_index == 0) { // Pas de z-index explicite
         atomic_set_z_index(node->element, base_z_index);
         ui_log_event("UIComponent", "ZIndexCalculation", node->id, "Implicit z-index set");
@@ -136,7 +136,7 @@ void ui_node_set_implicit_z_index(UINode* node, int base_z_index) {
 int ui_node_get_effective_z_index(UINode* node) {
     if (!node || !node->element) return 0;
     
-    // 🔧 FIX: Accès direct au style
+    // FIX: Accès direct au style
     return node->element->style.z_index;
 }
 
@@ -168,18 +168,18 @@ void ui_button_set_background_image(UINode* button, const char* image_path) {
     if (texture) {
         atomic_set_background_image(button->element, texture);
         
-        // 🔧 FIX PRINCIPAL: Forcer le mode "cover" par défaut pour les boutons
+        // FIX PRINCIPAL: Forcer le mode "cover" par défaut pour les boutons
         atomic_set_background_size_str(button->element, "cover");
         atomic_set_background_repeat_str(button->element, "no-repeat");
         
-        // 🔧 SUPPRESSION: Plus de logs verbeux pour le mode COVER
+        // SUPPRESSION: Plus de logs verbeux pour le mode COVER
         // char message[256];
         // snprintf(message, sizeof(message), 
         //         "[ui_components.c] Background image loaded with COVER mode for button '%s'",
         //         button->id ? button->id : "NoID");
         // ui_log_event("UIComponent", "ButtonStyle", button->id, message);
         
-        // 🔧 LOG SIMPLE et silencieux
+        // LOG SIMPLE et silencieux
         // printf("✅ Button '%s' background image set to COVER mode\n", button->id ? button->id : "NoID");
         
         ui_log_event("UIComponent", "ButtonStyle", button->id, "Background image applied with cover mode");
@@ -191,7 +191,7 @@ void ui_button_set_background_image(UINode* button, const char* image_path) {
 void ui_button_fix_text_rendering(UINode* button) {
     if (!button) return;
     
-    // 🔧 SUPPRESSION: Plus de logs verbeux
+    // SUPPRESSION: Plus de logs verbeux
     // ui_log_event("UIComponent", "ButtonFix", button->id, "Applying text rendering fixes");
     
     // Correction silencieuse
@@ -206,7 +206,7 @@ void ui_button_fix_text_rendering(UINode* button) {
 void ui_button_calculate_text_position(UINode* button) {
     if (!button) return;
     
-    // 🔧 FIX: Accès direct au style au lieu des fonctions manquantes
+    // FIX: Accès direct au style au lieu des fonctions manquantes
     int button_width = button->element->style.width;
     int button_height = button->element->style.height;
     
@@ -222,7 +222,7 @@ UINode* ui_div(UITree* tree, const char* id) {
     if (!tree) return NULL;
     
     UINode* node = ui_tree_create_node(tree, id, "div");
-    // 🔧 SUPPRESSION: Plus de logs de création
+    // SUPPRESSION: Plus de logs de création
     return node;
 }
 
@@ -293,7 +293,7 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
     return node;
 }
 
-// 🔧 FIX: Déplacer la fonction récursive AVANT son utilisation
+// FIX: Déplacer la fonction récursive AVANT son utilisation
 static void ui_tree_register_node_recursive(UINode* node, UITree* tree) {
     if (!node || !tree) return;
     
@@ -305,7 +305,7 @@ static void ui_tree_register_node_recursive(UINode* node, UITree* tree) {
         
         if (has_handlers) {
             atomic_register_with_event_manager(node->element, tree->event_manager);
-            printf("🔗 Node '%s' registered with EventManager\n", 
+            printf("Node '%s' registered with EventManager\n", 
                    node->id ? node->id : "NoID");
         }
     }
@@ -316,7 +316,7 @@ static void ui_tree_register_node_recursive(UINode* node, UITree* tree) {
     }
 }
 
-// 🆕 NOUVELLE FONCTION: Forcer le recalcul des positions avant enregistrement
+// NOUVELLE FONCTION: Forcer le recalcul des positions avant enregistrement
 void ui_tree_update_positions(UITree* tree) {
     if (!tree || !tree->root) {
         printf("Invalid tree for position update\n");
@@ -331,7 +331,7 @@ void ui_tree_update_positions(UITree* tree) {
     printf("Position recalculation completed\n");
 }
 
-// 🆕 NOUVELLE FONCTION: Enregistrer tous les boutons d'un arbre (AVEC POSITIONS FORCÉES)
+// NOUVELLE FONCTION: Enregistrer tous les boutons d'un arbre (AVEC POSITIONS FORCÉES)
 void ui_tree_register_all_events(UITree* tree) {
     if (!tree || !tree->event_manager) {
         printf("Invalid tree or no EventManager for registration\n");
@@ -340,7 +340,7 @@ void ui_tree_register_all_events(UITree* tree) {
     
     printf("Registering all UI elements with EventManager...\n");
     
-    // 🔧 FIX: Forcer le recalcul des positions AVANT l'enregistrement
+    // FIX: Forcer le recalcul des positions AVANT l'enregistrement
     ui_tree_update_positions(tree);
     
     // Parcourir récursivement tous les nœuds et enregistrer ceux qui ont des handlers
@@ -351,10 +351,10 @@ void ui_tree_register_all_events(UITree* tree) {
     printf("All UI elements registered with EventManager\n");
 }
 
-// 🆕 NOUVELLE FONCTION: Enregistrement manuel pour les boutons existants
+// NOUVELLE FONCTION: Enregistrement manuel pour les boutons existants
 void ui_button_register_events(UINode* button, UITree* tree) {
     if (!button || !tree || !tree->event_manager) {
-        printf("❌ Invalid parameters for ui_button_register_events\n");
+        printf("Invalid parameters for ui_button_register_events\n");
         return;
     }
     
@@ -375,10 +375,10 @@ void ui_button_register_events(UINode* button, UITree* tree) {
                 has_unhover ? "YES" : "NO");
         log_console_write("UIComponent", "ButtonRegistration", "ui_components.c", message);
         
-        printf("🔗 Button '%s' manually registered with EventManager\n", 
+        printf("Button '%s' manually registered with EventManager\n", 
                button->id ? button->id : "NoID");
     } else {
-        printf("⚠️ Button '%s' has no event handlers to register\n", 
+        printf("Button '%s' has no event handlers to register\n", 
                button->id ? button->id : "NoID");
     }
 }
@@ -429,11 +429,11 @@ UINode* ui_set_background_image(UINode* node, const char* image_path) {
                 if (texture) {
                     atomic_set_background_image(node->element, texture);
                     
-                    // 🔧 FIX: Définir cover par défaut pour TOUS les éléments
+                    // FIX: Définir cover par défaut pour TOUS les éléments
                     atomic_set_background_size_str(node->element, "cover");
                     atomic_set_background_repeat_str(node->element, "no-repeat");
                     
-                    // 🔧 SUPPRESSION: Plus de logs verbeux
+                    // SUPPRESSION: Plus de logs verbeux
                     // char message[256];
                     // snprintf(message, sizeof(message), 
                     //         "[ui_components.c] Background image set with COVER mode for '%s'",
@@ -479,7 +479,7 @@ UINode* ui_set_text_color(UINode* node, const char* color) {
 
 UINode* ui_center(UINode* node) {
     if (node) {
-        // 🔧 FIX: Obtenir les dimensions automatiquement depuis le window manager
+        // FIX: Obtenir les dimensions automatiquement depuis le window manager
         WindowDimensions dims = window_get_active_dimensions();
         
         if (node->element) {
@@ -502,7 +502,7 @@ UINode* ui_center(UINode* node) {
 
 UINode* ui_center_x(UINode* node) {
     if (node) {
-        // 🔧 FIX: Obtenir les dimensions automatiquement
+        // FIX: Obtenir les dimensions automatiquement
         WindowDimensions dims = window_get_active_dimensions();
         
         if (node->element) {
@@ -524,7 +524,7 @@ UINode* ui_center_x(UINode* node) {
 
 UINode* ui_center_y(UINode* node) {
     if (node) {
-        // 🔧 FIX: Obtenir les dimensions automatiquement
+        // FIX: Obtenir les dimensions automatiquement
         WindowDimensions dims = window_get_active_dimensions();
         
         if (node->element) {
@@ -652,7 +652,7 @@ void ui_button_set_pressed_style(UINode* button, const char* pressed_bg_color, c
 
 // === NOUVELLES FONCTIONS POUR FEEDBACK VISUEL ===
 
-// 🆕 Structure pour stocker la taille originale du bouton
+// Structure pour stocker la taille originale du bouton
 typedef struct {
     int original_width;
     int original_height;
@@ -660,7 +660,7 @@ typedef struct {
     bool scale_initialized;
 } ButtonScaleData;
 
-// 🆕 Obtenir ou créer les données de scale pour un bouton
+// Obtenir ou créer les données de scale pour un bouton
 static ButtonScaleData* get_button_scale_data(UINode* button) {
     if (!button || !button->element) return NULL;
     
@@ -677,7 +677,7 @@ static ButtonScaleData* get_button_scale_data(UINode* button) {
             
             atomic_set_custom_data(button->element, "scale_data", scale_data);
             
-            printf("🎯 Scale data initialized for button '%s': %dx%d\n", 
+            printf("Scale data initialized for button '%s': %dx%d\n", 
                    button->id ? button->id : "NoID",
                    scale_data->original_width, 
                    scale_data->original_height);
@@ -687,7 +687,7 @@ static ButtonScaleData* get_button_scale_data(UINode* button) {
     return scale_data;
 }
 
-// 🆕 Appliquer un facteur de scale à un bouton
+// Appliquer un facteur de scale à un bouton
 void ui_button_set_scale(UINode* button, float scale_factor) {
     if (!button) return;
     
@@ -712,7 +712,7 @@ void ui_button_set_scale(UINode* button, float scale_factor) {
            new_width, new_height);
 }
 
-// 🆕 Obtenir le scale actuel d'un bouton
+// Obtenir le scale actuel d'un bouton
 float ui_button_get_current_scale(UINode* button) {
     if (!button) return 1.0f;
     
@@ -720,22 +720,22 @@ float ui_button_get_current_scale(UINode* button) {
     return scale_data ? scale_data->current_scale : 1.0f;
 }
 
-// 🆕 Effet de scale hover (105%)
+// Effet de scale hover (105%)
 void ui_button_scale_hover(UINode* button) {
     ui_button_set_scale(button, 1.05f); // +5%
 }
 
-// 🆕 Effet de scale pressed (97%)
+// Effet de scale pressed (97%)
 void ui_button_scale_pressed(UINode* button) {
     ui_button_set_scale(button, 0.97f); // -3%
 }
 
-// 🆕 Effet de scale normal (100%)
+// Effet de scale normal (100%)
 void ui_button_scale_normal(UINode* button) {
     ui_button_set_scale(button, 1.0f); // Taille originale
 }
 
-// 🔧 MODIFICATION: Mettre à jour les fonctions existantes avec l'effet de scale
+// MODIFICATION: Mettre à jour les fonctions existantes avec l'effet de scale
 
 void ui_button_set_pressed_state(UINode* button, bool pressed) {
     if (!button) return;
@@ -792,7 +792,7 @@ void ui_button_reset_visual_state(UINode* button) {
     ui_log_event("UIComponent", "VisualState", button->id, "Button visual state reset to default with normal scale");
 }
 
-// 🔧 MODIFICATION: Mettre à jour les styles prédéfinis avec scale
+// MODIFICATION: Mettre à jour les styles prédéfinis avec scale
 
 void ui_button_apply_success_style(UINode* button) {
     if (!button) return;
@@ -859,13 +859,13 @@ void ui_set_text_size(UINode* node, int size) {
     }
 }
 
-// 🔧 FIX: Corriger le type de retour et l'implémentation
+// FIX: Corriger le type de retour et l'implémentation
 UINode* ui_set_font_size(UINode* node, int size) {
     if (node) {
         atomic_set_text_size(node->element, size);
         ui_log_event("UIComponent", "Style", node->id, "Font size set");
     }
-    return node;  // 🔧 FIX: Retourner le node pour permettre le chaînage
+    return node;  // FIX: Retourner le node pour permettre le chaînage
 }
 
 UINode* ui_add_class(UINode* node, const char* class_name) {
@@ -930,7 +930,7 @@ void ui_apply_style(UINode* node, const UIStyle* style) {
     ui_log_event("UIComponent", "Style", node->id, "Complete style applied");
 }
 
-// 🆕 NOUVELLES FONCTIONS pour align-self
+// NOUVELLES FONCTIONS pour align-self
 UINode* ui_set_align_self(UINode* node, const char* align_self) {
     if (node && align_self) {
         if (strcmp(align_self, "center-x") == 0) {
@@ -971,7 +971,7 @@ UINode* ui_set_align_self_center_both(UINode* node) {
     return node;
 }
 
-// 🆕 NOUVELLES FONCTIONS pour la gestion de l'overflow
+// NOUVELLES FONCTIONS pour la gestion de l'overflow
 
 UINode* ui_set_overflow(UINode* node, const char* overflow) {
     if (node && overflow) {
@@ -1024,11 +1024,11 @@ void ui_constrain_all_children(UINode* parent) {
     ui_log_event("UIComponent", "Layout", parent->id, "All children positions constrained to parent bounds");
 }
 
-// 🔧 FIX: Ajouter les déclarations forward manquantes
+// FIX: Ajouter les déclarations forward manquantes
 void ui_container_add_default_logo(UINode* container);
 void ui_container_add_default_subtitle(UINode* container);
 
-// 🔧 FIX: Implémenter les fonctions manquantes
+// FIX: Implémenter les fonctions manquantes
 void ui_container_add_default_logo(UINode* container) {
     if (!container) return;
     
@@ -1048,7 +1048,7 @@ void ui_container_add_default_logo(UINode* container) {
         if (logo) {
             ui_set_size(logo, 300, 80);
             
-            // 🆕 AJUSTER la position pour le padding augmenté (15px au lieu de 2px = +13px)
+            // AJUSTER la position pour le padding augmenté (15px au lieu de 2px = +13px)
             ui_set_position(logo, 0, 23); // 10px + 13px = 23px
             
             ui_set_align_self_center_x(logo);
@@ -1063,7 +1063,7 @@ void ui_container_add_default_logo(UINode* container) {
             ui_set_text_size(logo, 24);
             ui_set_text_align(logo, "center");
             
-            // 🆕 AJUSTER la position pour le padding augmenté
+            // AJUSTER la position pour le padding augmenté
             ui_set_position(logo, 0, 23); // 10px + 13px = 23px
             
             ui_set_align_self_center_x(logo);
@@ -1084,12 +1084,12 @@ void ui_container_add_default_subtitle(UINode* container) {
         ui_set_text_align(subtitle, "center");
         ui_set_text_style(subtitle, false, true);
         
-        // 🆕 AJUSTER la position pour le padding augmenté
+        // AJUSTER la position pour le padding augmenté
         ui_set_position(subtitle, 0, 111); // 98px + 13px = 111px
         
         ui_set_align_self_center_x(subtitle);
         
-        // 🆕 AUGMENTER la marge bottom pour plus d'espace
+        // AUGMENTER la marge bottom pour plus d'espace
         atomic_set_margin(subtitle->element, 0, 0, 20, 0); // 20px margin-bottom
         
         ui_append(container, subtitle);

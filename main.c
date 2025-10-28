@@ -5,9 +5,9 @@
 #include "src/core/core.h"
 #include "src/window/window.h"
 #include "src/utils/log_console.h"
-#include "src/scene/scene_registry.h"  // 🆕 AJOUT: Include du registre de scènes
+#include "src/scene/scene_registry.h"
 
-// Gestionnaire de signal pour un nettoyage propres
+// Signal handler for clean shutdown
 void signal_handler(int sig) {
     printf("\nSignal %d recu, fermeture propre...\n", sig);
 #ifdef ENABLE_LOG_CONSOLE
@@ -16,7 +16,7 @@ void signal_handler(int sig) {
     exit(sig);
 }
 
-// 🔧 SIMPLIFICATION MAJEURE: Remplacement de initialize_scenes par le registre
+// Initialize scenes using the registry system
 bool initialize_scenes_with_registry(GameCore* core) {
     printf("Initialisation des scenes via le registre automatique...\n");
     
@@ -26,13 +26,13 @@ bool initialize_scenes_with_registry(GameCore* core) {
         return false;
     }
     
-    // 🆕 ENREGISTREMENT AUTOMATIQUE via le registre
+    // Register all scenes automatically via registry
     if (!scene_registry_register_all(scene_manager)) {
         printf("Impossible d'enregistrer les scenes via scene_registry\n");
         return false;
     }
     
-    // 🆕 CONNEXION AUTOMATIQUE des événements pour toutes les scènes
+    // Connect events for all scenes automatically
     if (!scene_registry_connect_all_events(scene_manager, core)) {
         printf("Impossible de connecter les evenements via scene_registry\n");
         return false;
@@ -43,33 +43,30 @@ bool initialize_scenes_with_registry(GameCore* core) {
 }
 
 int main(int argc, char* argv[]) {
-    // Éviter les avertissements pour les paramètres non utilisés
+    // Avoid warnings for unused parameters
     (void)argc;
     (void)argv;
     
-    // Installer les gestionnaires de signaux
+    // Install signal handlers
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     
     printf("Demarrage de Fanorona...\n");
-    
+    printf("PRESENTED BY BOULDIMAS\n");
 #ifdef ENABLE_LOG_CONSOLE
-    // Initialiser la console de logs si le flag est activé
+    // Initialize log console if flag is enabled
     printf("Mode debug : Console de logs activee\n");
     if (!log_console_init()) {
         printf("Impossible d'initialiser la console de logs\n");
         printf("   Le jeu continuera sans console de logs separee\n");
     } else {
         printf("Console de logs initialisee\n");
-        printf("Deux fenetres vont s'ouvrir :\n");
-        printf("   1. Fenetre de jeu (principale)\n");
-        printf("   2. Console de logs (debug)\n");
     }
 #else
     printf("Mode normal : Console de logs desactivee\n");
 #endif
     
-    // Initialiser SDL
+    // Initialize SDL
     printf("Initialisation de SDL...\n");
     if (!window_init_sdl()) {
         printf("Erreur: Impossible d'initialiser SDL\n");
@@ -80,11 +77,11 @@ int main(int argc, char* argv[]) {
     }
     printf("SDL initialise\n");
     
-    // Initialiser les fenêtres globales EN PREMIER
+    // Initialize global windows first
     printf("Initialisation des fenetres...\n");
     window_initialize_global_windows();
     
-    // Vérifier que la fenêtre par défaut (mini) a été créée
+    // Verify that default window (mini) was created
     GameWindow* mini_window = use_mini_window();
     if (!mini_window) {
         printf("Erreur: Impossible de creer la fenetre par defaut\n");
@@ -96,36 +93,35 @@ int main(int argc, char* argv[]) {
     }
     printf("Fenetre de jeu creee (%dx%d)\n", mini_window->width, mini_window->height);
     
-    // 🆕 ACTIVER LE TRACKING SOURIS IMMÉDIATEMENT
+    // Activate mouse tracking immediately
 #ifdef ENABLE_LOG_CONSOLE
     if (log_console_is_enabled()) {
         log_console_set_mouse_tracking(true);
-        printf("Tracking souris activé dès maintenant\n");
-        printf("   → Déplacez la souris dans la fenêtre pour voir les logs\n");
+        printf("Tracking souris active\n");
         
-        // Test immédiat de la console de logs
+        // Immediate test of log console
         log_console_write("Main", "WindowReady", "main.c", 
-                         "[main.c] 🖼️ Game window ready - mouse tracking active");
+                         "[main.c]  Game window ready - mouse tracking active");
     }
 #endif
     
-    // Créer le core du jeu APRÈS que les fenêtres soient prêtes
-    printf("Création du core du jeu...\n");
+    // Create game core after windows are ready
+    printf("Creation du core du jeu...\n");
     GameCore* core = game_core_create();
     if (!core) {
-        printf("Erreur: Impossible de créer le core du jeu\n");
+        printf("Erreur: Impossible de creer le core du jeu\n");
         window_quit_sdl();
 #ifdef ENABLE_LOG_CONSOLE
         log_console_cleanup();
 #endif
         return -1;
     }
-    printf("Core du jeu créé\n");
+    printf("Core du jeu cree\n");
     
-    // Initialiser les scènes VIA LE REGISTRE
-    printf("Initialisation des scènes...\n");
+    // Initialize scenes via registry
+    printf("Initialisation des scenes...\n");
     if (!initialize_scenes_with_registry(core)) {
-        printf("Erreur: Échec de l'initialisation des scènes\n");
+        printf("Erreur: Echec de l'initialisation des scenes\n");
         game_core_destroy(core);
         window_quit_sdl();
 #ifdef ENABLE_LOG_CONSOLE
@@ -134,7 +130,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    // 🆕 Finaliser l'initialisation (connecter événements)
+    // Finalize initialization (connect events)
     printf("Finalisation de l'initialisation...\n");
     if (!game_core_finalize_init(core)) {
         printf("Erreur lors de la finalisation du core\n");
@@ -146,44 +142,40 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    printf("\nFanorona - Jeu démarré avec succès !\n");
+    printf("\nFanorona - Jeu demarre avec succes !\n");
     
 #ifdef ENABLE_LOG_CONSOLE
-    log_console_ui_event("Main", "Start", "game", "Fanorona démarré avec console de logs");
-    printf("Console de logs active dans fenêtre séparée\n");
-    printf("Les événements souris seront trackés dès l'entrée dans la fenêtre de jeu\n");
+    log_console_ui_event("Main", "Start", "game", "Fanorona demarre avec console de logs");
 #endif
     
-    printf("Boucle principale démarrée (60 FPS) - Approche classique mono-thread\n");
-    printf("   Événements traités directement dans la boucle principale\n");
-    printf("   SDL utilisé de manière standard et stable\n\n");
+    printf("Boucle principale demarree (60 FPS)\n\n");
     
-    // 🔧 BOUCLE PRINCIPALE ULTRA-SIMPLE (mono-thread classique)
+    // Main game loop - simple mono-thread approach
     while (game_core_is_running(core)) {
-        // 1. 🔧 Traiter les événements (mono-thread, simple)
+        // Handle events
         game_core_handle_events(core);
         
-        // 2. Mettre à jour le jeu
+        // Update game state
         game_core_update(core);
         
-        // 3. Rendre le jeu
+        // Render game
         game_core_render(core);
         
-        // 4. 🔧 Contrôle de framerate simple
+        // Simple framerate control
         SDL_Delay(16); // ~60 FPS
     }
     
-    // Nettoyage
+    // Cleanup
     printf("\nFermeture du jeu...\n");
     
 #ifdef ENABLE_LOG_CONSOLE
-    log_console_ui_event("Main", "Shutdown", "game", "Arrêt de Fanorona");
+    log_console_ui_event("Main", "Shutdown", "game", "Arret de Fanorona");
     log_console_cleanup();
 #endif
     
     game_core_destroy(core);
     window_quit_sdl();
     
-    printf("Fanorona fermé proprement\n");
+    printf("Fanorona ferme proprement\n");
     return 0;
 }

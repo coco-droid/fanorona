@@ -4,7 +4,7 @@
 #include "../ui_tree.h"
 #include "../../utils/asset_manager.h"
 #include "../../utils/log_console.h"
-#include "../../event/event.h"  // 🔧 FIX: Ajouter l'include pour EventManager
+#include "../../event/event.h"  // FIX: Ajouter l'include pour EventManager
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdlib.h>
@@ -91,13 +91,13 @@ static TTF_Font* optimum_get_default_font(void) {
         for (int i = 0; i < 6; i++) {
             optimum_default_font = TTF_OpenFont(font_paths[i], 16);
             if (optimum_default_font) {
-                ////printf("✅ [OPTIMUM] Police par défaut chargée: %s\n", font_paths[i]);
+                //printf("[OPTIMUM] Police par défaut chargée: %s\n", font_paths[i]);
                 break;
             }
         }
         
         if (!optimum_default_font) {
-            ////printf("❌ [OPTIMUM] ERREUR: Aucune police système trouvée!\n");
+            //printf("[OPTIMUM] ERREUR: Aucune police système trouvée!\n");
         }
     }
     
@@ -111,7 +111,7 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         return;
     }
     
-    // 🔧 FIX: Recalculer le layout AVANT le rendu pour synchroniser positions
+    // FIX: Recalculer le layout AVANT le rendu pour synchroniser positions
     atomic_calculate_layout(element);
     
     // Calculer les rectangles de rendu
@@ -188,7 +188,7 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         if (!font) {
             font = optimum_get_default_font();
             if (!font) {
-                /*printf("⚠️ [OPTIMUM] No font available for text rendering of '%s'\n", 
+                /*printf("[OPTIMUM] No font available for text rendering of '%s'\n", 
                        element->id ? element->id : "NoID");*/
                 goto skip_text_rendering;
             }
@@ -203,14 +203,14 @@ void optimum_render_element(AtomicElement* element, SDL_Renderer* renderer) {
         
         SDL_Surface* text_surface = TTF_RenderText_Blended(font, element->content.text, text_color);
         if (!text_surface) {
-            //printf("⚠️ [OPTIMUM] Failed to create text surface: %s\n", TTF_GetError());
+            //printf("[OPTIMUM] Failed to create text surface: %s\n", TTF_GetError());
             goto skip_text_rendering;
         }
         
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
         if (!text_texture) {
             SDL_FreeSurface(text_surface);
-            //printf("⚠️ [OPTIMUM] Failed to create text texture: %s\n", SDL_GetError());
+            //printf("[OPTIMUM] Failed to create text texture: %s\n", SDL_GetError());
             goto skip_text_rendering;
         }
         
@@ -270,7 +270,7 @@ void optimum_render_ui_tree(UITree* tree, SDL_Renderer* renderer) {
     // Rendre l'arbre UI complet en commençant par la racine
     optimum_render_element(tree->root->element, renderer);
     
-    // 🆕 RENDU DES HITBOXES après le rendu normal
+    // RENDU DES HITBOXES après le rendu normal
     if (tree->event_manager) {
         event_manager_render_hitboxes(tree->event_manager, renderer);
     }
@@ -280,7 +280,7 @@ void optimum_cleanup(void) {
     if (optimum_default_font) {
         TTF_CloseFont(optimum_default_font);
         optimum_default_font = NULL;
-        //printf("🧹 [OPTIMUM] Default font cleaned up\n");
+        //printf("[OPTIMUM] Default font cleaned up\n");
     }
 }
 
@@ -315,7 +315,7 @@ void optimum_render_performance_info(SDL_Renderer* renderer, int elements_render
     (void)renderer; // Éviter le warning unused parameter
     (void)elements_rendered; // Éviter le warning unused parameter
     (void)render_time_ms; // Éviter le warning unused parameter
-    //printf("🎯 [OPTIMUM] Rendered %d elements in %.2fms\n", elements_rendered, render_time_ms);
+    //printf("[OPTIMUM] Rendered %d elements in %.2fms\n", elements_rendered, render_time_ms);
 }
 
 // === SYSTÈME DE SYNCHRONISATION POST-CALCULS ===

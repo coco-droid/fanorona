@@ -78,7 +78,7 @@ void board_init(Board *b) {
         }
     }
 
-    // 🆕 Sauvegarder la référence globale pour l'IA
+    // Sauvegarder la référence globale pour l'IA
     if (!g_static_board_for_ai) {
         g_static_board_for_ai = b;
         printf("Board de reference globale defini pour l'IA\n");
@@ -122,12 +122,12 @@ void board_free(Board *b) {
         }
     }
     
-    // 🔧 FIX: Nettoyer les références dans les intersections
+    // FIX: Nettoyer les références dans les intersections
     for (int i = 0; i < NODES; i++) {
-        b->nodes[i].piece = NULL; // 🔧 Éviter les pointeurs pendants
+        b->nodes[i].piece = NULL; // Éviter les pointeurs pendants
     }
     
-    // 🔧 FIX: Réinitialiser le compteur
+    // FIX: Réinitialiser le compteur
     b->piece_count = 0;
     
     printf("[BOARD_FREE] Plateau nettoye completement\n");
@@ -141,5 +141,5 @@ void board_destroy(Board* board) {
     printf("[BOARD_DESTROY] Plateau detruit\n");
 }
 
-// 🆕 Board statique pour référence de voisinage (utilisé par l'IA)
+// Board statique pour référence de voisinage (utilisé par l'IA)
 Board* g_static_board_for_ai = NULL;

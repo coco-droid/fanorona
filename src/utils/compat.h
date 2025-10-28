@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Assurer la disponibilité de strdup
+// Ensure strdup availability
 #ifndef _GNU_SOURCE
 #ifndef _POSIX_C_SOURCE
-// Fonction strdup compatible si elle n'existe pas
+// Compatible strdup function if it doesn't exist
 static inline char* safe_strdup(const char* s) {
     if (!s) return NULL;
     size_t len = strlen(s) + 1;
@@ -18,7 +18,7 @@ static inline char* safe_strdup(const char* s) {
     return copy;
 }
 
-// Redéfinir strdup seulement si elle n'existe pas
+// Redefine strdup only if it doesn't exist
 #ifndef strdup
 #define strdup safe_strdup
 #endif

@@ -32,7 +32,7 @@ void event_manager_handle_event(EventManager* manager, SDL_Event* event);
 void event_manager_set_running(EventManager* manager, bool running);
 bool event_manager_is_running(EventManager* manager);
 
-// 🆕 HITBOX VISUALIZATION SUPPORT
+// HITBOX VISUALIZATION SUPPORT
 // Fonction pour permettre le rendu des hitboxes de tous les éléments enregistrés
 void event_manager_render_hitboxes(EventManager* manager, SDL_Renderer* renderer);
 

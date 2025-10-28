@@ -25,7 +25,7 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
-    // 🔧 FIX: Créer et INITIALISER la scène home immédiatement avec vérifications
+    // FIX: Créer et INITIALISER la scène home immédiatement avec vérifications
     printf("Creation de la scene home...\n");
     Scene* home_scene = create_home_scene();
     if (!home_scene) {
@@ -36,7 +36,7 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
-    // 🆕 Validate that scene has valid strings
+    // Validate that scene has valid strings
     if (!home_scene->id || !home_scene->name) {
         printf("Erreur: Scene home creee avec des chaines invalides\n");
         if (home_scene->cleanup) home_scene->cleanup(home_scene);
@@ -49,7 +49,7 @@ GameCore* game_core_create(void) {
     
     printf("Definition de la scene home comme scene courante...\n");
     if (!scene_manager_set_scene(core->scene_manager, home_scene)) {
-        printf("❌ Erreur: Impossible de définir la scène home\n");
+        printf("Erreur: Impossible de définir la scène home\n");
         // Nettoyer la scène créée
         if (home_scene->cleanup) home_scene->cleanup(home_scene);
         free(home_scene);
@@ -59,75 +59,75 @@ GameCore* game_core_create(void) {
         return NULL;
     }
     
-    // 🆕 Vérifier que la scène a été correctement définie
+    // Vérifier que la scène a été correctement définie
     Scene* verification_scene = scene_manager_get_current_scene(core->scene_manager);
     if (!verification_scene) {
-        printf("❌ Erreur: Scène non définie après scene_manager_set_scene\n");
+        printf("Erreur: Scène non définie après scene_manager_set_scene\n");
         scene_manager_destroy(core->scene_manager);
         event_manager_destroy(core->event_manager);
         free(core);
         return NULL;
     }
-    printf("✅ Scène home correctement définie (nom: '%s')\n", verification_scene->name);
+    printf("Scène home correctement définie (nom: '%s')\n", verification_scene->name);
     
-    // 🆕 INITIALISER la scène immédiatement
+    // INITIALISER la scène immédiatement
     if (verification_scene->init) {
-        printf("🔧 Initialisation de la scène home...\n");
+        printf("Initialisation de la scène home...\n");
         verification_scene->init(verification_scene);
         
         // Vérifier que l'initialisation a réussi (données créées)
         if (verification_scene->data) {
-            printf("✅ Scène home initialisée avec succès\n");
+            printf("Scène home initialisée avec succès\n");
         } else {
-            printf("⚠️ Scène initialisée mais données manquantes\n");
+            printf("Scène initialisée mais données manquantes\n");
         }
     } else {
-        printf("⚠️ Pas de fonction d'initialisation pour la scène\n");
+        printf("Pas de fonction d'initialisation pour la scène\n");
     }
     
     core->last_time = SDL_GetTicks();
     core->running = true;
     
-    printf("✅ Core créé avec scène home initialisée et vérifiée\n");
+    printf("Core créé avec scène home initialisée et vérifiée\n");
     
     return core;
 }
 
-// 🆕 Fonction pour finaliser l'initialisation (SIMPLIFIÉE)
+// Fonction pour finaliser l'initialisation (SIMPLIFIÉE)
 bool game_core_finalize_init(GameCore* core) {
     if (!core || !core->scene_manager) {
-        printf("❌ Core ou SceneManager NULL\n");
+        printf("Core ou SceneManager NULL\n");
         return false;
     }
     
-    // 🆕 FIX CRITIQUE: Associer le core au scene_manager
+    // FIX CRITIQUE: Associer le core au scene_manager
     extern void scene_manager_set_core(SceneManager* manager, GameCore* core);
     scene_manager_set_core(core->scene_manager, core);
     
     // Récupération de la scène courante
-    printf("🔍 Récupération de la scène courante...\n");
+    printf("Récupération de la scène courante...\n");
     Scene* current_scene = scene_manager_get_current_scene(core->scene_manager);
     
     if (!current_scene) {
-        printf("❌ Aucune scène courante trouvée\n");
+        printf("Aucune scène courante trouvée\n");
         return false;
     } else {
-        printf("✅ Scène courante trouvée: '%s'\n", current_scene->name ? current_scene->name : "sans nom");
+        printf("Scène courante trouvée: '%s'\n", current_scene->name ? current_scene->name : "sans nom");
     }
     
     // Créer un EventManager dédié pour la scène si elle n'en a pas déjà un
     if (!current_scene->event_manager) {
-        printf("🔧 Création d'un EventManager dédié pour la scène '%s'...\n", current_scene->name);
+        printf("Création d'un EventManager dédié pour la scène '%s'...\n", current_scene->name);
         current_scene->event_manager = event_manager_create();
         if (!current_scene->event_manager) {
-            printf("❌ Impossible de créer l'EventManager pour la scène\n");
+            printf("Impossible de créer l'EventManager pour la scène\n");
             return false;
         }
     }
     
     // Connexion des événements
     if (current_scene->data) {
-        printf("🔗 Connexion des événements de la scène '%s'...\n", current_scene->name);
+        printf("Connexion des événements de la scène '%s'...\n", current_scene->name);
         
         // Connecter les événements en fonction du type de scène
         if (strcmp(current_scene->id, "home") == 0) {
@@ -135,32 +135,32 @@ bool game_core_finalize_init(GameCore* core) {
         } else if (strcmp(current_scene->id, "menu") == 0) {
             menu_scene_connect_events(current_scene, core);
         } else {
-            printf("⚠️ Type de scène inconnu '%s', pas de connexion d'événements spécifique\n", current_scene->id);
+            printf("Type de scène inconnu '%s', pas de connexion d'événements spécifique\n", current_scene->id);
         }
         
-        printf("✅ Événements de la scène connectés\n");
+        printf("Événements de la scène connectés\n");
         
         // Assigner la scène à sa fenêtre cible
         WindowType target_window = current_scene->target_window;
         scene_manager_set_scene_for_window(core->scene_manager, current_scene, target_window);
-        printf("✅ Scène '%s' assignée à la fenêtre type %d\n", current_scene->name, target_window);
+        printf("Scène '%s' assignée à la fenêtre type %d\n", current_scene->name, target_window);
         
         // Debug: Vérifier combien d'éléments sont enregistrés
-        printf("🔍 Debug: Vérification des éléments enregistrés...\n");
+        printf("Debug: Vérification des éléments enregistrés...\n");
         log_console_debug_event_manager(current_scene->event_manager);
     } else {
-        printf("❌ Scène non initialisée\n");
+        printf("Scène non initialisée\n");
         return false;
     }
     
     // Activer le tracking souris
     log_console_set_mouse_tracking(true);
-    printf("🖱️ Tracking souris activé\n");
+    printf("Tracking souris activé\n");
     
     log_console_write("EventLoop", "SystemReady", "core.c", 
                      "[core.c] Event system ready with classic mono-thread approach");
     
-    printf("✅ Core complètement initialisé avec gestion d'événements mono-thread\n");
+    printf("Core complètement initialisé avec gestion d'événements mono-thread\n");
     return true;
 }
 
@@ -178,33 +178,33 @@ void game_core_destroy(GameCore* core) {
     free(core);
 }
 
-// 🔧 NOUVELLE FONCTION : Traitement simple mono-thread des événements
+// NOUVELLE FONCTION : Traitement simple mono-thread des événements
 void game_core_handle_events(GameCore* core) {
     if (!core) return;
     
     SDL_Event event;
     int events_processed = 0;
     
-    // 🔧 SIMPLE : Traiter TOUS les événements disponibles en mono-thread
+    // SIMPLE : Traiter TOUS les événements disponibles en mono-thread
     while (SDL_PollEvent(&event)) {
         events_processed++;
         
-        // 🔧 GESTION DIRECTE des événements critiques
+        // GESTION DIRECTE des événements critiques
         if (event.type == SDL_QUIT) {
-            // 🔧 SUPPRESSION: Log seulement pour QUIT
-            printf("🚪 SDL_QUIT reçu - Arrêt du jeu\n");
+            // SUPPRESSION: Log seulement pour QUIT
+            printf("SDL_QUIT reçu - Arrêt du jeu\n");
             core->running = false;
             return;
         }
         
         if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-            // 🔧 SUPPRESSION: Log seulement pour fermeture de fenêtre
-            printf("🚪 Fermeture de fenêtre - Arrêt du jeu\n");
+            // SUPPRESSION: Log seulement pour fermeture de fenêtre
+            printf("Fermeture de fenêtre - Arrêt du jeu\n");
             core->running = false;
             return;
         }
         
-        // 🔧 ROUTAGE SIMPLE par fenêtre active
+        // ROUTAGE SIMPLE par fenêtre active
         WindowType active_type = window_get_active_window();
         Scene* active_scene = scene_manager_get_active_scene_for_window(core->scene_manager, active_type);
         
@@ -235,7 +235,7 @@ EventManager* game_core_get_event_manager(GameCore* core) {
     return core ? core->event_manager : NULL;
 }
 
-// 🆕 Fonction pour obtenir le SceneManager
+//  Fonction pour obtenir le SceneManager
 SceneManager* game_core_get_scene_manager(GameCore* core) {
     return core ? core->scene_manager : NULL;
 }
@@ -259,19 +259,19 @@ void game_core_render(GameCore* core) {
     
     WindowType active_type = window_get_active_window();
     
-    // 🔧 FIX: Synchronisation stricte pour éviter le clignotement
+    // FIX: Synchronisation stricte pour éviter le clignotement
     switch (active_type) {
         case WINDOW_TYPE_MAIN: {
             GameWindow* main_window = use_main_window();
             if (main_window && main_window->renderer) {
-                // 🔧 Clear avec couleur de fond cohérente
+                // Clear avec couleur de fond cohérente
                 SDL_SetRenderDrawColor(main_window->renderer, 135, 206, 250, 255);
                 SDL_RenderClear(main_window->renderer);
                 
                 // Rendu de la scène (sans clear/present)
                 scene_manager_render_main(core->scene_manager);
                 
-                // 🔧 Present SEULEMENT à la fin
+                // Present SEULEMENT à la fin
                 SDL_RenderPresent(main_window->renderer);
             }
             break;
@@ -279,14 +279,14 @@ void game_core_render(GameCore* core) {
         case WINDOW_TYPE_MINI: {
             GameWindow* mini_window = use_mini_window();
             if (mini_window && mini_window->renderer) {
-                // 🔧 Clear avec couleur de fond cohérente
+                // Clear avec couleur de fond cohérente
                 SDL_SetRenderDrawColor(mini_window->renderer, 135, 206, 250, 255);
                 SDL_RenderClear(mini_window->renderer);
                 
                 // Rendu de la scène (sans clear/present)
                 scene_manager_render_mini(core->scene_manager);
                 
-                // 🔧 Present SEULEMENT à la fin
+                // Present SEULEMENT à la fin
                 SDL_RenderPresent(mini_window->renderer);
             }
             break;
@@ -295,7 +295,7 @@ void game_core_render(GameCore* core) {
             GameWindow* main_window = use_main_window();
             GameWindow* mini_window = use_mini_window();
             
-            // 🔧 Rendu séquentiel pour éviter les conflits
+            // Rendu séquentiel pour éviter les conflits
             if (main_window && main_window->renderer) {
                 SDL_SetRenderDrawColor(main_window->renderer, 135, 206, 250, 255);
                 SDL_RenderClear(main_window->renderer);

@@ -47,11 +47,11 @@ Scene* create_main_menu_scene(void) {
     Scene* scene = (Scene*)malloc(sizeof(Scene));
     if (!scene) return NULL;
     
-    // 🔧 FIX: Use strdup() instead of string literals
+    // FIX: Use strdup() instead of string literals
     scene->id = strdup("main_menu");
     scene->name = strdup("Menu Principal");
     
-    // 🔧 FIX: Check if strdup() succeeded
+    // FIX: Check if strdup() succeeded
     if (!scene->id || !scene->name) {
         if (scene->id) free(scene->id);
         if (scene->name) free(scene->name);
@@ -77,7 +77,7 @@ Scene* create_main_menu_scene(void) {
 void scene_destroy(Scene* scene) {
     if (!scene) return;
     
-    // 🔧 FIX: Only free if dynamically allocated
+    // FIX: Only free if dynamically allocated
     if (scene->id) free(scene->id);
     if (scene->name) free(scene->name);
     

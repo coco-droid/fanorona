@@ -9,7 +9,7 @@
 #define MCTS_EXPLORATION_CONSTANT 1.414f  // sqrt(2)
 #define MCTS_SIMULATION_DEPTH 50
 
-// 🆕 Créer un nœud MCTS
+// Créer un nœud MCTS
 static MCTSNode* mcts_create_node(BoardSnapshot* state, Move move, MCTSNode* parent, Player player) {
     MCTSNode* node = (MCTSNode*)calloc(1, sizeof(MCTSNode));
     if (!node) return NULL;
@@ -27,7 +27,7 @@ static MCTSNode* mcts_create_node(BoardSnapshot* state, Move move, MCTSNode* par
     return node;
 }
 
-// 🆕 Détruire récursivement l'arbre MCTS
+// Détruire récursivement l'arbre MCTS
 static void mcts_destroy_node(MCTSNode* node) {
     if (!node) return;
     
@@ -39,7 +39,7 @@ static void mcts_destroy_node(MCTSNode* node) {
     free(node);
 }
 
-// 🆕 Créer contexte MCTS
+// Créer contexte MCTS
 MCTSContext* mcts_create_context(int max_iterations) {
     MCTSContext* ctx = (MCTSContext*)calloc(1, sizeof(MCTSContext));
     if (!ctx) return NULL;
@@ -52,7 +52,7 @@ MCTSContext* mcts_create_context(int max_iterations) {
     return ctx;
 }
 
-// 🆕 Détruire contexte MCTS
+// Détruire contexte MCTS
 void mcts_destroy_context(MCTSContext* ctx) {
     if (!ctx) return;
     
@@ -63,7 +63,7 @@ void mcts_destroy_context(MCTSContext* ctx) {
     free(ctx);
 }
 
-// 🆕 Calculer UCB1 pour la sélection
+// Calculer UCB1 pour la sélection
 static float mcts_ucb1(MCTSNode* node, float exploration_constant) {
     if (node->visits == 0) return FLT_MAX;  // Nœuds non visités prioritaires
     
@@ -73,7 +73,7 @@ static float mcts_ucb1(MCTSNode* node, float exploration_constant) {
     return exploitation + exploration;
 }
 
-// 🆕 SÉLECTION: Descendre dans l'arbre selon UCB1
+// SÉLECTION: Descendre dans l'arbre selon UCB1
 MCTSNode* mcts_select(MCTSNode* node) {
     while (node->is_fully_expanded && node->num_children > 0) {
         // Choisir le meilleur enfant selon UCB1
@@ -94,7 +94,7 @@ MCTSNode* mcts_select(MCTSNode* node) {
     return node;
 }
 
-// 🆕 EXPANSION: Ajouter un nouvel enfant
+// EXPANSION: Ajouter un nouvel enfant
 MCTSNode* mcts_expand(MCTSNode* node) {
     if (ai_is_game_over_snapshot(&node->state)) {
         node->is_fully_expanded = true;
@@ -136,7 +136,7 @@ MCTSNode* mcts_expand(MCTSNode* node) {
     return node->children[0];  // Fallback
 }
 
-// 🆕 SIMULATION: Playout aléatoire rapide
+// SIMULATION: Playout aléatoire rapide
 float mcts_simulate(BoardSnapshot* state, Player ai_player) {
     BoardSnapshot sim_state = *state;
     Player current_player = ai_player;
@@ -148,7 +148,7 @@ float mcts_simulate(BoardSnapshot* state, Player ai_player) {
         
         if (move_count == 0) break;
         
-        // 🎲 Sélection aléatoire intelligente (biais vers captures)
+        // Sélection aléatoire intelligente (biais vers captures)
         int chosen_move = 0;
         int capture_count = 0;
         
@@ -191,7 +191,7 @@ float mcts_simulate(BoardSnapshot* state, Player ai_player) {
     return 0.5f + material_advantage * 0.5f;
 }
 
-// 🆕 BACKPROPAGATION: Remonter le résultat
+// BACKPROPAGATION: Remonter le résultat
 void mcts_backpropagate(MCTSNode* node, float reward) {
     while (node != NULL) {
         node->visits++;
@@ -201,13 +201,13 @@ void mcts_backpropagate(MCTSNode* node, float reward) {
     }
 }
 
-// 🆕 RECHERCHE MCTS PRINCIPALE
+// RECHERCHE MCTS PRINCIPALE
 Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations) {
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🎲 MONTE CARLO TREE SEARCH\n");
+    printf("║ MONTE CARLO TREE SEARCH\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 🔢 Itérations: %d\n", iterations);
-    printf("║ 🎨 Joueur: %s (W=%d, B=%d)\n", 
+    printf("║ Itérations: %d\n", iterations);
+    printf("║ Joueur: %s (W=%d, B=%d)\n", 
            ai->ai_player == WHITE ? "Blanc" : "Noir",
            snapshot->white_count, snapshot->black_count);
     
@@ -221,7 +221,7 @@ Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations) 
     Move dummy = {0};
     ctx->root = mcts_create_node(snapshot, dummy, NULL, ai->ai_player);
     
-    // 🔁 BOUCLE PRINCIPALE MCTS
+    // BOUCLE PRINCIPALE MCTS
     for (int i = 0; i < iterations; i++) {
         // 1. SÉLECTION
         MCTSNode* node = mcts_select(ctx->root);
@@ -236,7 +236,7 @@ Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations) 
         mcts_backpropagate(node, reward);
         
         if (i % 100 == 0 && i > 0) {
-            printf("║ 🔄 Progression: %d/%d itérations\n", i, iterations);
+            printf("║ Progression: %d/%d itérations\n", i, iterations);
         }
     }
     
@@ -249,7 +249,7 @@ Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations) 
         printf("║   %d. %d→%d: visits=%d, avg_reward=%.3f%s\n",
                i+1, child->move_from_parent.from_id, child->move_from_parent.to_id,
                child->visits, child->total_reward / (child->visits + 1),
-               child->move_from_parent.is_capture ? " 💥" : " 🚶");
+               child->move_from_parent.is_capture ? " [CAPTURE]" : " [MOVE]");
         
         if (child->visits > max_visits) {
             max_visits = child->visits;
@@ -260,7 +260,7 @@ Move mcts_find_best_move(AIEngine* ai, BoardSnapshot* snapshot, int iterations) 
     Move best_move = best_child ? best_child->move_from_parent : (Move){.from_id = -1, .to_id = -1};
     
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ ✅ MEILLEUR: %d → %d (visits=%d, winrate=%.1f%%)\n",
+    printf("║ MEILLEUR: %d → %d (visits=%d, winrate=%.1f%%)\n",
            best_move.from_id, best_move.to_id, max_visits,
            (best_child->total_reward / best_child->visits) * 100.0f);
     printf("╚═══════════════════════════════════════════════════════════╝\n\n");

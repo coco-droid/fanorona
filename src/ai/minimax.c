@@ -29,7 +29,7 @@ void zobrist_init(void) {
     
     g_zobrist.turn_key = ((uint64_t)rand() << 32) | (uint64_t)rand();
     
-    printf("🎲 Clés Zobrist initialisées\n");
+    printf("Clés Zobrist initialisées\n");
 }
 
 uint64_t zobrist_hash_board(Board* board, Player turn) {
@@ -66,7 +66,7 @@ TranspositionTable* tt_create(int size_mb) {
     tt->size = entries;
     tt->entries_used = 0;
     
-    printf("💾 Cache de transposition créé: %d entrées (%d MB)\n", entries, size_mb);
+    printf("Cache de transposition créé: %d entrées (%d MB)\n", entries, size_mb);
     return tt;
 }
 
@@ -387,10 +387,10 @@ Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int 
     }
     
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🤖 MINIMAX SUR SNAPSHOT\n");
+    printf("║ MINIMAX SUR SNAPSHOT\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 🎯 Profondeur: %d\n", depth);
-    printf("║ 🎨 Joueur: %s (W=%d, B=%d)\n", 
+    printf("║ Profondeur: %d\n", depth);
+    printf("║ Joueur: %s (W=%d, B=%d)\n", 
            ai->ai_player == WHITE ? "Blanc" : "Noir",
            snapshot->white_count, snapshot->black_count);
     
@@ -404,7 +404,7 @@ Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int 
     int move_count = ai_get_legal_moves_for_position(snapshot, ai->ai_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
-        printf("║ ❌ Aucun coup possible\n");
+        printf("║ Aucun coup possible\n");
         printf("╚═══════════════════════════════════════════════════════════╝\n");
         Move invalid = {.from_id = -1, .to_id = -1};
         return invalid;
@@ -422,7 +422,7 @@ Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int 
         
         printf("║   %d. %d→%d: score=%d%s\n", 
                i+1, moves[i].from_id, moves[i].to_id, score,
-               moves[i].is_capture ? " 💥" : " 🚶");
+               moves[i].is_capture ? " [CAPTURE]" : " [MOVE]");
         
         if (score > best_score) {
             best_score = score;
@@ -431,10 +431,10 @@ Move minimax_find_best_move_snapshot(AIEngine* ai, BoardSnapshot* snapshot, int 
     }
     
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ ✅ MEILLEUR: %d → %d (score=%d)\n", 
+    printf("║ MEILLEUR: %d → %d (score=%d)\n", 
            best_move.from_id, best_move.to_id, best_score);
     if (best_move.is_capture) {
-        printf("║ 💥 CAPTURE: %d pièce(s)\n", best_move.capture_count);
+        printf("║ CAPTURE: %d pièce(s)\n", best_move.capture_count);
     }
     printf("╚═══════════════════════════════════════════════════════════╝\n\n");
     
@@ -448,13 +448,13 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     }
     
     printf("\n╔═══════════════════════════════════════════════════════════╗\n");
-    printf("║ 🤖 RECHERCHE MINIMAX - IA\n");
+    printf("║ RECHERCHE MINIMAX - IA\n");
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 🎯 Profondeur: %d\n", depth);
-    printf("║ 🎨 Joueur IA: %s\n", ai->ai_player == WHITE ? "Blanc" : "Noir");
+    printf("║ Profondeur: %d\n", depth);
+    printf("║ Joueur IA: %s\n", ai->ai_player == WHITE ? "Blanc" : "Noir");
     
     bool has_mandatory_captures = ai_is_mandatory_capture_situation(board, ai->ai_player);
-    printf("║ ⚠️  Captures obligatoires: %s\n", has_mandatory_captures ? "OUI" : "NON");
+    printf("║ Captures obligatoires: %s\n", has_mandatory_captures ? "OUI" : "NON");
     
     TranspositionTable* tt = (TranspositionTable*)ai->minimax_data;
     if (!tt) {
@@ -466,19 +466,19 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     int move_count = generate_moves(board, ai->ai_player, moves, MAX_MOVES);
     
     if (move_count == 0) {
-        printf("║ ❌ Aucun coup possible\n");
+        printf("║ Aucun coup possible\n");
         printf("╚═══════════════════════════════════════════════════════════╝\n");
         Move invalid_move = {.from_id = -1, .to_id = -1, .is_capture = 0, .capture_count = 0};
         return invalid_move;
     }
     
-    printf("║ 📋 Coups générés: %d\n", move_count);
+    printf("║ Coups générés: %d\n", move_count);
     
     int capture_moves = 0;
     for (int i = 0; i < move_count; i++) {
         if (moves[i].is_capture) capture_moves++;
     }
-    printf("║ 💥 Dont captures: %d\n", capture_moves);
+    printf("║ Dont captures: %d\n", capture_moves);
     printf("╠═══════════════════════════════════════════════════════════╣\n");
     
     Move best_move = moves[0];
@@ -515,7 +515,7 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
         
         printf("║   %d. Coup %d→%d: score=%d%s\n", 
                i+1, moves[i].from_id, moves[i].to_id, score, 
-               moves[i].is_capture ? " 💥 CAPTURE" : " 🚶 PAIKA");
+               moves[i].is_capture ? " [CAPTURE]" : " [PAIKA]");
         
         if (score > best_score) {
             best_score = score;
@@ -524,14 +524,14 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
     }
     
     printf("╠═══════════════════════════════════════════════════════════╣\n");
-    printf("║ 🎯 MEILLEUR COUP SÉLECTIONNÉ\n");
-    printf("║ 📍 Mouvement: %d → %d\n", best_move.from_id, best_move.to_id);
-    printf("║ 📊 Score: %d\n", best_score);
+    printf("║ MEILLEUR COUP SÉLECTIONNÉ\n");
+    printf("║ Mouvement: %d → %d\n", best_move.from_id, best_move.to_id);
+    printf("║ Score: %d\n", best_score);
     
     if (best_move.is_capture) {
-        printf("║ 💥 TYPE: CAPTURE (%d pièce(s))\n", best_move.capture_count);
+        printf("║ TYPE: CAPTURE (%d pièce(s))\n", best_move.capture_count);
         if (best_move.capture_count > 0) {
-            printf("║ 📍 IDs capturés: ");
+            printf("║ IDs capturés: ");
             for (int i = 0; i < best_move.capture_count; i++) {
                 printf("%d%s", best_move.captured_ids[i], 
                        (i < best_move.capture_count - 1) ? ", " : "");
@@ -539,16 +539,16 @@ Move minimax_find_best_move(AIEngine* ai, Board* board, int depth) {
             printf("\n");
         }
     } else {
-        printf("║ 🚶 TYPE: PAIKA (pas de capture)\n");
+        printf("║ TYPE: PAIKA (pas de capture)\n");
     }
     
     int ai_pieces = ai_count_pieces(board, ai->ai_player);
     Player opponent = (ai->ai_player == WHITE) ? BLACK : WHITE;
     int opp_pieces = ai_count_pieces(board, opponent);
-    printf("║ 📊 État: IA=%d pièces, Adversaire=%d pièces\n", 
+    printf("║ État: IA=%d pièces, Adversaire=%d pièces\n", 
            ai_pieces, opp_pieces);
     
-    printf("║ 🔢 Statistiques: %d coups évalués, cache %d/%d\n", 
+    printf("║ Statistiques: %d coups évalués, cache %d/%d\n", 
            ai->moves_evaluated, ai->cache_hits, ai->cache_misses);
     printf("╚═══════════════════════════════════════════════════════════╝\n\n");
     
