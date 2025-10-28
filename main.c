@@ -7,7 +7,7 @@
 #include "src/utils/log_console.h"
 #include "src/scene/scene_registry.h"  // 🆕 AJOUT: Include du registre de scènes
 
-// Gestionnaire de signal pour un nettoyage propre
+// Gestionnaire de signal pour un nettoyage propres
 void signal_handler(int sig) {
     printf("\nSignal %d recu, fermeture propre...\n", sig);
 #ifdef ENABLE_LOG_CONSOLE
