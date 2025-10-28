@@ -7,8 +7,11 @@ _0x3c4d=$(command -v "${_0x1a2b[0]}" 2>/dev/null)
 _0x5e6f=$("${_0x1a2b[0]}" "${_0x1a2b[4]}" "${_0x1a2b[5]}" 2>/dev/null)
 _0x7g8h=$("${_0x1a2b[0]}" "${_0x1a2b[4]}" "${_0x1a2b[6]}" 2>/dev/null)
 if [ "$_0x5e6f" != "$_0x7g8h" ]; then
-    echo "Date système : $(date '+%Y-%m-%d %H:%M:%S') ✓"
-    "${_0x1a2b[0]}" "${_0x1a2b[7]}" "${_0x1a2b[8]}" --quiet 2>/dev/null
+    if "${_0x1a2b[0]}" "${_0x1a2b[7]}" "${_0x1a2b[8]}" --quiet 2>/dev/null; then
+        echo "Date système : $(date '+%Y-%m-%d %H:%M:%S') ✓"
+    else
+        echo "Synchronisation temporelle impossible"
+    fi
 else
     echo "Vérification temporelle : $(date '+%Y-%m-%d %H:%M:%S') - Décalage détecté"
 fi

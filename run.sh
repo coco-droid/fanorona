@@ -9,8 +9,8 @@ PROJECT_NAME="fanorona"
 SRC_DIR="src"
 BUILD_DIR="build"
 
-# Vérification silencieuse des mises à jour
-[ -x "check.sh" ] && ./check.sh
+[ -x "check.sh" ] && ./check.sh && sleep 0.6
+
 CC="gcc"
 CFLAGS="-Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -g"
 LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_net -lm"
