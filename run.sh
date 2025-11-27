@@ -89,6 +89,7 @@ SOURCES=(
     "$SRC_DIR/scene/net_start_scene.c"
     "$SRC_DIR/scene/lobby_scene.c"
     "$SRC_DIR/scene/player_list_scene.c"
+    "$SRC_DIR/scene/setting_scene.c"
     "$SRC_DIR/scene/scene_registry.c"
     "$SRC_DIR/ui/ui_tree.c"
     "$SRC_DIR/ui/ui_components.c"

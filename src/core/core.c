@@ -182,35 +182,55 @@ void game_core_destroy(GameCore* core) {
 void game_core_handle_events(GameCore* core) {
     if (!core) return;
     
-    SDL_Event event;
-    int events_processed = 0;
+    WindowEvent window_event;
     
-    // SIMPLE : Traiter TOUS les événements disponibles en mono-thread
-    while (SDL_PollEvent(&event)) {
-        events_processed++;
+    // 🔧 FIX: Utiliser window_poll_events pour avoir le contexte de fenêtre
+    while (window_poll_events(&window_event)) {
         
         // GESTION DIRECTE des événements critiques
-        if (event.type == SDL_QUIT) {
-            // SUPPRESSION: Log seulement pour QUIT
+        if (window_event.sdl_event.type == SDL_QUIT) {
             printf("SDL_QUIT reçu - Arrêt du jeu\n");
             core->running = false;
             return;
         }
         
-        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-            // SUPPRESSION: Log seulement pour fermeture de fenêtre
-            printf("Fermeture de fenêtre - Arrêt du jeu\n");
+        if (window_event.sdl_event.type == SDL_WINDOWEVENT && 
+            window_event.sdl_event.window.event == SDL_WINDOWEVENT_CLOSE) {
+            
+            // 🆕 GESTION INTELLIGENTE DU MULTI-FENÊTRAGE
+            // Si on est en mode BOTH (2 fenêtres), on ferme juste la fenêtre concernée
+            if (game_core_get_active_window_type(core) == WINDOW_TYPE_BOTH) {
+                if (window_event.window_type == WINDOW_TYPE_MINI) {
+                    printf("❎ Fermeture de la fenêtre MINI demandée -> Bascule vers MAIN\n");
+                    
+                    // Désactiver la scène de la fenêtre fermée
+                    Scene* mini_scene = scene_manager_get_active_scene_for_window(core->scene_manager, WINDOW_TYPE_MINI);
+                    if (mini_scene) mini_scene->active = false;
+                    
+                    game_core_switch_to_main_window(core);
+                    return; // Continuer l'exécution
+                } 
+                else if (window_event.window_type == WINDOW_TYPE_MAIN) {
+                    printf("❎ Fermeture de la fenêtre MAIN demandée -> Bascule vers MINI\n");
+                    
+                    // Désactiver la scène de la fenêtre fermée
+                    Scene* main_scene = scene_manager_get_active_scene_for_window(core->scene_manager, WINDOW_TYPE_MAIN);
+                    if (main_scene) main_scene->active = false;
+                    
+                    game_core_switch_to_mini_window(core);
+                    return; // Continuer l'exécution
+                }
+            }
+            
+            // Sinon (une seule fenêtre), on quitte le jeu
+            printf("Fermeture de fenêtre unique - Arrêt du jeu\n");
             core->running = false;
             return;
         }
         
-        // ROUTAGE SIMPLE par fenêtre active
-        WindowType active_type = window_get_active_window();
-        Scene* active_scene = scene_manager_get_active_scene_for_window(core->scene_manager, active_type);
-        
-        if (active_scene && active_scene->event_manager) {
-            // Transmettre directement à l'EventManager de la scène
-            event_manager_handle_event(active_scene->event_manager, &event);
+        // 🔧 FIX: Dispatcher via le SceneManager qui routera vers la bonne scène
+        if (core->scene_manager) {
+            scene_manager_dispatch_event(core->scene_manager, &window_event);
         }
     }
 }
@@ -297,17 +317,30 @@ void game_core_render(GameCore* core) {
             
             // Rendu séquentiel pour éviter les conflits
             if (main_window && main_window->renderer) {
-                SDL_SetRenderDrawColor(main_window->renderer, 135, 206, 250, 255);
-                SDL_RenderClear(main_window->renderer);
-                scene_manager_render_main(core->scene_manager);
-                SDL_RenderPresent(main_window->renderer);
+                // 🔧 FIX: Vérifier s'il y a une scène active avant de clear/render pour éviter l'écran bleu vide
+                Scene* main_scene = scene_manager_get_active_scene_for_window(core->scene_manager, WINDOW_TYPE_MAIN);
+                if (main_scene && main_scene->active) {
+                    // 🔧 FIX: NE PAS CLEAR la fenêtre principale en mode BOTH
+                    // Cela permet de garder le contenu visible même si le rendu échoue ou si on veut un effet de superposition
+                    // SDL_SetRenderDrawColor(main_window->renderer, 0, 0, 0, 255);
+                    // SDL_RenderClear(main_window->renderer);
+                    
+                    scene_manager_render_main(core->scene_manager);
+                    SDL_RenderPresent(main_window->renderer);
+                }
             }
             
             if (mini_window && mini_window->renderer) {
-                SDL_SetRenderDrawColor(mini_window->renderer, 135, 206, 250, 255);
-                SDL_RenderClear(mini_window->renderer);
-                scene_manager_render_mini(core->scene_manager);
-                SDL_RenderPresent(mini_window->renderer);
+                // 🔧 FIX: Vérifier s'il y a une scène active avant de clear/render
+                Scene* mini_scene = scene_manager_get_active_scene_for_window(core->scene_manager, WINDOW_TYPE_MINI);
+                if (mini_scene && mini_scene->active) {
+                    // Pour la fenêtre active (Mini), on clear toujours
+                    SDL_SetRenderDrawColor(mini_window->renderer, 0, 0, 0, 255);
+                    SDL_RenderClear(mini_window->renderer);
+                    
+                    scene_manager_render_mini(core->scene_manager);
+                    SDL_RenderPresent(mini_window->renderer);
+                }
             }
             break;
         }

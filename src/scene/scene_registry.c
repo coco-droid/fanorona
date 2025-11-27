@@ -1,5 +1,6 @@
 #include "scene_registry.h"
 #include "scene.h"
+#include "../ui/ui_components.h" // 🆕 AJOUT
 #include "../utils/log_console.h"
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +21,7 @@ static SceneFactory factories[] = {
     create_net_start_scene,
     create_lobby_scene,
     create_player_list_scene,  // 🆕 ADD
+    create_setting_scene,      // 🆕 ADD
     NULL
 };
 
@@ -28,6 +30,9 @@ bool scene_registry_register_all(SceneManager* manager) {
         printf("❌ scene_registry: SceneManager NULL\n");
         return false;
     }
+
+    // 🆕 Configurer le SceneManager global pour les composants UI (avant l'init des scènes)
+    ui_set_global_scene_manager(manager);
 
     int registered = 0;
     Scene* home_scene = NULL;
@@ -104,6 +109,8 @@ bool scene_registry_connect_all_events(SceneManager* manager, GameCore* core) {
         return false;
     }
 
+    // (Déplacé vers register_all)
+
     Scene* active_scene = scene_manager_get_current_scene(manager);
     if (!active_scene) {
         printf("❌ scene_registry: Aucune scène active à connecter\n");
@@ -143,6 +150,8 @@ bool scene_registry_connect_all_events(SceneManager* manager, GameCore* core) {
             lobby_scene_connect_events(active_scene, core);
         } else if (strcmp(active_scene->id, "player_list") == 0) {  // 🆕 ADD
             player_list_scene_connect_events(active_scene, core);
+        } else if (strcmp(active_scene->id, "setting") == 0) {      // 🆕 ADD
+            setting_scene_connect_events(active_scene, core);
         } else {
             printf("⚠️ scene_registry: type de scène '%s' inconnu, pas de connexion d'événements spécifique\n", 
                    active_scene->id);

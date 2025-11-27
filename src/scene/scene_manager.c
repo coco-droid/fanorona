@@ -84,11 +84,21 @@ bool scene_manager_set_scene(SceneManager* manager, Scene* scene) {
     // 🔧 FIX CRITIQUE: Ne pas libérer la mémoire des scènes enregistrées !
     // Les scènes enregistrées sont gérées par le SceneManager, pas par cette fonction
     if (manager->current_scene && manager->current_scene != scene) {
-        printf("🧹 Désactivation de la scène précédente...\n");
-        if (manager->current_scene->cleanup) {
-            manager->current_scene->cleanup(manager->current_scene);
+        // 🆕 FIX: Vérifier si la scène est encore active dans une fenêtre avant de la nettoyer
+        bool is_still_active_in_window = false;
+        if (manager->active_scenes[WINDOW_TYPE_MAIN] == manager->current_scene) is_still_active_in_window = true;
+        if (manager->active_scenes[WINDOW_TYPE_MINI] == manager->current_scene) is_still_active_in_window = true;
+        
+        if (!is_still_active_in_window) {
+            printf("🧹 Désactivation de la scène précédente...\n");
+            if (manager->current_scene->cleanup) {
+                manager->current_scene->cleanup(manager->current_scene);
+            }
+            manager->current_scene->active = false;
+        } else {
+            printf("🔒 Scène précédente '%s' maintenue active (utilisée dans une fenêtre)\n", 
+                   manager->current_scene->name);
         }
-        manager->current_scene->active = false;
     }
     
     manager->current_scene = scene;
@@ -124,7 +134,26 @@ void scene_manager_transition_to(SceneManager* manager, Scene* new_scene) {
 void scene_manager_update(SceneManager* manager, float delta_time) {
     if (!manager) return;
     
-    if (manager->current_scene && manager->current_scene->active) {
+    // 🆕 UPDATE MULTI-FENÊTRES : Mettre à jour toutes les scènes actives
+    
+    // 1. Mettre à jour la scène MAIN si elle est active
+    Scene* main_scene = manager->active_scenes[WINDOW_TYPE_MAIN];
+    if (main_scene && main_scene->active) {
+        main_scene->update(main_scene, delta_time);
+    }
+    
+    // 2. Mettre à jour la scène MINI si elle est active
+    Scene* mini_scene = manager->active_scenes[WINDOW_TYPE_MINI];
+    if (mini_scene && mini_scene->active) {
+        // Éviter la double mise à jour si c'est la même scène (cas rare mais possible)
+        if (mini_scene != main_scene) {
+            mini_scene->update(mini_scene, delta_time);
+        }
+    }
+    
+    // 3. Fallback pour current_scene si elle n'est pas dans les slots actifs (transition/init)
+    if (manager->current_scene && manager->current_scene->active && 
+        manager->current_scene != main_scene && manager->current_scene != mini_scene) {
         manager->current_scene->update(manager->current_scene, delta_time);
     }
 }
@@ -151,7 +180,10 @@ void scene_manager_render_main(SceneManager* manager) {
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MAIN);
 
     if (scene && scene->active && scene->render) {
-        scene->render(scene, main_window);
+        // 🔧 FIX: Vérification de sécurité supplémentaire
+        if (scene->target_window == WINDOW_TYPE_MAIN || scene->target_window == WINDOW_TYPE_BOTH) {
+            scene->render(scene, main_window);
+        }
     }
 }
 
@@ -167,7 +199,10 @@ void scene_manager_render_mini(SceneManager* manager) {
     Scene* scene = scene_manager_get_active_scene_for_window(manager, WINDOW_TYPE_MINI);
 
     if (scene && scene->active && scene->render) {
-        scene->render(scene, mini_window);
+        // 🔧 FIX: Vérification de sécurité supplémentaire
+        if (scene->target_window == WINDOW_TYPE_MINI || scene->target_window == WINDOW_TYPE_BOTH) {
+            scene->render(scene, mini_window);
+        }
     }
 }
 
@@ -186,7 +221,15 @@ Scene* scene_manager_get_active_scene_for_window(SceneManager* manager, WindowTy
         return manager->active_scenes[window_type];
     }
     
-    return manager->current_scene;
+    // 🔧 FIX: Fallback strict - ne retourner current_scene que si elle correspond au type de fenêtre demandé
+    // 🆕 AJOUT: Supporter aussi WINDOW_TYPE_BOTH si la scène est conçue pour les deux
+    if (manager->current_scene && 
+        (manager->current_scene->target_window == window_type || 
+         manager->current_scene->target_window == WINDOW_TYPE_BOTH)) {
+        return manager->current_scene;
+    }
+    
+    return NULL;
 }
 
 bool scene_manager_set_scene_for_window(SceneManager* manager, Scene* scene, WindowType window_type) {
@@ -265,18 +308,51 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
     
     switch (option) {
         case SCENE_TRANSITION_REPLACE:
-            if (old_scene) {
-                old_scene->active = false;
-            }
-            
+        case SCENE_TRANSITION_NONE: // 🆕 Traiter NONE comme REPLACE
+        case SCENE_TRANSITION_FADE: // 🆕 Traiter FADE comme REPLACE (pour l'instant)
             manager->current_scene = target_scene;
             
-            scene_manager_set_scene_for_window(manager, target_scene, source_window_type);
-            if (target_window != source_window_type) {
-                scene_manager_set_scene_for_window(manager, target_scene, target_window);
-            }
+            // 🔧 FIX: Assigner la scène UNIQUEMENT à sa fenêtre cible
+            // L'ancien code écrasait active_scenes[source_window] même si la cible était différente
+            scene_manager_set_scene_for_window(manager, target_scene, target_window);
             
-            window_set_active_window(target_window);
+            // 🔧 FIX: Gestion intelligente des fenêtres pour le multi-fenêtrage
+            if (target_window == WINDOW_TYPE_MINI) {
+                // Vérifier si on doit garder la fenêtre principale active (si on vient de MAIN/BOTH ou si une scène MAIN est déjà active)
+                bool keep_main_active = (source_window_type == WINDOW_TYPE_MAIN || 
+                                       source_window_type == WINDOW_TYPE_BOTH || 
+                                       manager->active_scenes[WINDOW_TYPE_MAIN] != NULL);
+                
+                if (keep_main_active) {
+                    // Si on ouvre une Mini depuis Main ou Both, on force le mode BOTH pour garder le fond (Jeu) visible
+                    printf("🔀 Transition vers Mini : Mode BOTH maintenu/activé pour garder le fond\n");
+                    window_set_active_window(WINDOW_TYPE_BOTH);
+                    
+                    // 🔧 CRITIQUE: S'assurer que la scène MAIN reste active
+                    if (manager->active_scenes[WINDOW_TYPE_MAIN]) {
+                        manager->active_scenes[WINDOW_TYPE_MAIN]->active = true;
+                        printf("✅ Scène MAIN '%s' maintenue active\n", manager->active_scenes[WINDOW_TYPE_MAIN]->name);
+                    }
+                    
+                    // Si on remplace une scène Mini existante (ex: Settings -> Profile), on la désactive
+                    if (old_scene && old_scene->target_window == WINDOW_TYPE_MINI) {
+                        old_scene->active = false;
+                    }
+                    // NOTE: On ne désactive PAS old_scene si c'est la scène Main (Jeu), elle reste visible
+                } else {
+                    // Cas Mini -> Mini sans Main actif
+                    window_set_active_window(WINDOW_TYPE_MINI);
+                    if (old_scene) old_scene->active = false;
+                }
+            } else {
+                // Cas standard (Main->Main, Mini->Main, etc.) : on bascule vers la fenêtre cible
+                window_set_active_window(target_window);
+                
+                // On désactive l'ancienne scène car on change de contexte complet
+                if (old_scene) {
+                    old_scene->active = false;
+                }
+            }
             break;
             
         case SCENE_TRANSITION_OPEN_NEW_WINDOW:
@@ -350,6 +426,8 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             lobby_scene_connect_events(target_scene, manager->core);
         } else if (strcmp(scene_id, "player_list") == 0) {  // 🆕 Ajout de player_list_scene
             player_list_scene_connect_events(target_scene, manager->core);
+        } else if (strcmp(scene_id, "setting") == 0) {      // 🆕 Ajout de setting_scene
+            setting_scene_connect_events(target_scene, manager->core);
         } else {
             printf("⚠️ Pas de fonction de connexion pour '%s'\n", scene_id);
         }
@@ -366,9 +444,21 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
 void scene_manager_dispatch_event(SceneManager* manager, WindowEvent* event) {
     if (!manager || !event) return;
     
-    Scene* current = scene_manager_get_current_scene(manager);
-    if (current && current->event_manager) {
-        event_manager_handle_event(current->event_manager, &event->sdl_event);
+    // 🔧 FIX: Router l'événement vers la scène correspondant à la fenêtre source
+    Scene* target_scene = NULL;
+    
+    if (event->is_valid) {
+        // Essayer de trouver la scène associée à la fenêtre de l'événement
+        target_scene = scene_manager_get_active_scene_for_window(manager, event->window_type);
+    }
+    
+    // Fallback sur la scène courante si non trouvé ou événement global
+    if (!target_scene) {
+        target_scene = scene_manager_get_current_scene(manager);
+    }
+    
+    if (target_scene && target_scene->event_manager) {
+        event_manager_handle_event(target_scene->event_manager, &event->sdl_event);
     }
 }
 

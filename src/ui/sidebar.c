@@ -5,11 +5,22 @@
 #include "../utils/log_console.h"
 #include "../window/window.h"      
 #include "../utils/asset_manager.h" 
+#include "../scene/scene.h" // 🔧 FIX: Include scene.h for SCENE_TRANSITION constants
+#include "components/ui_link.h" // 🆕 Import ui_link
 #include "../pions/pions.h"  // 🆕 Import pour GamePlayer
 #include "../stats/game_stats.h"  // 🔧 FIX: Add missing include for PlayerStats
+#include "../logic/logic.h" // 🆕 Import logic for pause functions
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// 🆕 Prototypes pour les fonctions de pause (si absentes de logic.h)
+void game_logic_toggle_pause(GameLogic* logic);
+void game_logic_set_pause(GameLogic* logic, bool paused);
+
+// 🔧 FIX: Forward declaration for the pause handler
+static void on_pause_click(void* element, SDL_Event* event);
+static void on_settings_click(UINode* node); // 🆕 Forward declaration
 
 // === SIDEBAR COMPONENT ===
 
@@ -396,7 +407,7 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
     UINode* controls_container = ui_div(sidebar->tree, "controls-container");
     if (!controls_container) return;
     
-    SET_SIZE(controls_container, 218, 150); // 🔧 FIX: Hauteur réduite (170->150)
+    SET_SIZE(controls_container, 218, 160); // 🔧 FIX: Hauteur ajustée (150->160)
     
     SDL_Texture* container_bg = NULL;
     GameWindow* window = use_main_window();
@@ -416,19 +427,22 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
     
     ui_set_display_flex(controls_container);
     ui_set_flex_direction(controls_container, "column");
-    ui_set_flex_gap(controls_container, 8); // 🔧 FIX: Gap réduit
-    atomic_set_padding(controls_container->element, 8, 8, 8, 8); // 🔧 FIX: Padding réduit
+    ui_set_flex_gap(controls_container, 12); // 🔧 FIX: Gap augmenté (8->12)
+    atomic_set_padding(controls_container->element, 12, 10, 12, 10); // 🔧 FIX: Padding ajusté
     
     // === RANGÉE DU HAUT (Pause + Analyse) ===
     UINode* top_row = ui_div(sidebar->tree, "controls-top-row");
     if (top_row) {
-        SET_SIZE(top_row, 202, 65); // 🔧 FIX: Hauteur réduite
+        SET_SIZE(top_row, 202, 60); // 🔧 FIX: Hauteur ajustée
         ui_set_display_flex(top_row);
         ui_set_flex_direction(top_row, "row");
         ui_set_justify_content(top_row, "space-between");
         
         UINode* pause_btn = ui_sidebar_create_control_button(sidebar->tree, "pause-btn", "pause.svg", "PAUSE", false);
-        if (pause_btn) APPEND(top_row, pause_btn);
+        if (pause_btn) {
+            atomic_set_click_handler(pause_btn->element, on_pause_click);
+            APPEND(top_row, pause_btn);
+        }
         
         UINode* analysis_btn = ui_sidebar_create_control_button(sidebar->tree, "analysis-btn", "sheet.svg", "ANALYSE", false);
         if (analysis_btn) APPEND(top_row, analysis_btn);
@@ -439,29 +453,39 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
     // === RANGÉE DU BAS (Paramètres + Quit) ===
     UINode* bottom_row = ui_div(sidebar->tree, "controls-bottom-row");
     if (bottom_row) {
-        SET_SIZE(bottom_row, 202, 65); // 🔧 FIX: Hauteur réduite
+        SET_SIZE(bottom_row, 202, 60); // 🔧 FIX: Hauteur ajustée
         ui_set_display_flex(bottom_row);
         ui_set_flex_direction(bottom_row, "row");
         ui_set_justify_content(bottom_row, "space-between");
         
         UINode* settings_btn = ui_sidebar_create_control_button(sidebar->tree, "settings-btn", "setting.svg", "PARAM", false);
-        if (settings_btn) APPEND(bottom_row, settings_btn);
+        if (settings_btn) {
+            ui_link_attach_to_node(settings_btn, "setting");
+            ui_link_set_target_window(settings_btn, WINDOW_TYPE_MINI);
+            ui_link_set_transition(settings_btn, SCENE_TRANSITION_OPEN_NEW_WINDOW); // 🔧 CHANGED: OPEN_NEW_WINDOW
+            ui_link_set_click_handler(settings_btn, on_settings_click); // 🆕 Custom handler
+            APPEND(bottom_row, settings_btn);
+        }
         
         UINode* quit_btn = ui_sidebar_create_control_button(sidebar->tree, "quit-btn", "leave.svg", "QUIT", true);
-        if (quit_btn) APPEND(bottom_row, quit_btn);
+        if (quit_btn) {
+            ui_link_attach_to_node(quit_btn, "menu");
+            ui_link_set_transition(quit_btn, SCENE_TRANSITION_FADE);
+            APPEND(bottom_row, quit_btn);
+        }
         
         APPEND(controls_container, bottom_row);
     }
     
     APPEND(sidebar, controls_container);
-    ui_log_event("UIComponent", "SidebarControls", sidebar->id, "Controls with proper sizing");
+    ui_log_event("UIComponent", "SidebarControls", sidebar->id, "Controls with proper sizing and links");
 }
 
 UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const char* icon_svg, const char* text, bool is_prominent) {
     UINode* button = ui_div(tree, id);
     if (!button) return NULL;
     
-    SET_SIZE(button, 95, 55);
+    SET_SIZE(button, 95, 60); // 🔧 FIX: Hauteur augmentée (55->60)
     
     SDL_Texture* btn_bg = NULL;
     GameWindow* window = use_main_window();
@@ -490,7 +514,7 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     ui_set_flex_direction(button, "row");
     ui_set_justify_content(button, "center");
     ui_set_align_items(button, "center");
-    ui_set_flex_gap(button, 4); // Gap between icon and text
+    ui_set_flex_gap(button, 8); // 🔧 FIX: Gap augmenté (4->8)
     
     SDL_Texture* icon_texture = NULL;
     if (window) {
@@ -500,17 +524,16 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
         }
     }
     
-    // 🔧 CALCULATION: Button=95px, gap=4px, icon=16px, text~50px => Total=70px (fits with 25px margin)
     if (icon_texture) {
         UINode* icon_img = ui_image(tree, "btn-icon", icon_texture);
         if (icon_img) {
-            SET_SIZE(icon_img, 16, 16); // Balanced size
+            SET_SIZE(icon_img, 24, 24); // 🔧 FIX: Icône agrandie (16->24)
             APPEND(button, icon_img);
         }
     }
     
-    // 🔧 CALCULATION: Text size 9px is readable and fits in ~50px width
-    TTF_Font* button_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9);
+    // 🔧 FIX: Police plus grande pour le texte
+    TTF_Font* button_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12); // 9->12
     
     UINode* text_node = ui_text(tree, "btn-text", text);
     if (text_node) {
@@ -518,7 +541,7 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
             atomic_set_text_font(text_node->element, button_font);
         }
         
-        atomic_set_text_size(text_node->element, 9); // Readable size
+        atomic_set_text_size(text_node->element, 12); // 🔧 FIX: Texte agrandi (9->12)
         atomic_set_text_color(text_node->element, 0, 0, 0, 255);
         ui_set_text_style(text_node, true, false);
         ui_set_text_align(text_node, "center");
@@ -682,4 +705,42 @@ void ui_sidebar_update_player_captures(UINode* sidebar, GamePlayer* player) {
     update_node_text_safe(captures_node, captures_text);
     
     printf("🎯 [CAPTURES_UPDATE] %s captures updated to: %d\n", player->name, player->captures_made);
+}
+
+// 🆕 Handler pour le bouton Pause
+static void on_pause_click(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("⏸️ PAUSE CLICKED\n");
+    
+    // Récupérer le plateau pour accéder à la logique
+    extern UITree* ui_get_global_tree(void);
+    UITree* tree = ui_get_global_tree();
+    if (tree) {
+        UINode* plateau = ui_tree_find_node(tree, "fanorona-plateau");
+        if (plateau) {
+            // Tenter de récupérer la logique
+            void* logic_ptr = ui_plateau_get_game_logic(plateau);
+            if (logic_ptr) {
+                game_logic_toggle_pause((GameLogic*)logic_ptr); // 🔧 FIX: Call toggle pause
+                printf("✅ Signal pause envoyé à la logique de jeu\n");
+            }
+        }
+    }
+}
+
+// 🆕 Handler pour le bouton Settings (Pause automatique)
+static void on_settings_click(UINode* node) {
+    (void)node;
+    extern UITree* ui_get_global_tree(void);
+    UITree* tree = ui_get_global_tree();
+    if (tree) {
+        UINode* plateau = ui_tree_find_node(tree, "fanorona-plateau");
+        if (plateau) {
+            void* logic_ptr = ui_plateau_get_game_logic(plateau);
+            if (logic_ptr) {
+                game_logic_set_pause((GameLogic*)logic_ptr, true);
+                printf("⚙️ Paramètres ouverts - Jeu mis en pause auto\n");
+            }
+        }
+    }
 }

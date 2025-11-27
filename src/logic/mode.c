@@ -325,6 +325,9 @@ void game_logic_switch_turn(GameLogic* logic) {
 void game_logic_update(GameLogic* logic, float delta_time) {
     if (!logic) return;
     
+    // 🆕 Check pause
+    if (logic->state == GAME_STATE_PAUSED) return;
+    
     logic->total_game_time += delta_time;
     
     // 🆕 PRIORITÉ: Mettre à jour les timers dans le système de stats EN PREMIER
@@ -499,6 +502,38 @@ const char* game_logic_player_type_to_string(PlayerType type) {
         case PLAYER_TYPE_AI:     return "IA";
         case PLAYER_TYPE_ONLINE: return "Distant";
         default:                 return "Inconnu";
+    }
+}
+
+// 🆕 GESTION DE LA PAUSE
+void game_logic_toggle_pause(GameLogic* logic) {
+    if (!logic) return;
+    
+    if (logic->state == GAME_STATE_PAUSED) {
+        // Reprendre le jeu
+        GamePlayer* current = game_logic_get_current_player_info(logic);
+        if (current->type == PLAYER_TYPE_HUMAN) {
+            logic->state = GAME_STATE_WAITING_INPUT;
+        } else if (current->type == PLAYER_TYPE_AI) {
+            logic->state = GAME_STATE_AI_THINKING;
+        } else {
+            logic->state = GAME_STATE_ONLINE_WAITING;
+        }
+        printf("▶️ JEU REPRIS (Etat: %s)\n", game_logic_state_to_string(logic->state));
+    } else {
+        // Mettre en pause
+        if (logic->state != GAME_STATE_GAME_OVER) {
+            logic->state = GAME_STATE_PAUSED;
+            printf("⏸️ JEU EN PAUSE\n");
+        }
+    }
+}
+
+void game_logic_set_pause(GameLogic* logic, bool paused) {
+    if (!logic) return;
+    bool is_paused = (logic->state == GAME_STATE_PAUSED);
+    if (paused != is_paused) {
+        game_logic_toggle_pause(logic);
     }
 }
 

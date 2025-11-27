@@ -546,6 +546,11 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         return;
     }
 
+    // 🆕 VÉRIFICATION ANIMATION: Bloquer interaction si une animation est en cours
+    if (piece_animation_is_active(data)) {
+        return;
+    }
+
     // 🆕 VÉRIFICATION MODE IA: Bloquer interaction si c'est le tour de l'IA
     if (is_ai_turn(data)) {
         printf("🤖 [PLATEAU_CLICK] Tour de l'IA - Interaction joueur bloquée\n");

@@ -483,7 +483,7 @@ Scene* create_home_scene(void) {
     // Nouveaux champs pour la structure Scene mise à jour
     scene->id = "home";                   // Identifiant unique
     scene->name = "Home";                 // Nom d'affichage
-    scene->target_window = WINDOW_TYPE_MAIN; // Fenêtre cible
+    scene->target_window = WINDOW_TYPE_MINI; // 🔧 FIX: Utiliser MINI car c'est une scène 700x500 (Menu/Home)
     scene->event_manager = NULL;          // Sera initialisé plus tard
     scene->ui_tree = NULL;               // Sera créé dans init
     scene->initialized = false;          // Pas encore initialisé

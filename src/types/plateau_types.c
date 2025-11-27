@@ -478,10 +478,11 @@ bool piece_animation_start(PlateauRenderData* data, int from_id, int to_id, bool
     anim->progress = 0.0f;
     anim->elapsed_time = 0.0f;
     
-    // 🎨 Durée variable selon le type de mouvement et la distance - AUGMENTÉE
+    // 🎨 Durée variable selon le type de mouvement et la distance - ACCÉLÉRÉE
     float distance = sqrtf(powf(anim->end_x - anim->start_x, 2) + powf(anim->end_y - anim->start_y, 2));
-    float base_duration = is_capture ? 2.0f : 1.5f; // Captures plus lentes, mouvements normaux plus longs
-    anim->duration = base_duration + (distance / 150.0f) * 0.8f; // Plus de variation selon la distance
+    // 🔧 FIX: Vitesse d'animation augmentée (durée réduite)
+    float base_duration = is_capture ? 0.6f : 0.4f; // Captures un peu plus lentes que paika
+    anim->duration = base_duration + (distance / 500.0f) * 0.2f; // Facteur distance réduit
     
     // Appliquer le multiplicateur de vitesse
     anim->duration /= anim_manager->global_speed_multiplier;
@@ -612,7 +613,7 @@ void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
     if (is_ai_turn(data) && !g_ai_animation.ai_is_moving) {
         printf("🤖 [ANIMATE_MOVE] Tour de l'IA détecté - démarrage avec délai\n");
         // Small delay to let human move animation finish
-        g_ai_animation.ai_move_delay = 0.8f;
+        g_ai_animation.ai_move_delay = 0.3f; // 🔧 FIX: Délai réduit (0.8 -> 0.3) car on attend l'animation
         g_ai_animation.ai_is_moving = true;
 
         // Calculate AI move immediately but delay execution
@@ -637,6 +638,9 @@ void execute_animated_move(PlateauRenderData* data, int from_id, int to_id) {
 // 🆕 Moved from plateau_cnt.c
 void update_ai_animation(PlateauRenderData* data, float delta_time) {
     if (!g_ai_animation.ai_is_moving) return;
+
+    // 🔧 FIX: Synchronisation stricte - Attendre la fin des animations visuelles avant de continuer
+    if (piece_animation_is_active(data)) return;
 
     // Update capture preview timer
     if (g_ai_animation.showing_capture_preview) {
@@ -683,7 +687,7 @@ void update_ai_animation(PlateauRenderData* data, float delta_time) {
                     if (next_ai_move.from_id != -1 && next_ai_move.to_id != -1) {
                         // Programmer le prochain coup de l'IA avec un délai court
                         g_ai_animation.pending_ai_move = next_ai_move;
-                        g_ai_animation.ai_move_delay = 1.0f; // 1 seconde entre chaque coup de la chaîne
+                        g_ai_animation.ai_move_delay = 0.4f; // 🔧 FIX: Délai réduit (1.0 -> 0.4) entre coups en chaîne
                         g_ai_animation.ai_is_moving = true;
 
                         // Setup capture preview si nécessaire
@@ -773,7 +777,7 @@ void execute_ai_move(PlateauRenderData* data) {
 
      // Store move for delayed execution
      g_ai_animation.pending_ai_move = best_move;
-     g_ai_animation.ai_move_delay = 1.5f; // 1.5 second thinking delay
+     g_ai_animation.ai_move_delay = 0.5f; // 🔧 FIX: Délai réduit (1.5 -> 0.5) au début du tour
      g_ai_animation.ai_is_moving = true;
      g_ai_animation.consecutive_ai_moves = 0; // 🆕 Reset du compteur au début de séquence
 

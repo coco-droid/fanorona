@@ -2,19 +2,47 @@
 #include "ui_components.h"
 #include "ui_tree.h"
 #include "native/atomic.h"
+#include "components/ui_link.h" // 🆕 AJOUT: Pour ui_create_link
 #include "../utils/log_console.h"
 #include "../window/window.h"      
 #include "../utils/asset_manager.h" 
+#include "../scene/scene.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <SDL2/SDL.h> // 🆕 AJOUT: Pour SDL_Event
 
 // 🔧 FIX: Déclarer les fonctions AVANT leur utilisation
 static void ui_container_add_logo_to_section(UITree* tree, UINode* logo_container);
 static void ui_container_add_subtitle_to_section(UITree* tree, UINode* subtitle_container);
 
+// 🆕 Variable globale statique pour le SceneManager
+static SceneManager* g_scene_manager = NULL;
+
+void ui_set_global_scene_manager(SceneManager* manager) {
+    g_scene_manager = manager;
+    printf("🔗 UI Component: Global SceneManager set\n");
+}
+
+// 🆕 Callback personnalisé pour le bouton settings (style choice_scene)
+static void settings_link_clicked(void* element, SDL_Event* event) {
+    (void)event;
+    printf("⚙️ CLIC SUR COG DÉTECTÉ ! Tentative d'ouverture des paramètres...\n");
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    UINode* link = (UINode*)atomic->user_data;
+    
+    if (link) {
+        // Appel explicite pour déclencher la transition
+        ui_link_activate(link);
+    } else {
+        printf("❌ Erreur: Lien settings introuvable dans le callback\n");
+    }
+}
+
 // 🆕 NOUVELLE ARCHITECTURE: Container avec sous-containers spécialisés
-UINode* ui_container(UITree* tree, const char* id) {
+// Renommé en extended pour supporter le paramètre optionnel
+UINode* ui_container_extended(UITree* tree, const char* id, bool show_bottom_bar) {
     if (!tree) {
         ui_log_event("UIComponent", "CreateError", id, "Tree is NULL");
         return NULL;
@@ -98,6 +126,107 @@ UINode* ui_container(UITree* tree, const char* id) {
         
         ui_log_event("UIComponent", "ContainerSection", id, "Content container created and ready for user content");
     }
+
+    // === 4. BOUTON PARAMÈTRES (COG) ET PAUSE ===
+    // Positionnés en bas via un container transparent dédié
+    // 🆕 CONDITION: Seulement si show_bottom_bar est vrai
+    if (show_bottom_bar) {
+        SDL_Texture* cog_texture = NULL;
+        SDL_Texture* pause_texture = NULL;
+        GameWindow* window = use_mini_window();
+        if (window) {
+            SDL_Renderer* renderer = window_get_renderer(window);
+            if (renderer) {
+                // Utilisation de l'asset manager pour charger les images
+                cog_texture = asset_load_texture(renderer, "cog.svg");
+                pause_texture = asset_load_texture(renderer, "pause.svg");
+            }
+        }
+
+        if (cog_texture || pause_texture) {
+            // Créer un container transparent qui prend toute la largeur
+            char settings_container_id[128];
+            snprintf(settings_container_id, sizeof(settings_container_id), "%s-settings-container", id);
+            UINode* settings_container = ui_div(tree, settings_container_id);
+            
+            if (settings_container) {
+                // Largeur proche du parent (480px pour un parent de ~500px)
+                SET_SIZE(settings_container, 480, 40);
+                
+                // Transparent
+                atomic_set_background_color(settings_container->element, 0, 0, 0, 0);
+                
+                // Flex row pour aligner le contenu : Pause à gauche, Cog à droite
+                ui_set_display_flex(settings_container);
+                FLEX_ROW(settings_container);
+                ui_set_justify_content(settings_container, "space-between"); // Écarte les éléments aux extrémités
+                ui_set_align_items(settings_container, "center"); // Centre verticalement
+                
+                // Padding pour décoller légèrement des bords
+                atomic_set_padding(settings_container->element, 0, 15, 0, 15);
+
+                // 1. Bouton PAUSE (Gauche)
+                if (pause_texture) {
+                    char pause_id[128];
+                    snprintf(pause_id, sizeof(pause_id), "%s-pause-btn", id);
+                    UINode* pause_btn = ui_image(tree, pause_id, pause_texture);
+                    if (pause_btn) {
+                        SET_SIZE(pause_btn, 24, 24);
+                        APPEND(settings_container, pause_btn);
+                    }
+                } else {
+                    // Spacer invisible si pas de texture pause, pour pousser le cog à droite
+                    UINode* spacer = ui_div(tree, "spacer-left");
+                    SET_SIZE(spacer, 24, 24);
+                    atomic_set_background_color(spacer->element, 0, 0, 0, 0);
+                    APPEND(settings_container, spacer);
+                }
+
+                // 2. Bouton SETTINGS (Droite)
+                if (cog_texture) {
+                    char settings_id[128];
+                    snprintf(settings_id, sizeof(settings_id), "%s-settings-btn", id);
+                    
+                    // 🆕 Utiliser ui_create_link pour la navigation (texte vide, image de fond)
+                    UINode* settings_btn = ui_create_link(tree, settings_id, "", "setting", SCENE_TRANSITION_REPLACE);
+                    
+                    if (settings_btn) {
+                        SET_SIZE(settings_btn, 24, 24);
+                        
+                        // Appliquer la texture comme image de fond
+                        atomic_set_background_image(settings_btn->element, cog_texture);
+                        
+                        // Réinitialiser le style par défaut du lien
+                        atomic_set_padding(settings_btn->element, 0, 0, 0, 0);
+                        atomic_set_background_color(settings_btn->element, 0, 0, 0, 0);
+                        
+                        // Configurer la fenêtre cible (Settings est en MINI)
+                        ui_link_set_target_window(settings_btn, WINDOW_TYPE_MINI);
+                        
+                        // 🆕 FIX: Désactiver le délai d'activation pour que le bouton soit cliquable immédiatement
+                        // car il n'est pas mis à jour explicitement dans la boucle de jeu des scènes
+                        ui_link_set_activation_delay(settings_btn, 0.0f);
+                        
+                        // Connecter au manager global si disponible
+                        if (g_scene_manager) {
+                            ui_link_connect_to_manager(settings_btn, g_scene_manager);
+                        } else {
+                            printf("⚠️ cnt_ui: g_scene_manager is NULL during creation of settings link\n");
+                        }
+                        
+                        // 🆕 AJOUT: Callback personnalisé comme dans choice_scene
+                        // Cela remplace le handler par défaut, donc on doit appeler ui_link_activate manuellement
+                        atomic_set_click_handler(settings_btn->element, settings_link_clicked);
+                        
+                        APPEND(settings_container, settings_btn);
+                    }
+                }
+                
+                APPEND(main_container, settings_container);
+                ui_log_event("UIComponent", "ContainerSection", id, "Bottom bar added (Pause left, Settings right)");
+            }
+        }
+    }
     
     ui_log_event("UIComponent", "Create", id, "Container created with 3 specialized sub-containers (logo, subtitle, content)");
     printf("✅ Container '%s' créé avec architecture modulaire :\n", id);
@@ -107,6 +236,11 @@ UINode* ui_container(UITree* tree, const char* id) {
     printf("   🎮  Section contenu : 450x250, centré (prêt pour boutons)\n");
     
     return main_container;
+}
+
+// Wrapper pour compatibilité (affiche la barre par défaut)
+UINode* ui_container(UITree* tree, const char* id) {
+    return ui_container_extended(tree, id, true);
 }
 
 // 🆕 FONCTION HELPER: Ajouter le logo à sa section dédiée

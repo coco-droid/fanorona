@@ -18,7 +18,9 @@ typedef enum SceneTransitionOption {
     SCENE_TRANSITION_REPLACE,          // Remplacer la scène actuelle
     SCENE_TRANSITION_OPEN_NEW_WINDOW,  // Ouvrir une nouvelle fenêtre
     SCENE_TRANSITION_CLOSE_AND_OPEN,   // Fermer la fenêtre actuelle et en ouvrir une autre
-    SCENE_TRANSITION_SWAP_WINDOWS      // Échanger les fenêtres des scènes
+    SCENE_TRANSITION_SWAP_WINDOWS,     // Échanger les fenêtres des scènes
+    SCENE_TRANSITION_NONE,             // 🆕 Pas de transition (immédiat)
+    SCENE_TRANSITION_FADE              // 🆕 Transition en fondu
 } SceneTransitionOption;
 
 // Structure pour une scène
@@ -111,6 +113,7 @@ Scene* create_pieces_scene(void);  // 🆕 Ajout de la déclaration pour pieces_
 Scene* create_net_start_scene(void);
 Scene* create_lobby_scene(void);
 Scene* create_player_list_scene(void);  // 🆕 ADD
+Scene* create_setting_scene(void);      // 🆕 ADD: Scène de paramètres
 
 // Fonction spéciale pour connecter les événements après création du core
 void home_scene_connect_events(Scene* scene, GameCore* core);
@@ -124,6 +127,8 @@ void pieces_scene_connect_events(Scene* scene, GameCore* core);
 void net_start_scene_connect_events(Scene* scene, GameCore* core);
 void lobby_scene_connect_events(Scene* scene, GameCore* core);
 void player_list_scene_connect_events(Scene* scene, GameCore* core);  // 🆕 ADD
+void setting_scene_connect_events(Scene* scene, GameCore* core);      // 🆕 ADD
+
 // 🆕 Associer le core au manager pour les transitions automatiques
 void scene_manager_set_core(SceneManager* manager, GameCore* core);
 void scene_manager_set_core(SceneManager* manager, GameCore* core);

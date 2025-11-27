@@ -9,6 +9,7 @@
 
 // Forward declarations
 typedef struct GamePlayer GamePlayer;
+typedef struct SceneManager SceneManager; // 🆕 AJOUT
 
 // === FONCTIONS DE CRÉATION DE COMPOSANTS ===
 
@@ -92,6 +93,9 @@ void ui_button_set_hover_sound(UINode* button, SoundEffect sound);  // Son perso
 // + Logo et sous-titre "Stratégie et Tradition" par défaut
 UINode* ui_container(UITree* tree, const char* id);
 
+// 🆕 Version étendue permettant de masquer la barre inférieure (cog/pause)
+UINode* ui_container_extended(UITree* tree, const char* id, bool show_bottom_bar);
+
 // Container avec taille spécifiée
 UINode* ui_container_with_size(UITree* tree, const char* id, int width, int height);
 
@@ -101,6 +105,9 @@ UINode* ui_container_centered(UITree* tree, const char* id, int width, int heigh
 // 🆕 NOUVELLES FONCTIONS pour le contenu par défaut
 void ui_container_add_default_logo(UINode* container);
 void ui_container_add_default_subtitle(UINode* container);
+
+// 🆕 Définir le SceneManager global pour les composants UI internes
+void ui_set_global_scene_manager(SceneManager* manager);
 
 // Ajouter du contenu au container (positionnement automatique sous le sous-titre)
 void ui_container_add_content(UINode* container, UINode* content);

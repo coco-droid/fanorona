@@ -1,10 +1,12 @@
 #define _POSIX_C_SOURCE 200809L
 #include "scene.h"
 #include "../ui/ui_components.h"
+#include "../ui/components/ui_link.h" // 🆕 Import ui_link
 #include "../utils/log_console.h"
 #include "../utils/asset_manager.h"
 #include "../types.h"           // 🔧 FIX: Import types
 #include "../config.h"          // 🔧 FIX: Import config
+#include "../core/core.h"       // 🔧 FIX: Correct path for GameCore definition
 #include "../pions/pions.h"     // 🔧 FIX: Import pions
 #include "../logic/logic.h"     // 🔧 FIX: Import logic
 #include "../stats/game_stats.h" // 🔧 FIX: Add missing include for PlayerStats
@@ -387,6 +389,21 @@ void game_scene_connect_events(Scene* scene, GameCore* core) {
     printf("🔧 Enregistrement des éléments UI avec l'EventManager...\n");
     ui_tree_register_all_events(data->ui_tree);
     printf("✅ Éléments UI enregistrés\n");
+    
+    // 🆕 CONNECTER LES BOUTONS DE LA SIDEBAR AU SCENE MANAGER
+    if (core && core->scene_manager) {
+        UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
+        if (quit_btn) {
+            ui_link_connect_to_manager(quit_btn, core->scene_manager);
+            printf("🔗 Bouton QUIT connecté au SceneManager\n");
+        }
+        
+        UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
+        if (settings_btn) {
+            ui_link_connect_to_manager(settings_btn, core->scene_manager);
+            printf("🔗 Bouton PARAM connecté au SceneManager\n");
+        }
+    }
     
     // Stocker l'UITree dans la scène
     scene->ui_tree = data->ui_tree;

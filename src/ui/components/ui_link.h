@@ -35,6 +35,9 @@ void ui_link_connect_to_manager(UINode* link, SceneManager* manager);
 // 🆕 Nouvelle fonction pour récupérer les données de lien
 UILinkData* ui_link_get_data(UINode* link);
 
+// 🆕 Attacher un comportement de lien à un nœud existant
+void ui_link_attach_to_node(UINode* node, const char* target_scene_id);
+
 // 🆕 Fonction helper pour éviter les dépendances circulaires
 const char* ui_link_get_target_scene_id_from_data(void* data);
 
