@@ -16,30 +16,38 @@ typedef struct SettingSceneData {
     UITree* ui_tree;
     GameCore* core;
     UINode* back_link;
+    SDL_Renderer* renderer_ref; // 🆕 Référence pour détecter le changement de fenêtre
 } SettingSceneData;
 
-static void setting_scene_init(Scene* scene) {
-    printf("📋 Initialisation de la scène Settings\n");
-    
-    SettingSceneData* data = (SettingSceneData*)malloc(sizeof(SettingSceneData));
-    if (!data) return;
-    
-    data->initialized = true;
-    data->core = NULL;
-    data->back_link = NULL;
-    
+// 🆕 Fonction extraite pour reconstruire l'UI quand le renderer change
+static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
+    SettingSceneData* data = (SettingSceneData*)scene->data;
+    if (!data || !renderer) return;
+
+    // Nettoyer l'ancienne UI si elle existe (pour éviter les fuites)
+    if (data->ui_tree) {
+        // 🆕 FIX: Detacher l'event manager pour éviter sa destruction par l'arbre
+        data->ui_tree->event_manager = NULL;
+        ui_tree_destroy(data->ui_tree);
+    }
+
+    // 🆕 FIX: Vider l'event manager des anciennes références (sinon clics fantômes)
+    if (scene->event_manager) {
+        event_manager_clear_all(scene->event_manager);
+    } else {
+        scene->event_manager = event_manager_create();
+    }
+
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // Background
-    SDL_Texture* background_texture = NULL;
-    GameWindow* window = use_mini_window();
-    if (window) {
-        SDL_Renderer* renderer = window_get_renderer(window);
-        if (renderer) {
-            background_texture = asset_load_texture(renderer, "fix_bg.png");
-        }
+    // Reconnecter l'event manager s'il existe déjà
+    if (scene->event_manager) {
+        data->ui_tree->event_manager = scene->event_manager;
     }
+
+    // Background
+    SDL_Texture* background_texture = asset_load_texture(renderer, "fix_bg.png");
     
     UINode* app = UI_DIV(data->ui_tree, "setting-app");
     SET_POS(app, 0, 0);
@@ -135,8 +143,47 @@ static void setting_scene_init(Scene* scene) {
     APPEND(data->ui_tree->root, app);
     ui_calculate_implicit_z_index(data->ui_tree);
     
+    // Enregistrer les événements
+    ui_tree_register_all_events(data->ui_tree);
+    
     scene->data = data;
     scene->ui_tree = data->ui_tree;
+
+    // 🆕 Reconfigurer le lien retour si le core est disponible
+    if (data->core && data->back_link) {
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(data->core);
+        if (scene_manager) {
+            Scene* game_scene = scene_manager_get_scene_by_id(scene_manager, "game");
+            bool is_game_running = (game_scene && game_scene->initialized);
+            
+            if (is_game_running) {
+                ui_link_set_target(data->back_link, "game");
+                ui_link_set_target_window(data->back_link, WINDOW_TYPE_MAIN);
+                ui_link_set_transition(data->back_link, SCENE_TRANSITION_REPLACE);
+            } else {
+                ui_link_set_target(data->back_link, "menu");
+                ui_link_set_target_window(data->back_link, WINDOW_TYPE_MINI);
+                ui_link_set_transition(data->back_link, SCENE_TRANSITION_REPLACE);
+            }
+            ui_link_connect_to_manager(data->back_link, scene_manager);
+        }
+    }
+}
+
+static void setting_scene_init(Scene* scene) {
+    printf("📋 Initialisation de la scène Settings\n");
+    
+    SettingSceneData* data = (SettingSceneData*)malloc(sizeof(SettingSceneData));
+    if (!data) return;
+    
+    data->initialized = true;
+    data->core = NULL;
+    data->back_link = NULL;
+    data->ui_tree = NULL;
+    data->renderer_ref = NULL;
+    
+    scene->data = data;
 }
 
 static void setting_scene_update(Scene* scene, float delta_time) {
@@ -153,13 +200,32 @@ static void setting_scene_update(Scene* scene, float delta_time) {
 static void setting_scene_render(Scene* scene, GameWindow* window) {
     if (!scene || !scene->data || !window) return;
     SettingSceneData* data = (SettingSceneData*)scene->data;
-    if (data->ui_tree) ui_tree_render(data->ui_tree, window_get_renderer(window));
+    
+    SDL_Renderer* renderer = window_get_renderer(window);
+    
+    // 🆕 Détecter si la fenêtre a changé (textures invalides) -> Reconstruire
+    if (renderer != data->renderer_ref) {
+        setting_scene_build_ui(scene, renderer);
+        data->renderer_ref = renderer;
+    }
+
+    if (data->ui_tree) ui_tree_render(data->ui_tree, renderer);
 }
 
 static void setting_scene_cleanup(Scene* scene) {
     if (!scene || !scene->data) return;
     SettingSceneData* data = (SettingSceneData*)scene->data;
-    if (data->ui_tree) ui_tree_destroy(data->ui_tree);
+    
+    // 🆕 FIX: Vider l'event manager pour éviter les références mortes
+    if (scene->event_manager) {
+        event_manager_clear_all(scene->event_manager);
+    }
+
+    if (data->ui_tree) {
+        // 🆕 FIX: Detacher l'event manager avant destruction
+        data->ui_tree->event_manager = NULL;
+        ui_tree_destroy(data->ui_tree);
+    }
     free(data);
     scene->data = NULL;
 }
@@ -190,22 +256,11 @@ void setting_scene_connect_events(Scene* scene, GameCore* core) {
     SettingSceneData* data = (SettingSceneData*)scene->data;
     if (!data) return;
     
-    if (!scene->event_manager) scene->event_manager = event_manager_create();
-    if (data->ui_tree) {
-        data->ui_tree->event_manager = scene->event_manager;
-        ui_tree_register_all_events(data->ui_tree);
-        scene->ui_tree = data->ui_tree;
-    }
-    
     data->core = core;
+    
+    if (!scene->event_manager) scene->event_manager = event_manager_create();
     scene->initialized = true;
     scene->active = true;
     
-    if (data->back_link) {
-        extern SceneManager* game_core_get_scene_manager(GameCore* core);
-        SceneManager* scene_manager = game_core_get_scene_manager(core);
-        if (scene_manager) {
-            ui_link_connect_to_manager(data->back_link, scene_manager);
-        }
-    }
+    // Note: L'UI sera construite/mise à jour au premier render
 }

@@ -24,50 +24,54 @@ typedef struct GameSceneData {
     UINode* sidebar;
     UINode* playable_area;
     GameLogic* game_logic;       // 🆕 Ajout de la logique de jeu
+    SDL_Renderer* last_renderer; // 🆕 Suivi du renderer pour rechargement
 } GameSceneData;
 
-// Initialisation de la scène de jeu
-static void game_scene_init(Scene* scene) {
-    printf("🎮 Initialisation de la scène de jeu avec layout sidebar + zone de jeu\n");
-    
-    ui_set_hitbox_visualization(false);
-    printf("🚫 Visualisation des hitboxes DÉSACTIVÉE pour la scène de jeu\n");
-    
-    GameSceneData* data = (GameSceneData*)malloc(sizeof(GameSceneData));
-    if (!data) {
-        printf("❌ Erreur: Impossible d'allouer la mémoire pour GameSceneData\n");
-        return;
+// 🆕 Fonction helper pour construire/reconstruire l'UI
+static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
+    GameSceneData* data = (GameSceneData*)scene->data;
+    if (!data || !renderer) return;
+
+    printf("🏗️ Construction de l'UI de jeu pour le renderer %p\n", (void*)renderer);
+
+    // Nettoyer l'ancienne UI si elle existe
+    if (data->ui_tree) {
+        // 🆕 FIX: Detach event manager from tree to prevent Double Free in ui_tree_destroy
+        // L'arbre ne doit pas détruire le manager car la scène en est propriétaire
+        data->ui_tree->event_manager = NULL;
+        
+        // 🆕 FIX: Reset pointers to nodes inside the tree being destroyed
+        data->sidebar = NULL;
+        data->playable_area = NULL;
+        
+        ui_tree_destroy(data->ui_tree);
+        data->ui_tree = NULL;
     }
-    
-    data->initialized = true;
-    data->core = NULL;
-    data->sidebar = NULL;
-    data->playable_area = NULL;
-    data->game_logic = NULL;
-    
-    // 🆕 Créer la logique de jeu AVANT l'UI
-    data->game_logic = game_logic_create();
-    if (data->game_logic) {
-        game_logic_start_new_game(data->game_logic);
-        printf("✅ GameLogic initialisée en mode: %s\n", config_mode_to_string(config_get_mode()));
-        game_logic_debug_print(data->game_logic);
+
+    // 🆕 FIX: Reuse existing manager (clear instead of destroy) to keep GameCore pointers valid
+    if (scene->event_manager) {
+        event_manager_clear_all(scene->event_manager);
+    } else {
+        scene->event_manager = event_manager_create();
     }
-    
+
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
+    if (!data->ui_tree) return; // 🆕 Safety check
     ui_set_global_tree(data->ui_tree);
     
+    // Reconnecter l'event manager s'il existe
+    if (scene->event_manager) {
+        data->ui_tree->event_manager = scene->event_manager;
+    }
+
     // 🔧 FIX: Récupérer les dimensions depuis la main window
     int app_width = DEFAULT_MAIN_WINDOW_WIDTH;
     int app_height = DEFAULT_MAIN_WINDOW_HEIGHT;
     
     // Container principal (dimensions de main window)
     UINode* app = UI_DIV(data->ui_tree, "game-app");
-    if (!app) {
-        printf("❌ Erreur: Impossible de créer le container principal\n");
-        free(data);
-        return;
-    }
+    if (!app) return;
     
     SET_POS(app, 0, 0);
     SET_SIZE(app, app_width, app_height);
@@ -96,13 +100,9 @@ static void game_scene_init(Scene* scene) {
                 data->game_logic->player1, 
                 data->game_logic->player2
             );
-            printf("✅ Joueurs ajoutés à la sidebar avec données RÉELLES de GameLogic\n");
-        } else {
-            printf("❌ GameLogic ou joueurs non initialisés\n");
         }
         
         APPEND(app, data->sidebar);
-        printf("📋 Sidebar créée (%dx%d) avec joueurs réels\n", sidebar_width, app_height);
     }
     
     // === ZONE DE JEU (2/3 exact) ===
@@ -117,25 +117,71 @@ static void game_scene_init(Scene* scene) {
             ui_plateau_set_game_logic(plateau, data->game_logic);
             ui_plateau_set_players(plateau, data->game_logic->player1, data->game_logic->player2);
             
+            // 🆕 FIX: Use persistent board from GameLogic instead of creating a new one
+            if (data->game_logic->board) {
+                ui_plateau_set_shared_board(plateau, data->game_logic->board);
+            }
+            
             // 🆕 CONNECTER LES GESTIONNAIRES D'ÉVÉNEMENTS DU PLATEAU
             ui_plateau_set_mouse_handlers(plateau);
-            printf("🖱️ Gestionnaires de souris connectés au plateau\n");
         }
         
         APPEND(app, data->playable_area);
-        printf("🎮 Zone de jeu créée (%dx%d) avec événements plateau\n", playable_width, app_height);
     }
     
     APPEND(data->ui_tree->root, app);
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface de jeu créée avec dimensions depuis config.h:\n");
-    printf("   📏 Layout horizontal: sidebar (%d/%d) + zone de jeu (%d/%d)\n", 
-           230, app_width, playable_width, app_width);
-    printf("   🖼️ Optimisé pour main window (%dx%d)\n", app_width, app_height);
+    // Enregistrer tous les événements de l'arbre
+    if (scene->event_manager) {
+        ui_tree_register_all_events(data->ui_tree);
+    }
     
-    scene->data = data;
+    // Reconnecter les boutons de la sidebar au core si disponible
+    if (data->core && data->core->scene_manager) {
+        UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
+        if (quit_btn) ui_link_connect_to_manager(quit_btn, data->core->scene_manager);
+        
+        UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
+        if (settings_btn) ui_link_connect_to_manager(settings_btn, data->core->scene_manager);
+    }
+    
     scene->ui_tree = data->ui_tree;
+    printf("✅ UI reconstruite avec succès (Textures rechargées)\n");
+}
+
+// Initialisation de la scène de jeu
+static void game_scene_init(Scene* scene) {
+    printf("🎮 Initialisation de la scène de jeu\n");
+    
+    ui_set_hitbox_visualization(false);
+    
+    GameSceneData* data = (GameSceneData*)malloc(sizeof(GameSceneData));
+    if (!data) return;
+    
+    data->initialized = true;
+    data->core = NULL;
+    data->sidebar = NULL;
+    data->playable_area = NULL;
+    data->game_logic = NULL;
+    data->last_renderer = NULL;
+    data->ui_tree = NULL;
+    
+    scene->data = data; // Assigner data tôt pour que build_ui puisse l'utiliser
+    
+    // 🆕 Créer la logique de jeu AVANT l'UI (une seule fois)
+    data->game_logic = game_logic_create();
+    if (data->game_logic) {
+        game_logic_start_new_game(data->game_logic);
+        printf("✅ GameLogic initialisée\n");
+    }
+    
+    // Construire l'UI si le renderer est disponible
+    GameWindow* window = use_main_window();
+    if (window && window->renderer) {
+        game_scene_build_ui(scene, window->renderer);
+        data->last_renderer = window->renderer;
+    }
 }
 
 // Mise à jour de la scène de jeu
@@ -195,16 +241,10 @@ static void game_scene_update(Scene* scene, float delta_time) {
                     
                     // Update if different
                     if (p1_captures != data->game_logic->player1->captures_made) {
-                        printf("🔄 [SYNC] %s captures: %d -> %d\n", 
-                               data->game_logic->player1->name, 
-                               data->game_logic->player1->captures_made, p1_captures);
                         player_set_captures(data->game_logic->player1, p1_captures);
                     }
                     
                     if (p2_captures != data->game_logic->player2->captures_made) {
-                        printf("🔄 [SYNC] %s captures: %d -> %d\n", 
-                               data->game_logic->player2->name,
-                               data->game_logic->player2->captures_made, p2_captures);
                         player_set_captures(data->game_logic->player2, p2_captures);
                     }
                 }
@@ -225,38 +265,8 @@ static void game_scene_update(Scene* scene, float delta_time) {
         UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
         if (plateau) {
             ui_plateau_update_visual_feedback(plateau, delta_time);
-            
-            // 🆕 Log occasionnel des animations actives
-            static float anim_debug_timer = 0.0f;
-            anim_debug_timer += delta_time;
-            if (anim_debug_timer >= 10.0f) {
-                anim_debug_timer = 0.0f;
-                if (ui_plateau_has_active_animations(plateau)) {
-                    printf("🎬 [GAME_SCENE] Animations de pièces en cours\n");
-                }
-            }
         }
     }
-    
-    // 🆕 DEBUG PÉRIODIQUE des événements plateau (toutes les 5 secondes)
-    static float debug_timer = 0.0f;
-    debug_timer += delta_time;
-    
-    if (debug_timer >= 5.0f) {
-        debug_timer = 0.0f;
-        
-        if (data->playable_area) {
-            UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
-            if (plateau) {
-                ui_plateau_debug_current_selection(plateau);
-            }
-        }
-    }
-    
-    // TODO: Mettre à jour la logique de jeu
-    // - État du plateau avec interactions visuelles animées
-    // - Temps des joueurs
-    // - Détection de fin de partie avec animations correspondantes
 }
 
 // Rendu de la scène de jeu
@@ -267,6 +277,22 @@ static void game_scene_render(Scene* scene, GameWindow* window) {
     if (!renderer) return;
     
     GameSceneData* data = (GameSceneData*)scene->data;
+    
+    // 🆕 DÉTECTION DE CHANGEMENT DE RENDERER (Fenêtre recréée)
+    if (renderer != data->last_renderer) {
+        printf("🔄 Changement de renderer détecté (%p -> %p) - Rechargement des textures...\n", 
+               (void*)data->last_renderer, (void*)renderer);
+        
+        // Reconstruire l'UI (recharge les textures sur le nouveau renderer)
+        game_scene_build_ui(scene, renderer);
+        data->last_renderer = renderer;
+        
+        // 🆕 AUTO-UNPAUSE: Si le jeu était en pause (ex: retour de settings), on reprend
+        if (data->game_logic && data->game_logic->state == GAME_STATE_PAUSED) {
+            game_logic_set_pause(data->game_logic, false);
+            printf("▶️ Jeu repris automatiquement après retour au jeu\n");
+        }
+    }
     
     // Rendre l'arbre UI
     if (data->ui_tree) {
@@ -283,6 +309,11 @@ static void game_scene_cleanup(Scene* scene) {
     
     GameSceneData* data = (GameSceneData*)scene->data;
     
+    // 🆕 FIX: Clear event manager to remove references to destroyed UI elements
+    if (scene->event_manager) {
+        event_manager_clear_all(scene->event_manager);
+    }
+    
     // 🆕 Nettoyer la logique de jeu AVANT le plateau
     if (data->game_logic) {
         printf("🗑️ [GAME_CLEANUP] Nettoyage GameLogic\n");
@@ -290,19 +321,10 @@ static void game_scene_cleanup(Scene* scene) {
         data->game_logic = NULL;
     }
     
-    // 🔧 FIX: Nettoyer explicitement le plateau avant de détruire l'UI tree
-    if (data->playable_area) {
-        // Chercher le plateau dans la zone de jeu et le nettoyer
-        // Le plateau sera dans game-area -> fanorona-plateau
-        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
-        if (plateau) {
-            printf("🗑️ [GAME_CLEANUP] Nettoyage explicite du plateau\n");
-            ui_plateau_container_destroy(plateau);
-        }
-    }
-    
     // Nettoyer l'arbre UI
     if (data->ui_tree) {
+        // 🆕 FIX: Detacher l'event manager pour éviter sa destruction par l'arbre
+        data->ui_tree->event_manager = NULL;
         ui_tree_destroy(data->ui_tree);
         data->ui_tree = NULL;
     }
@@ -310,24 +332,18 @@ static void game_scene_cleanup(Scene* scene) {
     free(data);
     scene->data = NULL;
     
-    printf("✅ Nettoyage de la scène de jeu terminé avec nettoyage du plateau\n");
+    printf("✅ Nettoyage de la scène de jeu terminé\n");
 }
 
 // Créer la scène de jeu
 Scene* create_game_scene(void) {
     Scene* scene = (Scene*)malloc(sizeof(Scene));
-    if (!scene) {
-        printf("❌ Erreur: Impossible d'allouer la mémoire pour la scène de jeu\n");
-        return NULL;
-    }
+    if (!scene) return NULL;
     
-    // 🔧 FIX: Use strdup() instead of string literals
     scene->id = strdup("game");
     scene->name = strdup("Jeu Fanorona");
     
-    // 🔧 FIX: Check if strdup() succeeded
     if (!scene->id || !scene->name) {
-        printf("❌ Erreur: Impossible d'allouer la mémoire pour les chaînes de la scène de jeu\n");
         if (scene->id) free(scene->id);
         if (scene->name) free(scene->name);
         free(scene);
@@ -346,88 +362,50 @@ Scene* create_game_scene(void) {
     scene->cleanup = game_scene_cleanup;
     scene->data = NULL;
     
-    printf("🎮 Game scene created with proper memory allocation\n");
-    printf("   📏 Layout: sidebar (266px) + zone de jeu (534px)\n");
-    printf("   🎯 Prête pour transition depuis menu_scene\n");
-    
     return scene;
 }
 
 // Connexion des événements pour la scène de jeu
 void game_scene_connect_events(Scene* scene, GameCore* core) {
-    if (!scene || !core) {
-        printf("❌ Scene ou Core NULL dans game_scene_connect_events\n");
-        return;
-    }
+    if (!scene || !core) return;
     
     GameSceneData* data = (GameSceneData*)scene->data;
-    if (!data) {
-        printf("❌ Données de scène NULL\n");
-        return;
-    }
+    if (!data) return;
     
     // 🔧 FIX: Vérifier que la scène est initialisée
-    if (!scene->initialized || !data->ui_tree) {
-        printf("❌ Scène game non initialisée correctement\n");
+    if (!scene->initialized) {
         return;
     }
     
     // Créer un EventManager dédié à la scène
     if (!scene->event_manager) {
-        printf("🔧 Création d'un EventManager dédié pour la scène de jeu\n");
         scene->event_manager = event_manager_create();
-        if (!scene->event_manager) {
-            printf("❌ Impossible de créer l'EventManager pour la scène de jeu\n");
-            return;
-        }
+        if (!scene->event_manager) return;
     }
     
-    // 🔧 FIX CRITIQUE: Connecter l'EventManager à l'UITree AVANT l'enregistrement
-    data->ui_tree->event_manager = scene->event_manager;
+    // Stocker la référence du core
+    data->core = core;
     
-    // 🔧 FIX: Enregistrer tous les éléments UI avec l'EventManager de la scène
-    printf("🔧 Enregistrement des éléments UI avec l'EventManager...\n");
-    ui_tree_register_all_events(data->ui_tree);
-    printf("✅ Éléments UI enregistrés\n");
-    
-    // 🆕 CONNECTER LES BOUTONS DE LA SIDEBAR AU SCENE MANAGER
-    if (core && core->scene_manager) {
-        UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
-        if (quit_btn) {
-            ui_link_connect_to_manager(quit_btn, core->scene_manager);
-            printf("🔗 Bouton QUIT connecté au SceneManager\n");
+    // Si l'UI existe déjà, connecter les événements
+    if (data->ui_tree) {
+        data->ui_tree->event_manager = scene->event_manager;
+        ui_tree_register_all_events(data->ui_tree);
+        
+        // Connecter les boutons sidebar
+        if (core->scene_manager) {
+            UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
+            if (quit_btn) ui_link_connect_to_manager(quit_btn, core->scene_manager);
+            
+            UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
+            if (settings_btn) ui_link_connect_to_manager(settings_btn, core->scene_manager);
         }
         
-        UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
-        if (settings_btn) {
-            ui_link_connect_to_manager(settings_btn, core->scene_manager);
-            printf("🔗 Bouton PARAM connecté au SceneManager\n");
-        }
+        // 🗑️ REMOVED: Don't register plateau events here - already done in game_scene_build_ui
+        // This was causing double registration and list corruption
     }
     
     // Stocker l'UITree dans la scène
     scene->ui_tree = data->ui_tree;
     
-    // Stocker la référence du core
-    data->core = core;
-    
-    // 🆕 VÉRIFIER ET CONNECTER LES ÉVÉNEMENTS DU PLATEAU (COMME avatar_selector)
-    if (data->playable_area) {
-        UINode* plateau = ui_tree_find_node(data->ui_tree, "fanorona-plateau");
-        if (plateau) {
-            // 🆕 DEBUG INITIAL des intersections
-            ui_plateau_debug_intersections(plateau);
-            ui_plateau_debug_visual_state(plateau);
-            
-            // Les événements du plateau sont enregistrés EXPLICITEMENT
-            ui_plateau_register_events(plateau, scene->event_manager);
-            printf("✅ Événements plateau enregistrés dans EventManager de game_scene\n");
-            
-            // 🆕 VÉRIFICATION post-enregistrement
-            printf("🔍 [GAME_SCENE] Vérification post-enregistrement:\n");
-            ui_plateau_debug_current_selection(plateau);
-        }
-    }
-    
-    printf("✅ Scène de jeu prête avec plateau interactif ET debug activé\n");
+    printf("✅ Scène de jeu connectée aux événements\n");
 }

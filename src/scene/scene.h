@@ -131,5 +131,5 @@ void setting_scene_connect_events(Scene* scene, GameCore* core);      // 🆕 AD
 
 // 🆕 Associer le core au manager pour les transitions automatiques
 void scene_manager_set_core(SceneManager* manager, GameCore* core);
-void scene_manager_set_core(SceneManager* manager, GameCore* core);
+
 #endif // SCENE_H

@@ -371,6 +371,9 @@ void ui_plateau_set_players(UINode* plateau, GamePlayer* player1, GamePlayer* pl
 GamePlayer* ui_plateau_get_player1(UINode* plateau);
 GamePlayer* ui_plateau_get_player2(UINode* plateau);
 
+// 🆕 NOUVELLE FONCTION: Utiliser un plateau partagé (ex: depuis GameLogic)
+void ui_plateau_set_shared_board(UINode* plateau, Board* board);
+
 // 🆕 Mouse event handlers for plateau
 void ui_plateau_set_mouse_handlers(UINode* plateau);
 void ui_plateau_update_visual_feedback(UINode* plateau, float delta_time);

@@ -14,10 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 🆕 Prototypes pour les fonctions de pause (si absentes de logic.h)
-void game_logic_toggle_pause(GameLogic* logic);
-void game_logic_set_pause(GameLogic* logic, bool paused);
-
 // 🔧 FIX: Forward declaration for the pause handler
 static void on_pause_click(void* element, SDL_Event* event);
 static void on_settings_click(UINode* node); // 🆕 Forward declaration
@@ -462,7 +458,8 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
         if (settings_btn) {
             ui_link_attach_to_node(settings_btn, "setting");
             ui_link_set_target_window(settings_btn, WINDOW_TYPE_MINI);
-            ui_link_set_transition(settings_btn, SCENE_TRANSITION_OPEN_NEW_WINDOW); // 🔧 CHANGED: OPEN_NEW_WINDOW
+            // 🔧 FIX: Fermer la fenêtre de jeu et ouvrir les paramètres (garde le state en mémoire)
+            ui_link_set_transition(settings_btn, SCENE_TRANSITION_CLOSE_AND_OPEN); 
             ui_link_set_click_handler(settings_btn, on_settings_click); // 🆕 Custom handler
             APPEND(bottom_row, settings_btn);
         }

@@ -23,6 +23,12 @@ GameLogic* game_logic_create(void) {
     logic->game_finished = false;
     logic->winner = NOBODY;
     
+    // 🆕 Créer le plateau de jeu (propriété de la logique)
+    logic->board = (Board*)malloc(sizeof(Board));
+    if (logic->board) {
+        board_init(logic->board);
+    }
+
     // 🆕 Créer le gestionnaire de statistiques
     logic->stats_manager = game_stats_create();
     if (!logic->stats_manager) {
@@ -39,6 +45,12 @@ void game_logic_destroy(GameLogic* logic) {
     if (logic) {
         printf("🧹 Destruction de GameLogic\n");
         
+        // 🆕 Détruire le plateau
+        if (logic->board) {
+            board_free(logic->board);
+            free(logic->board);
+        }
+
         // 🆕 Détruire le gestionnaire de stats
         if (logic->stats_manager) {
             game_stats_destroy(logic->stats_manager);

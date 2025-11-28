@@ -32,6 +32,7 @@ typedef struct PlateauRenderData {
     VisualFeedbackState* visual_state;
     void* game_logic;
     void* intersection_elements[NODES];
+    bool owns_board; // 🆕 Sync struct definition
 } PlateauRenderData;
 
 // === AI ANIMATION STATE ===
@@ -658,16 +659,24 @@ void update_ai_animation(PlateauRenderData* data, float delta_time) {
 
         g_ai_animation.consecutive_ai_moves++;
 
+        // 🆕 FIX: Vérifier si le coup est RÉELLEMENT une capture sur le plateau actuel
+        Move real_move_check;
+        detect_capture(data->board, ai_move.from_id, ai_move.to_id, &real_move_check);
+        bool actually_is_capture = real_move_check.is_capture && real_move_check.capture_count > 0;
+
         printf("\n┌────────────────────────────────────────────────────────┐\n");
         printf("│ IA JOUE SON COUP #%d\n", g_ai_animation.consecutive_ai_moves);
         printf("│ Mouvement: %d → %d\n", ai_move.from_id, ai_move.to_id);
-        printf("│ Capture: %s (%d piece(s))\n",
+        printf("│ Capture IA: %s (%d piece(s))\n",
                ai_move.is_capture ? "OUI" : "NON", ai_move.capture_count);
+        printf("│ Capture Réelle: %s (%d piece(s))\n",
+               actually_is_capture ? "OUI" : "NON", real_move_check.capture_count);
         printf("└────────────────────────────────────────────────────────┘\n");
 
         execute_animated_move(data, ai_move.from_id, ai_move.to_id);
 
-        if (ai_move.is_capture && ai_move.capture_count > 0) {
+        // 🔧 FIX: Utiliser la vérification réelle pour décider de la suite
+        if (actually_is_capture) {
             printf("Verification des captures supplementaires depuis %d...\n", ai_move.to_id);
 
             bool more_captures = has_additional_captures(data, ai_move.to_id);
@@ -713,6 +722,9 @@ void update_ai_animation(PlateauRenderData* data, float delta_time) {
                 printf("│ Maintenant c'est au tour du joueur\n");
                 printf("└────────────────────────────────────────────────────────┘\n\n");
             }
+        } else if (ai_move.is_capture) {
+             printf("⚠️ ATTENTION: L'IA pensait capturer mais le coup était un PAIKA.\n");
+             printf("   Arrêt forcé de la séquence IA pour éviter une boucle infinie.\n");
         }
 
         // Réinitialiser l'état d'animation IA (fin de séquence)

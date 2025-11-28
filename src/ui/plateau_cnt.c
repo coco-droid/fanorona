@@ -50,6 +50,7 @@ typedef struct PlateauRenderData {
     VisualFeedbackState* visual_state;
     void* game_logic;
     AtomicElement* intersection_elements[NODES];
+    bool owns_board; // 🆕 Flag ownership
 } PlateauRenderData;
 
 // === FORWARD DECLARATIONS ===
@@ -413,9 +414,54 @@ static void update_intersection_positions(PlateauRenderData* data) {
     }
 }
 
+// 🆕 Helper function for data cleanup
+static void ui_plateau_cleanup_data(void* data_ptr) {
+    PlateauRenderData* data = (PlateauRenderData*)data_ptr;
+    if (!data) return;
+
+    // Clean up valid destinations
+    if (data->visual_state && data->visual_state->valid_destinations) {
+        free(data->visual_state->valid_destinations);
+    }
+
+    // Clean up intersections
+    for (int i = 0; i < NODES; i++) {
+        if (data->intersection_elements[i]) {
+            atomic_destroy_safe(data->intersection_elements[i]);
+            data->intersection_elements[i] = NULL;
+        }
+    }
+
+    // Clean up visual state
+    if (data->visual_state) {
+        free(data->visual_state);
+    }
+
+    // Clean up board ONLY if owned
+    if (data->board && data->owns_board) {
+        board_free(data->board);
+        free(data->board);
+    }
+
+    free(data);
+    printf("🧹 Plateau data cleaned up via component_destroy\n");
+}
+
 static void plateau_custom_render(AtomicElement* element, SDL_Renderer* renderer) {
     if (!element || !renderer) return;
-    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(element, "plateau_data");
+    
+    // 🆕 Try to get data from component_data via user_data (UINode)
+    PlateauRenderData* data = NULL;
+    if (element->user_data) {
+        UINode* node = (UINode*)element->user_data;
+        data = (PlateauRenderData*)node->component_data;
+    }
+    
+    // Fallback to custom_data
+    if (!data) {
+        data = (PlateauRenderData*)atomic_get_custom_data(element, "plateau_data");
+    }
+    
     if (!data) return;
     if (!data->texture_black || !data->texture_brown) {
         plateau_load_piece_textures(data, renderer);
@@ -705,36 +751,25 @@ void* ui_plateau_get_game_logic(UINode* plateau) {
 
 void ui_plateau_cleanup(UINode* plateau) {
     if (!plateau) return;
+    
+    // 🆕 Use component system for cleanup if available
+    if (plateau->component_data) {
+        if (plateau->component_destroy) {
+            plateau->component_destroy(plateau->component_data);
+        }
+        plateau->component_data = NULL;
+        plateau->component_destroy = NULL;
+        
+        // Clear custom_data reference too
+        atomic_set_custom_data(plateau->element, "plateau_data", NULL);
+        return;
+    }
+    
+    // Fallback for legacy
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     if (data) {
-        // Clean up valid destinations first
-        if (data->visual_state && data->visual_state->valid_destinations) {
-            free(data->visual_state->valid_destinations);
-            data->visual_state->valid_destinations = NULL;
-        }
-
-        // Clean up intersections
-        for (int i = 0; i < NODES; i++) {
-            if (data->intersection_elements[i]) {
-                atomic_destroy_safe(data->intersection_elements[i]);
-                data->intersection_elements[i] = NULL;
-            }
-        }
-
-        // Clean up visual state
-        if (data->visual_state) {
-            free(data->visual_state);
-            data->visual_state = NULL;
-        }
-
-        // Clean up board
-        if (data->board) {
-            board_free(data->board);
-            free(data->board);
-            data->board = NULL;
-        }
-
-        free(data);
+        ui_plateau_cleanup_data(data);
+        atomic_set_custom_data(plateau->element, "plateau_data", NULL);
     }
 }
 
@@ -758,8 +793,16 @@ void ui_plateau_set_mouse_handlers(UINode* plateau) {
 
 UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlayer* player1, GamePlayer* player2) {
     if (!tree) return NULL;
-    UINode* plateau_container = ui_div(tree, id);
+    
+    // 🆕 Safety check for ID
+    const char* safe_id = id ? id : "plateau-container";
+    
+    UINode* plateau_container = ui_div(tree, safe_id);
     if (!plateau_container) return NULL;
+    
+    // 🆕 Ensure user_data is set for render callback
+    plateau_container->element->user_data = plateau_container;
+    
     SET_SIZE(plateau_container, PLATEAU_VISUAL_WIDTH, PLATEAU_VISUAL_HEIGHT);
     atomic_set_background_color(plateau_container->element, 0, 0, 0, 0);
     atomic_set_border(plateau_container->element, 3, 255, 0, 0, 255);
@@ -769,6 +812,7 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
     PlateauRenderData* data = calloc(1, sizeof(PlateauRenderData));
     if (data) {
         data->board = board;
+        data->owns_board = true; // 🆕 Default: UI owns the board until replaced
         data->show_intersections = true;
         data->show_coordinates = false;
         data->player1 = player1;
@@ -793,6 +837,12 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
         else {
             printf("❌ EventManager non disponible dans tree\n");
         }
+        
+        // 🆕 Use component system for automatic cleanup
+        plateau_container->component_data = data;
+        plateau_container->component_destroy = ui_plateau_cleanup_data;
+        
+        // Also set custom_data for safety/compatibility
         atomic_set_custom_data(plateau_container->element, "plateau_data", data);
         atomic_set_custom_data(plateau_container->element, "board", board);
         atomic_set_custom_render(plateau_container->element, plateau_custom_render);
@@ -936,4 +986,29 @@ bool ui_plateau_has_active_animations(UINode* plateau) {
     if (!plateau) return false;
     PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
     return data ? piece_animation_is_active(data) : false;
+}
+
+void ui_plateau_set_shared_board(UINode* plateau, Board* board) {
+    if (!plateau || !board) return;
+    PlateauRenderData* data = (PlateauRenderData*)atomic_get_custom_data(plateau->element, "plateau_data");
+    if (data) {
+        // Free internal board if it exists and is owned
+        if (data->board && data->owns_board) {
+            board_free(data->board);
+            free(data->board);
+        }
+        
+        data->board = board;
+        data->owns_board = false; // We don't own the shared board
+        
+        // Update atomic custom data as well
+        atomic_set_custom_data(plateau->element, "board", board);
+        
+        // 🔧 CRITICAL FIX: Restore static reference for AI
+        // When UI created temp board, it hijacked this pointer. We must restore it.
+        extern Board* g_static_board_for_ai;
+        g_static_board_for_ai = board;
+        
+        printf("🔗 Plateau connecté au board partagé (GameLogic) - AI reference restored\n");
+    }
 }

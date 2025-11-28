@@ -97,12 +97,15 @@ void event_manager_clear_all(EventManager* manager) {
     if (!manager) return;
     
     EventElement* current = manager->elements;
+    manager->elements = NULL; // 🆕 Detach list first
+    
     while (current) {
         EventElement* next = current->next;
+        // 🆕 Safety: Ensure we don't access freed memory if loop is re-entered (unlikely but safe)
+        current->next = NULL; 
         free(current);
         current = next;
     }
-    manager->elements = NULL;
 }
 
 // Gérer un événement (CORRIGÉ)

@@ -240,6 +240,8 @@ static void menu_scene_cleanup(Scene* scene) {
     
     MenuSceneData* data = (MenuSceneData*)scene->data;
     if (data->ui_tree) {
+        // 🆕 FIX: Detacher l'event manager pour éviter sa destruction par l'arbre
+        data->ui_tree->event_manager = NULL;
         ui_tree_destroy(data->ui_tree);
         data->ui_tree = NULL;
     }

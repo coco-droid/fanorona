@@ -64,6 +64,10 @@ const char* game_logic_state_to_string(GameState state);
 const char* game_logic_player_type_to_string(PlayerType type);
 void game_logic_debug_print(GameLogic* logic);
 
+// 🆕 GESTION DE LA PAUSE
+void game_logic_toggle_pause(GameLogic* logic);
+void game_logic_set_pause(GameLogic* logic, bool paused);
+
 #endif // LOGIC_H
 
 
