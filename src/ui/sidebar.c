@@ -18,6 +18,37 @@
 static void on_pause_click(void* element, SDL_Event* event);
 static void on_settings_click(UINode* node); // 🆕 Forward declaration
 
+// 🆕 Handler pour le bouton Quit (affiche la modale)
+static void on_quit_click(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("🖱️ [SIDEBAR] Click sur QUIT détecté\n");
+    
+    extern UITree* ui_get_global_tree(void);
+    UITree* tree = ui_get_global_tree();
+    if (tree) {
+        // Chercher la modale par son ID standard
+        UINode* modal = ui_tree_find_node(tree, "quit-confirm-modal");
+        if (modal) {
+            atomic_set_display(modal->element, DISPLAY_FLEX);
+            ui_set_z_index(modal, 2000); // S'assurer qu'elle est au-dessus
+            printf("✅ [SIDEBAR] Modal de confirmation affiché\n");
+            
+            // Mettre le jeu en pause si possible
+            UINode* plateau = ui_tree_find_node(tree, "fanorona-plateau");
+            if (plateau) {
+                void* logic_ptr = ui_plateau_get_game_logic(plateau);
+                if (logic_ptr) {
+                    game_logic_set_pause((GameLogic*)logic_ptr, true);
+                }
+            }
+        } else {
+            printf("❌ [SIDEBAR] Modal 'quit-confirm-modal' introuvable dans l'arbre UI\n");
+        }
+    } else {
+        printf("❌ [SIDEBAR] Arbre UI global introuvable\n");
+    }
+}
+
 // === SIDEBAR COMPONENT ===
 
 UINode* ui_sidebar(UITree* tree, const char* id) {
@@ -466,8 +497,13 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
         
         UINode* quit_btn = ui_sidebar_create_control_button(sidebar->tree, "quit-btn", "leave.svg", "QUIT", true);
         if (quit_btn) {
-            ui_link_attach_to_node(quit_btn, "menu");
-            ui_link_set_transition(quit_btn, SCENE_TRANSITION_FADE);
+            // 🔧 MODIFICATION: Plus de lien direct, on passe par la modale
+            // ui_link_attach_to_node(quit_btn, "menu");
+            // ui_link_set_transition(quit_btn, SCENE_TRANSITION_FADE);
+            
+            atomic_set_click_handler(quit_btn->element, on_quit_click);
+            // 🆕 Force z-index high to ensure clickability
+            ui_set_z_index(quit_btn, 50);
             APPEND(bottom_row, quit_btn);
         }
         
@@ -559,8 +595,6 @@ void ui_sidebar_update_current_turn(UINode* sidebar, GamePlayer* current_player)
     // 🆕 NOUVEAU: Automatically manage timer state based on turn
     static int last_current_player = -1;
     if (last_current_player != current_player->player_number) {
-        printf("🔄 [SIDEBAR] Turn change detected: Player %d -> Player %d\n", 
-               last_current_player, current_player->player_number);
         last_current_player = current_player->player_number;
     }
     
@@ -594,9 +628,7 @@ static void update_node_text_safe(UINode* node, const char* new_text) {
     node->element->content.text = strdup(new_text);
     
     // Only log for debugging specific issues
-    if (strstr(new_text, "Captures:") && !strstr(new_text, "Captures: 0")) {
-        printf("🎯 [TEXT_UPDATE] Capture update: '%s'\n", new_text);
-    }
+  
 }
 
 // 🆕 FIXED: Timer implementation with proper per-player tracking
@@ -655,10 +687,7 @@ void ui_sidebar_update_player_timer(UINode* sidebar, GamePlayer* player) {
             update_node_text_safe(captures_node, captures_text);
             
             // Debug only when captures > 0
-            if (actual_captures > 0) {
-                printf("🎯 [SIDEBAR] %s displays %d captures\n", 
-                       player->name, actual_captures);
-            }
+            
         }
     }
     

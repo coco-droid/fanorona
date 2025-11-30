@@ -27,6 +27,48 @@ typedef struct GameSceneData {
     SDL_Renderer* last_renderer; // 🆕 Suivi du renderer pour rechargement
 } GameSceneData;
 
+// 🆕 Callback pour le bouton OUI de la modale
+static void on_confirm_quit_yes(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("🚪 Confirmation QUIT acceptée - Retour au menu\n");
+    
+    // Activer le lien caché qui gère la transition propre
+    extern UITree* ui_get_global_tree(void);
+    UITree* tree = ui_get_global_tree();
+    if (tree) {
+        UINode* link = ui_tree_find_node(tree, "quit-action-link");
+        if (link) {
+            ui_link_activate(link);
+        } else {
+            printf("❌ Lien 'quit-action-link' introuvable\n");
+        }
+    }
+}
+
+// 🆕 Callback pour le bouton NON de la modale
+static void on_confirm_quit_no(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("↩️ Confirmation QUIT annulée - Retour au jeu\n");
+    
+    extern UITree* ui_get_global_tree(void);
+    UITree* tree = ui_get_global_tree();
+    if (tree) {
+        UINode* modal = ui_tree_find_node(tree, "quit-confirm-modal");
+        if (modal) {
+            atomic_set_display(modal->element, DISPLAY_NONE);
+            
+            // Enlever la pause
+            UINode* plateau = ui_tree_find_node(tree, "fanorona-plateau");
+            if (plateau) {
+                void* logic_ptr = ui_plateau_get_game_logic(plateau);
+                if (logic_ptr) {
+                    game_logic_set_pause((GameLogic*)logic_ptr, false);
+                }
+            }
+        }
+    }
+}
+
 // 🆕 Fonction helper pour construire/reconstruire l'UI
 static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
     GameSceneData* data = (GameSceneData*)scene->data;
@@ -129,7 +171,39 @@ static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
         APPEND(app, data->playable_area);
     }
     
+    // 🆕 AJOUT: Lien caché pour l'action de quitter (transition propre)
+    // Utilise SCENE_TRANSITION_CLOSE_AND_OPEN pour fermer la fenêtre de jeu et rouvrir le menu (Mini)
+    // Cela garantit que les textures du menu sont rechargées correctement
+    UINode* quit_action = ui_create_link(data->ui_tree, "quit-action-link", "", "menu", SCENE_TRANSITION_CLOSE_AND_OPEN);
+    if (quit_action) {
+        atomic_set_display(quit_action->element, DISPLAY_NONE); // Invisible
+        ui_link_set_target_window(quit_action, WINDOW_TYPE_MINI); // Le menu est en Mini
+        APPEND(app, quit_action);
+        
+        // Connecter au manager si disponible (sera aussi fait dans connect_events)
+        if (data->core && data->core->scene_manager) {
+             ui_link_connect_to_manager(quit_action, data->core->scene_manager);
+        }
+    }
+    
+    // 🆕 AJOUT: Modale de confirmation
+    UINode* modal = ui_confirm_modal(data->ui_tree, "quit-confirm-modal", 
+        "ABANDONNER LA PARTIE ?", 
+        "Voulez-vous vraiment quitter ?\nLa progression sera perdue.",
+        on_confirm_quit_yes, on_confirm_quit_no);
+    
+    // 🔧 FIX: Ajouter 'app' à la racine D'ABORD
     APPEND(data->ui_tree->root, app);
+
+    if (modal) {
+        // 🔧 FIX: Ajouter le modal à la RACINE (pas dans app) pour qu'il soit un overlay indépendant
+        // 'app' est en flex-row, ce qui cassait le positionnement du modal
+        APPEND(data->ui_tree->root, modal); 
+        printf("✅ [GAME_SCENE] Modal 'quit-confirm-modal' ajouté à la racine (overlay)\n");
+    } else {
+        printf("❌ [GAME_SCENE] Échec création modal 'quit-confirm-modal'\n");
+    }
+    
     ui_calculate_implicit_z_index(data->ui_tree);
     
     // Enregistrer tous les événements de l'arbre
@@ -139,8 +213,13 @@ static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
     
     // Reconnecter les boutons de la sidebar au core si disponible
     if (data->core && data->core->scene_manager) {
-        UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
-        if (quit_btn) ui_link_connect_to_manager(quit_btn, data->core->scene_manager);
+        // 🔧 NOTE: quit-btn n'est plus un lien direct, il ouvre la modale
+        // UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
+        // if (quit_btn) ui_link_connect_to_manager(quit_btn, data->core->scene_manager);
+        
+        // Connecter le lien caché d'action
+        UINode* quit_action = ui_tree_find_node(data->ui_tree, "quit-action-link");
+        if (quit_action) ui_link_connect_to_manager(quit_action, data->core->scene_manager);
         
         UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
         if (settings_btn) ui_link_connect_to_manager(settings_btn, data->core->scene_manager);
@@ -393,8 +472,13 @@ void game_scene_connect_events(Scene* scene, GameCore* core) {
         
         // Connecter les boutons sidebar
         if (core->scene_manager) {
-            UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
-            if (quit_btn) ui_link_connect_to_manager(quit_btn, core->scene_manager);
+            // 🔧 NOTE: quit-btn n'est plus un lien direct
+            // UINode* quit_btn = ui_tree_find_node(data->ui_tree, "quit-btn");
+            // if (quit_btn) ui_link_connect_to_manager(quit_btn, core->scene_manager);
+            
+            // Connecter le lien caché d'action
+            UINode* quit_action = ui_tree_find_node(data->ui_tree, "quit-action-link");
+            if (quit_action) ui_link_connect_to_manager(quit_action, core->scene_manager);
             
             UINode* settings_btn = ui_tree_find_node(data->ui_tree, "settings-btn");
             if (settings_btn) ui_link_connect_to_manager(settings_btn, core->scene_manager);

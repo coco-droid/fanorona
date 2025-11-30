@@ -99,6 +99,7 @@ SOURCES=(
     "$SRC_DIR/ui/cnt_playable.c"
     "$SRC_DIR/ui/sidebar.c"
     "$SRC_DIR/ui/plateau_cnt.c"
+    "$SRC_DIR/ui/cnt_confirm_modal.c"
     "$SRC_DIR/ui/neon_btn.c"
     "$SRC_DIR/ui/text_input.c"
     "$SRC_DIR/ui/components/ui_link.c"

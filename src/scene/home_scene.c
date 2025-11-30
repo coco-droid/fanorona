@@ -167,7 +167,7 @@ static void home_scene_init(Scene* scene) {
     ui_set_event_logging(true);
     
     // Activer la visualisation des hitboxes (seulement pour home)
-    ui_set_hitbox_visualization(true);
+    ui_set_hitbox_visualization(false);
     printf("🎯 Visualisation des hitboxes activée pour la scène HOME\n");
     printf("   📱 Rectangles rouges transparents avec bordure bleue 4px\n");
     printf("   📊 Logs détaillés des dimensions dans la console d'événements\n");

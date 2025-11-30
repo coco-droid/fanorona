@@ -536,4 +536,11 @@ void ui_plateau_clear_animations(UINode* plateau);
 #define PLATEAU_CLEAR_ANIMATIONS(plateau) ui_plateau_clear_animations(plateau)
 #define PLATEAU_HAS_ANIMATIONS(plateau) ui_plateau_has_active_animations(plateau)
 
+// === CONFIRM MODAL COMPONENT ===
+
+// Créer une modale de confirmation (Overlay + Boîte + Boutons Oui/Non)
+// Masquée par défaut (display: none). Utiliser atomic_set_style_display(node->element, "flex") pour afficher.
+UINode* ui_confirm_modal(UITree* tree, const char* id, const char* title, const char* message, 
+                         void (*on_yes)(void*, SDL_Event*), void (*on_no)(void*, SDL_Event*));
+
 #endif // UI_COMPONENTS_H
