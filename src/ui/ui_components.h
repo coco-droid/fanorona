@@ -425,7 +425,8 @@ void ui_text_input_cleanup_registry(void);
 #define UI_PLATEAU(tree, id) ui_plateau_container(tree, id)
 #define UI_PLATEAU_SIZED(tree, id, w, h) ui_plateau_container_with_size(tree, id, w, h)
 
-// === MACROS MANQUANTES ===
+// 🆕 Afficher l'écran de fin de partie dans la sidebar
+void ui_sidebar_show_game_over(UINode* sidebar, const char* title, const char* message);
 
 #define SET_POS(node, x, y) ui_set_position(node, x, y)
 #define SET_SIZE(node, w, h) ui_set_size(node, w, h)
@@ -446,6 +447,9 @@ UINode* ui_animate_slide_out_left(UINode* node, float duration, float distance);
 UINode* ui_animate_shake_x(UINode* node, float duration, float intensity);
 UINode* ui_animate_pulse(UINode* node, float duration);
 UINode* ui_stop_animations(UINode* node);
+
+// 🆕 Helper pour arrêter toutes les animations d'un arbre
+void ui_tree_stop_all_animations(UITree* tree);
 
 // === NOUVELLES FONCTIONS D'ANIMATION DE PIECES ===
 

@@ -2,6 +2,7 @@
 #include "../native/atomic.h"
 #include "../../utils/log_console.h"
 #include "../../scene/scene.h" // 🔧 FIX: Include scene.h for transition constants
+#include "../../sound/sound.h" // 🆕 AJOUT: Pour le son
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -36,6 +37,9 @@ static void ui_link_click_handler(void* element, SDL_Event* event) {
         printf("⏳ Clic sur lien '%s' ignoré - pas encore prêt\n", node->id ? node->id : "NoID");
         return;
     }
+    
+    // 🆕 AJOUT: Jouer le son de clic par défaut
+    sound_play_button_click();
     
     printf("🎯 CLIC SUR LE LIEN UI '%s' → Cible: '%s'\n", 
            node->id ? node->id : "NoID", 
@@ -174,35 +178,19 @@ void ui_link_update(UINode* link, float delta_time) {
 
 // Connecter le lien au gestionnaire de scènes
 void ui_link_connect_to_manager(UINode* link, SceneManager* manager) {
-    if (!link || !manager || !link->element) return;
+    if (!link || !link->component_data) return;
     
-    UILinkData* link_data = (UILinkData*)link->component_data;
-    if (link_data) {
-        link_data->manager = manager;
-    }
-    
-    link->element->user_data = link;
-    
-    Scene* current_scene = scene_manager_get_current_scene(manager);
-    if (current_scene && current_scene->event_manager) {
-        atomic_register_with_event_manager(link->element, current_scene->event_manager);
-    } else if (link->tree && link->tree->event_manager) {
-        atomic_register_with_event_manager(link->element, link->tree->event_manager);
-    }
+    UILinkData* data = (UILinkData*)link->component_data;
+    data->manager = manager;
 }
 
-// Créer un lien avec style prédéfini
-UINode* ui_create_navigation_link(UITree* tree, const char* id, const char* text, 
-                                 const char* target_scene_id) {
-    UINode* link = ui_create_link(tree, id, text, target_scene_id, SCENE_TRANSITION_REPLACE);
+// 🆕 Nouvelle fonction pour récupérer les données de lien
+UILinkData* ui_link_get_data(UINode* link) {
     if (!link) return NULL;
-    atomic_set_padding(link->element, 8, 15, 8, 15);
-    atomic_set_text_color_rgba(link->element, 255, 255, 255, 255);
-    atomic_set_background_color(link->element, 0, 100, 200, 255);
-    return link;
+    return (UILinkData*)link->component_data;
 }
 
-// Attacher un comportement de lien à un nœud existant
+// 🆕 Attacher un comportement de lien à un nœud existant
 void ui_link_attach_to_node(UINode* node, const char* target_scene_id) {
     if (!node) return;
     
@@ -226,12 +214,6 @@ void ui_link_attach_to_node(UINode* node, const char* target_scene_id) {
     atomic_set_click_handler(node->element, ui_link_click_handler);
     atomic_set_hover_handler(node->element, ui_link_hover_handler);
     atomic_set_unhover_handler(node->element, ui_link_unhover_handler);
-}
-
-// Récupérer les données de lien
-UILinkData* ui_link_get_data(UINode* link) {
-    if (!link) return NULL;
-    return (UILinkData*)link->component_data;
 }
 
 // Valider un lien

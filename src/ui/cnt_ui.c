@@ -130,7 +130,7 @@ UINode* ui_container_extended(UITree* tree, const char* id, bool show_bottom_bar
     // === 4. BOUTON PARAMÈTRES (COG) ET PAUSE ===
     // Positionnés en bas via un container transparent dédié
     // 🆕 CONDITION: Seulement si show_bottom_bar est vrai
-    if (show_bottom_bar) {
+    if (false && show_bottom_bar) { // 🔧 FIX: Désactivé le container cog/pause
         SDL_Texture* cog_texture = NULL;
         SDL_Texture* pause_texture = NULL;
         GameWindow* window = use_mini_window();

@@ -13,6 +13,7 @@
 #include "../logic/rules.h"
 #include "../types/plateau_types.h"
 #include "../ai/ai.h"  // 🆕 AJOUT: Support IA
+#include "../sound/sound.h" // 🆕 AJOUT: Pour les sons du jeu
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,6 +73,7 @@ static void plateau_draw_valid_destinations(PlateauRenderData* data);
 static void animate_piece_capture(PlateauRenderData* data, int piece_id) {
     (void)data;
     printf("💥 Animate piece capture: %d\n", piece_id);
+    sound_play_piece_capture(); // 🆕 SON CAPTURE
 }
 
 // === FONCTIONS UTILITAIRES DE DESSIN ===
@@ -625,6 +627,9 @@ static void on_intersection_click(void* element, SDL_Event* event) {
         if (is_valid_destination(data, data->visual_state->selected_intersection, intersection_id)) {
             printf("✅ [PLATEAU_MOVE] Mouvement valide: %d → %d\n",
                 data->visual_state->selected_intersection, intersection_id);
+            
+            sound_play_piece_move(); // 🆕 SON DÉPLACEMENT
+            
             execute_animated_move(data, data->visual_state->selected_intersection, intersection_id);
             data->visual_state->selected_intersection = -1;
             if (data->visual_state->valid_destinations) {
@@ -805,7 +810,9 @@ UINode* ui_plateau_container_with_players(UITree* tree, const char* id, GamePlay
     
     SET_SIZE(plateau_container, PLATEAU_VISUAL_WIDTH, PLATEAU_VISUAL_HEIGHT);
     atomic_set_background_color(plateau_container->element, 0, 0, 0, 0);
-    atomic_set_border(plateau_container->element, 3, 255, 0, 0, 255);
+    // 🔧 FIX: Removed red debug border
+    // atomic_set_border(plateau_container->element, 3, 255, 0, 0, 255);
+    
     Board* board = (Board*)malloc(sizeof(Board));
     if (!board) return plateau_container;
     board_init(board);

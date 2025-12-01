@@ -25,12 +25,44 @@ typedef struct GameSceneData {
     UINode* playable_area;
     GameLogic* game_logic;       // 🆕 Ajout de la logique de jeu
     SDL_Renderer* last_renderer; // 🆕 Suivi du renderer pour rechargement
+    bool game_over_shown;        // 🆕 Flag pour éviter de recréer l'UI de fin
 } GameSceneData;
+
+static Scene* g_game_scene_ref = NULL; // 🆕 Reference to scene for reset
+static void game_scene_cleanup(Scene* scene); // 🆕 Forward declaration
+
+// 🆕 Callback pour le bouton REJOUER
+static void on_replay_click(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("🔄 REPLAY demandé - Réinitialisation forcée de la scène\n");
+    
+    // Marquer la scène comme non initialisée pour forcer un rechargement complet
+    if (g_game_scene_ref) {
+        g_game_scene_ref->initialized = false;
+    }
+    
+    // Activer le lien (transition vers "game")
+    AtomicElement* atomic = (AtomicElement*)element;
+    if (atomic && atomic->user_data) {
+        UINode* node = (UINode*)atomic->user_data;
+        extern void ui_link_activate(UINode* link);
+        ui_link_activate(node);
+    }
+}
 
 // 🆕 Callback pour le bouton OUI de la modale
 static void on_confirm_quit_yes(void* element, SDL_Event* event) {
     (void)element; (void)event;
     printf("🚪 Confirmation QUIT acceptée - Retour au menu\n");
+    
+    // 🆕 Réinitialiser la configuration du jeu
+    config_reset_to_default();
+    
+    // 🆕 Force re-initialization next time we enter game (Reset total)
+    if (g_game_scene_ref) {
+        g_game_scene_ref->initialized = false;
+        printf("🔄 Game scene marked for reset on next entry\n");
+    }
     
     // Activer le lien caché qui gère la transition propre
     extern UITree* ui_get_global_tree(void);
@@ -78,6 +110,9 @@ static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
 
     // Nettoyer l'ancienne UI si elle existe
     if (data->ui_tree) {
+        // 🆕 FIX: Arrêter toutes les animations avant de détruire l'arbre
+        ui_tree_stop_all_animations(data->ui_tree);
+
         // 🆕 FIX: Detach event manager from tree to prevent Double Free in ui_tree_destroy
         // L'arbre ne doit pas détruire le manager car la scène en est propriétaire
         data->ui_tree->event_manager = NULL;
@@ -233,6 +268,13 @@ static void game_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
 static void game_scene_init(Scene* scene) {
     printf("🎮 Initialisation de la scène de jeu\n");
     
+    g_game_scene_ref = scene; // 🆕 Store reference
+    
+    // 🆕 Safety: Clean up previous data if re-initializing (prevent leaks)
+    if (scene->data) {
+        game_scene_cleanup(scene); // This frees data and sets scene->data = NULL
+    }
+    
     ui_set_hitbox_visualization(false);
     
     GameSceneData* data = (GameSceneData*)malloc(sizeof(GameSceneData));
@@ -245,6 +287,7 @@ static void game_scene_init(Scene* scene) {
     data->game_logic = NULL;
     data->last_renderer = NULL;
     data->ui_tree = NULL;
+    data->game_over_shown = false; // 🆕 Init flag
     
     scene->data = data; // Assigner data tôt pour que build_ui puisse l'utiliser
     
@@ -272,6 +315,63 @@ static void game_scene_update(Scene* scene, float delta_time) {
     // Mettre à jour la logique de jeu
     if (data->game_logic) {
         game_logic_update(data->game_logic, delta_time);
+        
+        // 🆕 GESTION DE L'AFFICHAGE DE FIN DE PARTIE
+        if (data->game_logic->state == GAME_STATE_GAME_OVER && !data->game_over_shown && data->sidebar) {
+            printf("🏁 Détection Game Over - Mise à jour Sidebar\n");
+            
+            // 🔧 FIX: Suppression des accents et ajout de \n pour le wrapping
+            const char* title = "PARTIE TERMINEE";
+            char msg[128] = "Partie terminee";
+            
+            Player winner_color = data->game_logic->winner;
+            GamePlayer* winner_player = (winner_color == data->game_logic->player1->logical_color) 
+                                        ? data->game_logic->player1 
+                                        : data->game_logic->player2;
+            
+            if (data->game_logic->mode == GAME_MODE_VS_AI) {
+                if (winner_player->type == PLAYER_TYPE_HUMAN) {
+                    title = "VICTOIRE !";
+                    snprintf(msg, sizeof(msg), "Bravo %s,\nvous avez gagne !", winner_player->name);
+                    // Son de victoire
+                    sound_play_effect(SOUND_VICTORY);
+                } else {
+                    title = "DEFAITE...";
+                    // 🔧 FIX: Sauts de ligne explicites pour l'affichage
+                    snprintf(msg, sizeof(msg), "L'IA a gagne.\nMeilleure chance\nla prochaine fois.");
+                    // Son de défaite
+                    sound_play_effect(SOUND_DEFEAT);
+                }
+            } else {
+                // Multijoueur
+                snprintf(msg, sizeof(msg), "Vainqueur :\n%s", winner_player->name);
+                sound_play_effect(SOUND_VICTORY);
+            }
+            
+            // Afficher l'UI de fin dans la sidebar
+            ui_sidebar_show_game_over(data->sidebar, title, msg);
+            
+            // Connecter les nouveaux boutons au SceneManager
+            if (data->core && data->core->scene_manager) {
+                // 🔧 FIX: Connecter le bouton REJOUER (anciennement analysis-btn)
+                UINode* replay = ui_tree_find_node(data->ui_tree, "analysis-btn");
+                if (replay) {
+                    ui_link_connect_to_manager(replay, data->core->scene_manager);
+                    // 🆕 AJOUT: Surcharger le click handler pour forcer le reset
+                    atomic_set_click_handler(replay->element, on_replay_click);
+                    printf("🔗 Bouton REJOUER connecté avec Reset Forcé\n");
+                }
+                
+                // 🔧 FIX: Connecter le bouton MENU (anciennement quit-btn)
+                UINode* menu = ui_tree_find_node(data->ui_tree, "quit-btn");
+                if (menu) {
+                    ui_link_connect_to_manager(menu, data->core->scene_manager);
+                    printf("🔗 Bouton MENU connecté au SceneManager\n");
+                }
+            }
+            
+            data->game_over_shown = true;
+        }
         
         // 🔧 FIX: Update timer display every frame, not just on turn change
         if (data->sidebar) {

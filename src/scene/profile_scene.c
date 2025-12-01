@@ -39,7 +39,23 @@ typedef struct ProfileSceneData {
     UINode* name_input;
     UINode* profile_header;  // 🆕 Référence au header pour le modifier
     ProfileData* profile_data;  // 🆕 Données du multistep form
+    SDL_Renderer* last_renderer; // 🆕 Suivi du renderer pour rechargement
 } ProfileSceneData;
+
+// 🆕 Callback pour le bouton RETOUR avec réinitialisation
+static void on_back_action(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("🔙 Retour demandé - Réinitialisation de la configuration\n");
+    config_reset_to_default();
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    UINode* link = (UINode*)atomic->user_data;
+    
+    if (link) {
+        extern void ui_link_activate(UINode* link);
+        ui_link_activate(link);
+    }
+}
 
 // 🆕 FONCTIONS HELPER pour ProfileData
 static ProfileData* create_profile_data(void) {
@@ -97,9 +113,9 @@ static void update_ui_for_current_step(ProfileSceneData* scene_data) {
         ui_text_input_set_placeholder(scene_data->name_input, "Nom du Joueur 1");
         atomic_set_text(scene_data->next_link->element, "SUIVANT");
         
-        // 🔧 FIX: Restaurer le design du bouton après changement de texte
-        atomic_set_background_color(scene_data->next_link->element, 0, 128, 0, 200);
-        atomic_set_border(scene_data->next_link->element, 2, 0, 255, 0, 255);
+        // 🔧 FIX: Style doré pour bouton Suivant
+        atomic_set_background_color(scene_data->next_link->element, 20, 20, 20, 220);
+        atomic_set_border(scene_data->next_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
         
@@ -110,9 +126,9 @@ static void update_ui_for_current_step(ProfileSceneData* scene_data) {
         ui_text_input_set_placeholder(scene_data->name_input, "Nom du Joueur 2");
         atomic_set_text(scene_data->next_link->element, "START");
         
-        // 🔧 FIX: Restaurer le design avec une couleur différente pour START
-        atomic_set_background_color(scene_data->next_link->element, 0, 64, 128, 200);  // Bleu foncé
-        atomic_set_border(scene_data->next_link->element, 2, 0, 150, 255, 255);
+        // 🔧 FIX: Style doré pour bouton Start
+        atomic_set_background_color(scene_data->next_link->element, 20, 20, 20, 220);
+        atomic_set_border(scene_data->next_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(scene_data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(scene_data->next_link->element, 6, 10, 6, 10);
         
@@ -285,55 +301,49 @@ static void next_link_callback(UINode* link) {
 // Variable globale pour l'accès aux données de scène (HACK temporaire)
 ProfileSceneData* g_current_profile_scene_data = NULL;
 
-// Initialisation de la scène Profile
-static void profile_scene_init(Scene* scene) {
-    printf("👤 Initialisation de la scène Profile\n");
-    
-    ui_set_hitbox_visualization(false);
-    
-    ProfileSceneData* data = (ProfileSceneData*)malloc(sizeof(ProfileSceneData));
-    if (!data) {
-        printf("❌ Erreur: Impossible d'allouer la mémoire pour ProfileSceneData\n");
-        return;
+// 🆕 Extracted UI building logic
+static void profile_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
+    ProfileSceneData* data = (ProfileSceneData*)scene->data;
+    if (!data || !renderer) return;
+
+    printf("🏗️ Construction de l'UI Profile pour le renderer %p\n", (void*)renderer);
+
+    // 🆕 FIX: Nettoyer l'event manager AVANT de détruire l'arbre pour éviter les pointeurs morts
+    // Cela empêche les crashs lors du rechargement de la scène
+    if (scene->event_manager) {
+        event_manager_clear_all(scene->event_manager);
     }
-    
-    data->initialized = true;
-    data->core = NULL;
-    data->avatar_selector = NULL;
-    data->back_link = NULL;
-    data->next_link = NULL;
-    data->name_input = NULL;
-    data->profile_header = NULL;
-    data->profile_data = create_profile_data();
-    
-    // 🔧 HACK: Stocker globalement pour accès depuis le callback
-    g_current_profile_scene_data = data;
+
+    // Nettoyer l'ancienne UI si elle existe
+    if (data->ui_tree) {
+        // 🆕 FIX: Arrêter les animations et détacher l'event manager
+        ui_tree_stop_all_animations(data->ui_tree);
+        data->ui_tree->event_manager = NULL;
+        
+        ui_tree_destroy(data->ui_tree);
+        data->ui_tree = NULL;
+        // Reset pointers
+        data->avatar_selector = NULL;
+        data->back_link = NULL;
+        data->next_link = NULL;
+        data->name_input = NULL;
+        data->profile_header = NULL;
+    }
 
     // Créer l'arbre UI
     data->ui_tree = ui_tree_create();
     ui_set_global_tree(data->ui_tree);
     
-    // 🆕 Adapter l'interface selon le mode de jeu
-    GameMode current_mode = config_get_mode();
-    if (current_mode == GAME_MODE_VS_AI) {
-        printf("🤖 Mode VS IA détecté - interface simplifiée (1 joueur)\n");
-    } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
-        bool is_invite = config_is_network_invite();
-        printf("🌐 Mode MULTIJOUEUR EN LIGNE détecté - interface simplifiée (1 joueur)\n");
-        printf("   🎭 Rôle: %s\n", is_invite ? "INVITÉ" : "HÔTE");
-    } else {
-        printf("👥 Mode multijoueur détecté - interface complète (2 joueurs)\n");
+    // Reconnecter l'event manager s'il existe
+    if (scene->event_manager) {
+        data->ui_tree->event_manager = scene->event_manager;
     }
     
+    // 🆕 Adapter l'interface selon le mode de jeu
+    GameMode current_mode = config_get_mode();
+    
     // Charger le background
-    SDL_Texture* background_texture = NULL;
-    GameWindow* window = use_mini_window();
-    if (window) {
-        SDL_Renderer* renderer = window_get_renderer(window);
-        if (renderer) {
-            background_texture = asset_load_texture(renderer, "fix_bg.png");
-        }
-    }
+    SDL_Texture* background_texture = asset_load_texture(renderer, "fix_bg.png");
     
     // Container principal
     UINode* app = UI_DIV(data->ui_tree, "profile-app");
@@ -356,7 +366,7 @@ static void profile_scene_init(Scene* scene) {
     FLEX_COLUMN(content_parent);
     ui_set_justify_content(content_parent, "flex-start");
     ui_set_align_items(content_parent, "center");
-    ui_set_flex_gap(content_parent, 20);
+    ui_set_flex_gap(content_parent, 12); // 🔧 FIX: Réduits de 20 à 12 pour rapprocher les boutons
     
     // Header "CRÉATION DE PROFIL" (adapté selon le mode)
     const char* initial_header;
@@ -380,7 +390,6 @@ static void profile_scene_init(Scene* scene) {
     data->avatar_selector = UI_AVATAR_SELECTOR(data->ui_tree, "profile-avatar-selector");
     if (data->avatar_selector) {
         AVATAR_RESET_DEFAULTS(data->avatar_selector);
-        printf("✨ Avatar selector créé et réinitialisé\n");
     }
     
     // 🆕 Text Input avec placeholder adapté
@@ -401,27 +410,30 @@ static void profile_scene_init(Scene* scene) {
         atomic_set_border(data->name_input->element, 2, 255, 165, 0, 255);
         ui_text_input_set_max_length(data->name_input, 50);
         ui_text_input_set_scene_id(data->name_input, "input_name");
-        printf("📝 Text input créé avec placeholder adapté au mode\n");
     }
     
     // 🆕 Container pour les boutons (RETOUR + SUIVANT)
     UINode* buttons_container = UI_DIV(data->ui_tree, "profile-buttons-container");
-    SET_SIZE(buttons_container, 350, 50);
+    SET_SIZE(buttons_container, 420, 50); // 🔧 FIX: Largeur augmentée (350->420) pour éviter le chevauchement
     ui_set_display_flex(buttons_container);
     FLEX_ROW(buttons_container);
-    ui_set_justify_content(buttons_container, "space-between");
+    ui_set_justify_content(buttons_container, "center"); // 🔧 FIX: Centré avec gap explicite
     ui_set_align_items(buttons_container, "center");
+    ui_set_flex_gap(buttons_container, 30); // 🔧 FIX: Espace explicite entre les boutons
     
     // Bouton retour
     data->back_link = ui_create_link(data->ui_tree, "back-link", "RETOUR", "menu", SCENE_TRANSITION_REPLACE);
     if (data->back_link) {
-        SET_SIZE(data->back_link, 150, 35);
+        SET_SIZE(data->back_link, 140, 35); // 🔧 FIX: Légèrement réduit pour l'esthétique
         ui_set_text_align(data->back_link, "center");
-        atomic_set_background_color(data->back_link->element, 64, 64, 64, 200);
-        atomic_set_border(data->back_link->element, 2, 128, 128, 128, 255);
+        // 🆕 FIX: Style doré pour bouton Retour
+        atomic_set_background_color(data->back_link->element, 20, 20, 20, 220);
+        atomic_set_border(data->back_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(data->back_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->back_link->element, 6, 10, 6, 10);
         ui_link_set_target_window(data->back_link, WINDOW_TYPE_MINI);
+        // 🆕 FIX: Callback de reset
+        atomic_set_click_handler(data->back_link->element, on_back_action);
         APPEND(buttons_container, data->back_link);
     }
     
@@ -438,20 +450,12 @@ static void profile_scene_init(Scene* scene) {
     
     data->next_link = ui_create_link(data->ui_tree, "next-link", initial_button_text, NULL, SCENE_TRANSITION_REPLACE);
     if (data->next_link) {
-        SET_SIZE(data->next_link, 200, 35);
+        SET_SIZE(data->next_link, 190, 35); // 🔧 FIX: Légèrement réduit
         ui_set_text_align(data->next_link, "center");
         
-        // Style adapté selon le mode
-        if (current_mode == GAME_MODE_VS_AI) {
-            atomic_set_background_color(data->next_link->element, 255, 140, 0, 200);
-            atomic_set_border(data->next_link->element, 2, 255, 165, 0, 255);
-        } else if (current_mode == GAME_MODE_ONLINE_MULTIPLAYER) {
-            atomic_set_background_color(data->next_link->element, 0, 64, 128, 200);
-            atomic_set_border(data->next_link->element, 2, 0, 191, 255, 255);
-        } else {
-            atomic_set_background_color(data->next_link->element, 0, 128, 0, 200);
-            atomic_set_border(data->next_link->element, 2, 0, 255, 0, 255);
-        }
+        // 🆕 FIX: Style doré uniforme pour tous les modes
+        atomic_set_background_color(data->next_link->element, 20, 20, 20, 220);
+        atomic_set_border(data->next_link->element, 2, 255, 215, 0, 255);
         
         atomic_set_text_color_rgba(data->next_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->next_link->element, 6, 10, 6, 10);
@@ -461,11 +465,10 @@ static void profile_scene_init(Scene* scene) {
         ui_link_set_activation_delay(data->next_link, 0.0f);
         
         APPEND(buttons_container, data->next_link);
-        printf("🔗 UI Link créé avec style adapté au mode %s\n", config_mode_to_string(current_mode));
     }
     
     // Assembler dans le conteneur parent
-    APPEND(content_parent, data->profile_header);  // 🔧 FIX: Utiliser la référence stockée
+    APPEND(content_parent, data->profile_header);
     APPEND(content_parent, data->avatar_selector);
     APPEND(content_parent, data->name_input);
     APPEND(content_parent, buttons_container);
@@ -483,11 +486,61 @@ static void profile_scene_init(Scene* scene) {
     
     ui_calculate_implicit_z_index(data->ui_tree);
     
-    printf("✅ Interface Profile créée et adaptée au mode: %s\n", 
-           config_mode_to_string(current_mode));
+    // Enregistrer les événements
+    if (scene->event_manager) {
+        ui_tree_register_all_events(data->ui_tree);
+        if (data->avatar_selector) {
+            ui_avatar_selector_register_events(data->avatar_selector, scene->event_manager);
+        }
+    }
     
-    scene->data = data;
+    // Connecter les liens
+    if (data->core) {
+        extern SceneManager* game_core_get_scene_manager(GameCore* core);
+        SceneManager* scene_manager = game_core_get_scene_manager(data->core);
+        if (scene_manager) {
+            if (data->back_link) ui_link_connect_to_manager(data->back_link, scene_manager);
+            if (data->next_link) ui_link_connect_to_manager(data->next_link, scene_manager);
+        }
+    }
+    
     scene->ui_tree = data->ui_tree;
+    printf("✅ UI Profile reconstruite pour renderer %p\n", (void*)renderer);
+}
+
+// Initialisation de la scène Profile
+static void profile_scene_init(Scene* scene) {
+    printf("👤 Initialisation de la scène Profile\n");
+    
+    ui_set_hitbox_visualization(false);
+    
+    ProfileSceneData* data = (ProfileSceneData*)malloc(sizeof(ProfileSceneData));
+    if (!data) {
+        printf("❌ Erreur: Impossible d'allouer la mémoire pour ProfileSceneData\n");
+        return;
+    }
+    
+    data->initialized = true;
+    data->core = NULL;
+    data->avatar_selector = NULL;
+    data->back_link = NULL;
+    data->next_link = NULL;
+    data->name_input = NULL;
+    data->profile_header = NULL;
+    data->profile_data = create_profile_data();
+    data->last_renderer = NULL; // 🆕 Init last_renderer
+    data->ui_tree = NULL;
+    
+    // 🔧 HACK: Stocker globalement pour accès depuis le callback
+    g_current_profile_scene_data = data;
+    scene->data = data;
+
+    // 🆕 Construire l'UI immédiatement si possible
+    GameWindow* window = use_mini_window();
+    if (window && window->renderer) {
+        profile_scene_build_ui(scene, window->renderer);
+        data->last_renderer = window->renderer;
+    }
 }
 
 // Mise à jour de la scène Profile
@@ -524,6 +577,14 @@ static void profile_scene_render(Scene* scene, GameWindow* window) {
     
     ProfileSceneData* data = (ProfileSceneData*)scene->data;
     
+    // 🆕 DÉTECTION DE CHANGEMENT DE RENDERER
+    if (renderer != data->last_renderer) {
+        printf("🔄 Changement de renderer détecté dans Profile Scene (%p -> %p)\n", 
+               (void*)data->last_renderer, (void*)renderer);
+        profile_scene_build_ui(scene, renderer);
+        data->last_renderer = renderer;
+    }
+    
     if (data->ui_tree) {
         ui_tree_render(data->ui_tree, renderer);
     }
@@ -547,12 +608,18 @@ static void profile_scene_cleanup(Scene* scene) {
     }
     
     if (data->ui_tree) {
+        // 🆕 FIX: Détacher l'event manager pour éviter sa destruction par l'arbre
+        data->ui_tree->event_manager = NULL;
         ui_tree_destroy(data->ui_tree);
         data->ui_tree = NULL;
     }
     
     free(data);
     scene->data = NULL;
+    
+    // 🆕 FIX: Marquer comme non initialisé pour forcer un init complet au prochain chargement
+    // Cela garantit que l'UI et les événements sont recréés proprement (évite le segfault)
+    scene->initialized = false;
     
     printf("✅ Nettoyage de la scène Profile terminé\n");
 }

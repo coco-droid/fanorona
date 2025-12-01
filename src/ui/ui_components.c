@@ -5,6 +5,7 @@
 #include "../utils/asset_manager.h"
 #include "../utils/log_console.h"
 #include "../window/window.h"  // FIX: Include pour WindowDimensions
+#include "../sound/sound.h"    // 🆕 AJOUT: Pour les sons
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -227,17 +228,14 @@ UINode* ui_div(UITree* tree, const char* id) {
 }
 
 UINode* ui_text(UITree* tree, const char* id, const char* content) {
-    if (!tree) {
-        ui_log_event("UIComponent", "CreateError", id, "Tree is NULL");
-        return NULL;
-    }
+    if (!tree) return NULL;
     
     UINode* node = ui_tree_create_node(tree, id, "text");
     if (node && content) {
-        atomic_set_text(node->element, content);
+        atomic_set_text(node->element, content); // 🆕 FIX: Set the text content
         ui_log_event("UIComponent", "Create", id, "Text element created with content");
-    } else {
-        ui_log_event("UIComponent", "CreateError", id, "Failed to create text element");
+    } else if (!node) {
+        ui_log_event("UIComponent", "CreateError", id, "Failed to create text node");
     }
     
     return node;
@@ -258,6 +256,21 @@ UINode* ui_image(UITree* tree, const char* id, SDL_Texture* texture) {
     }
     
     return node;
+}
+
+static void internal_button_click_wrapper(void* element, SDL_Event* event) {
+    // 1. Jouer le son
+    sound_play_button_click();
+    
+    // 2. Récupérer et appeler le callback utilisateur
+    AtomicElement* atomic = (AtomicElement*)element;
+    void (*user_callback)(UINode*, void*) = (void (*)(UINode*, void*))atomic_get_custom_data(atomic, "ui_callback");
+    
+    if (user_callback) {
+        // Note: On passe 'element' et 'event' pour mimer le comportement du cast précédent
+        // Idéalement, on devrait passer le UINode si on pouvait le récupérer proprement
+        user_callback((UINode*)element, (void*)event); 
+    }
 }
 
 UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick)(UINode* node, void* user_data), void* user_data) {
@@ -283,9 +296,13 @@ UINode* ui_button(UITree* tree, const char* id, const char* text, void (*onClick
         printf("Button '%s' created with text: '%s'\n", id ? id : "NoID", text);
         
         if (onClick && tree->event_manager) {
-            atomic_set_click_handler(node->element, (void(*)(void*, SDL_Event*))onClick);
+            // 🆕 MODIFICATION: Utiliser le wrapper pour le son
+            atomic_set_custom_data(node->element, "ui_callback", (void*)onClick);
+            atomic_set_custom_data(node->element, "ui_user_data", user_data);
+            
+            atomic_set_click_handler(node->element, internal_button_click_wrapper);
             atomic_register_with_event_manager(node->element, tree->event_manager);
-            printf("Button '%s' auto-registered with click handler\n", id ? id : "NoID");
+            printf("Button '%s' auto-registered with sound & click handler\n", id ? id : "NoID");
         }
     }
     
@@ -1176,4 +1193,19 @@ UINode* ui_stop_animations(UINode* node) {
     ui_node_stop_animations(node);
     ui_log_event("UIComponent", "Animation", node->id, "All animations stopped");
     return node;
+}
+
+// 🆕 Helper récursif pour arrêter les animations
+static void stop_animations_recursive(UINode* node) {
+    if (!node) return;
+    ui_stop_animations(node);
+    for (int i = 0; i < node->children_count; i++) {
+        stop_animations_recursive(node->children[i]);
+    }
+}
+
+void ui_tree_stop_all_animations(UITree* tree) {
+    if (tree && tree->root) {
+        stop_animations_recursive(tree->root);
+    }
 }

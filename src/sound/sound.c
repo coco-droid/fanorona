@@ -1,5 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include "sound.h"
+#include "../utils/asset_manager.h" // 🆕 AJOUT: Pour la gestion des chemins
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h> // 🆕 FIX: Include SDL_mixer explicitly
 #include <stdio.h>
 #include <string.h>
 
@@ -38,6 +41,12 @@ bool sound_init(void) {
     
     printf("🔊 Initialisation du système de son...\n");
     
+    // 🆕 FIX: Initialiser le sous-système audio SDL explicitement
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+        printf("❌ Erreur SDL_InitSubSystem(AUDIO): %s\n", SDL_GetError());
+        return false;
+    }
+    
     // Initialiser SDL_mixer
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         printf("❌ Erreur Mix_OpenAudio: %s\n", Mix_GetError());
@@ -54,6 +63,12 @@ bool sound_init(void) {
     sound_system_initialized = true;
     printf("✅ Système de son initialisé (Musique: %d%%, Effets: %d%%)\n", 
            music_volume, sfx_volume);
+    
+    // 🆕 CHARGEMENT AUTOMATIQUE DES SONS PAR DÉFAUT
+    // Utilisation de noms de fichiers simples, asset_manager gère le chemin
+    sound_load_effect(SOUND_CLICK, "click.wav");
+    sound_load_effect(SOUND_PIECE_CAPTURE, "capture.wav");
+    sound_load_effect(SOUND_PIECE_MOVE, "deplacement.wav");
     
     return true;
 }
@@ -195,7 +210,9 @@ bool sound_is_music_playing(void) {
 // === GESTION DES EFFETS SONORES ===
 
 static Mix_Chunk* generate_square_wave(int frequency, int duration_ms, float amplitude) {
-    int sample_count = (SAMPLE_RATE * duration_ms) / 1000;
+    // 🔧 FIX: Générer pour STEREO (2 canaux) car Mix_OpenAudio utilise channels=2
+    int frames = (SAMPLE_RATE * duration_ms) / 1000;
+    int sample_count = frames * 2; // L + R
     int buffer_size = sample_count * BYTES_PER_SAMPLE;
     
     Sint16* buffer = (Sint16*)malloc(buffer_size);
@@ -209,8 +226,10 @@ static Mix_Chunk* generate_square_wave(int frequency, int duration_ms, float amp
     Sint16 high_value = (Sint16)(32767 * amplitude);
     Sint16 low_value = (Sint16)(-32767 * amplitude);
     
-    for (int i = 0; i < sample_count; i++) {
-        buffer[i] = ((i / half_period) % 2 == 0) ? high_value : low_value;
+    for (int i = 0; i < frames; i++) {
+        Sint16 value = ((i / half_period) % 2 == 0) ? high_value : low_value;
+        buffer[2*i] = value;     // Left
+        buffer[2*i+1] = value;   // Right
     }
     
     // Créer le Mix_Chunk
@@ -231,7 +250,9 @@ static Mix_Chunk* generate_square_wave(int frequency, int duration_ms, float amp
 
 // 🆕 GÉNÉRATEUR DE DOUBLE TONALITÉ (pour effets plus complexes)
 static Mix_Chunk* generate_dual_tone(int freq1, int freq2, int duration_ms, float amplitude) {
-    int sample_count = (SAMPLE_RATE * duration_ms) / 1000;
+    // 🔧 FIX: Générer pour STEREO
+    int frames = (SAMPLE_RATE * duration_ms) / 1000;
+    int sample_count = frames * 2;
     int buffer_size = sample_count * BYTES_PER_SAMPLE;
     
     Sint16* buffer = (Sint16*)malloc(buffer_size);
@@ -242,10 +263,12 @@ static Mix_Chunk* generate_dual_tone(int freq1, int freq2, int duration_ms, floa
     Sint16 high = (Sint16)(32767 * amplitude);
     Sint16 low = (Sint16)(-32767 * amplitude);
     
-    for (int i = 0; i < sample_count; i++) {
+    for (int i = 0; i < frames; i++) {
         Sint16 wave1 = ((i / half_period1) % 2 == 0) ? high : low;
         Sint16 wave2 = ((i / half_period2) % 2 == 0) ? high : low;
-        buffer[i] = (Sint16)((wave1 + wave2) / 2);
+        Sint16 value = (Sint16)((wave1 + wave2) / 2);
+        buffer[2*i] = value;     // Left
+        buffer[2*i+1] = value;   // Right
     }
     
     Mix_Chunk* chunk = (Mix_Chunk*)malloc(sizeof(Mix_Chunk));
@@ -264,7 +287,9 @@ static Mix_Chunk* generate_dual_tone(int freq1, int freq2, int duration_ms, floa
 
 // 🆕 GÉNÉRATEUR DE SWEEP (balayage de fréquence)
 static Mix_Chunk* generate_sweep(int start_freq, int end_freq, int duration_ms, float amplitude) {
-    int sample_count = (SAMPLE_RATE * duration_ms) / 1000;
+    // 🔧 FIX: Générer pour STEREO
+    int frames = (SAMPLE_RATE * duration_ms) / 1000;
+    int sample_count = frames * 2;
     int buffer_size = sample_count * BYTES_PER_SAMPLE;
     
     Sint16* buffer = (Sint16*)malloc(buffer_size);
@@ -273,11 +298,13 @@ static Mix_Chunk* generate_sweep(int start_freq, int end_freq, int duration_ms, 
     Sint16 high = (Sint16)(32767 * amplitude);
     Sint16 low = (Sint16)(-32767 * amplitude);
     
-    for (int i = 0; i < sample_count; i++) {
-        float progress = (float)i / sample_count;
+    for (int i = 0; i < frames; i++) {
+        float progress = (float)i / frames;
         int current_freq = start_freq + (int)((end_freq - start_freq) * progress);
         int half_period = SAMPLE_RATE / (2 * current_freq);
-        buffer[i] = ((i / half_period) % 2 == 0) ? high : low;
+        Sint16 value = ((i / half_period) % 2 == 0) ? high : low;
+        buffer[2*i] = value;     // Left
+        buffer[2*i+1] = value;   // Right
     }
     
     Mix_Chunk* chunk = (Mix_Chunk*)malloc(sizeof(Mix_Chunk));
@@ -354,7 +381,7 @@ static Mix_Chunk* create_fallback_sound(SoundEffect effect) {
     }
 }
 
-bool sound_load_effect(SoundEffect effect, const char* filepath) {
+bool sound_load_effect(SoundEffect effect, const char* filename) {
     if (!sound_system_initialized) {
         printf("❌ Système de son non initialisé\n");
         return false;
@@ -371,11 +398,14 @@ bool sound_load_effect(SoundEffect effect, const char* filepath) {
         sound_effects[effect] = NULL;
     }
     
-    // 🔧 MODIFICATION: Essayer de charger le fichier
-    sound_effects[effect] = Mix_LoadWAV(filepath);
+    // 🔧 MODIFICATION: Utiliser asset_manager pour obtenir le chemin complet
+    char* full_path = asset_get_full_path(filename);
+    
+    // Essayer de charger avec le chemin résolu, sinon fallback sur le nom brut
+    sound_effects[effect] = Mix_LoadWAV(full_path ? full_path : filename);
     
     if (!sound_effects[effect]) {
-        printf("⚠️ Échec chargement effet '%s': %s\n", filepath, Mix_GetError());
+        printf("⚠️ Échec chargement effet '%s': %s\n", filename, Mix_GetError());
         printf("🔄 Utilisation du son généré en fallback...\n");
         
         // 🆕 FALLBACK: Générer le son
@@ -390,7 +420,7 @@ bool sound_load_effect(SoundEffect effect, const char* filepath) {
         return true;
     }
     
-    printf("✅ Effet sonore chargé: %s (effect %d)\n", filepath, effect);
+    printf("✅ Effet sonore chargé: %s (effect %d)\n", filename, effect);
     return true;
 }
 

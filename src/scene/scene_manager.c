@@ -321,7 +321,7 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
                 // Vérifier si on doit garder la fenêtre principale active (si on vient de MAIN/BOTH ou si une scène MAIN est déjà active)
                 bool keep_main_active = (source_window_type == WINDOW_TYPE_MAIN || 
                                        source_window_type == WINDOW_TYPE_BOTH || 
-                                       manager->active_scenes[WINDOW_TYPE_MAIN] != NULL);
+                                       (manager->active_scenes[WINDOW_TYPE_MAIN] && manager->active_scenes[WINDOW_TYPE_MAIN]->active));
                 
                 if (keep_main_active) {
                     // Si on ouvre une Mini depuis Main ou Both, on force le mode BOTH pour garder le fond (Jeu) visible
@@ -371,6 +371,18 @@ bool scene_manager_transition_to_scene(SceneManager* manager, const char* scene_
             
             if (old_scene) {
                 old_scene->active = false;
+                
+                // 🆕 FIX: Si on change de fenêtre, on retire l'ancienne scène de la liste active
+                // SANS la nettoyer (pour préserver l'état si besoin, ex: Pause/Paramètres)
+                if (old_scene->target_window != target_window) {
+                    // Retirer de la liste des scènes actives pour cette fenêtre
+                    if (manager->active_scenes[old_scene->target_window] == old_scene) {
+                        manager->active_scenes[old_scene->target_window] = NULL;
+                    }
+                    
+                    // 🔧 NOTE: On ne fait PAS de cleanup() ici pour permettre le "Resume"
+                    // Le nettoyage explicite (Quit) doit être géré par la scène elle-même
+                }
             }
             
             target_scene->active = true;

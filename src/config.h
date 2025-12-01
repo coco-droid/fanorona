@@ -50,6 +50,8 @@ void config_set_player2_full_profile(const char* name, AvatarID avatar);
 
 // 🆕 FONCTIONS POUR LES COULEURS DE PIÈCES
 void config_set_player_piece_colors(PieceColor player1_color, PieceColor player2_color);
+void config_set_player1_piece_color(PieceColor color); // 🆕 ADDED
+void config_set_player2_piece_color(PieceColor color); // 🆕 ADDED
 PieceColor config_get_player1_piece_color(void);
 PieceColor config_get_player2_piece_color(void);
 
@@ -62,6 +64,9 @@ extern const char* piece_color_to_string(PieceColor color);
 
 // 🆕 FONCTION RAPIDE pour activer le mode IA
 void config_enable_ai_mode(void);
+
+// 🆕 Réinitialiser toute la configuration (pour le retour au menu)
+void config_reset_to_default(void);
 
 // 🆕 NOUVELLES FONCTIONS pour vérifier l'état
 bool config_is_player1_configured(void);

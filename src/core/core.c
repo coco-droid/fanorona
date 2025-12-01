@@ -1,11 +1,17 @@
 #include "core.h"
 #include "../utils/log_console.h"
+#include "../sound/sound.h" // 🆕 AJOUT: Include sound
 #include <stdlib.h>
 #include <stdio.h>
 
 GameCore* game_core_create(void) {
     GameCore* core = (GameCore*)malloc(sizeof(GameCore));
     if (!core) return NULL;
+    
+    // 🆕 AJOUT: Initialisation du système de son
+    if (!sound_init()) {
+        printf("⚠️ Attention: Impossible d'initialiser le système de son\n");
+    }
     
     core->event_manager = event_manager_create();
     if (!core->event_manager) { free(core); return NULL; }
@@ -71,6 +77,10 @@ bool game_core_finalize_init(GameCore* core) {
 
 void game_core_destroy(GameCore* core) {
     if (!core) return;
+    
+    // 🆕 AJOUT: Nettoyage du son
+    sound_cleanup();
+    
     if (core->scene_manager) scene_manager_destroy(core->scene_manager);
     if (core->event_manager) event_manager_destroy(core->event_manager);
     free(core);

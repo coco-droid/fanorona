@@ -18,6 +18,9 @@
 static void on_pause_click(void* element, SDL_Event* event);
 static void on_settings_click(UINode* node); // 🆕 Forward declaration
 
+// 🆕 Forward declaration for internal helper
+UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const char* icon_svg, const char* text, bool is_prominent);
+
 // 🆕 Handler pour le bouton Quit (affiche la modale)
 static void on_quit_click(void* element, SDL_Event* event) {
     (void)element; (void)event;
@@ -374,6 +377,9 @@ UINode* ui_sidebar_create_player_info(UITree* tree, const char* id, GamePlayer* 
         ui_set_flex_gap(time_container, 4);
         atomic_set_background_color(time_container->element, 0, 0, 0, 0); // Transparent
         
+        // 🔧 FIX: Décaler le chronomètre de 3px des autres éléments (margin-left)
+        atomic_set_margin(time_container->element, 0, 0, 0, 3);
+
         // Icône timer.svg plus grande
         SDL_Texture* timer_icon = NULL;
         if (window) {
@@ -471,7 +477,8 @@ void ui_sidebar_add_control_buttons(UINode* sidebar) {
             APPEND(top_row, pause_btn);
         }
         
-        UINode* analysis_btn = ui_sidebar_create_control_button(sidebar->tree, "analysis-btn", "sheet.svg", "ANALYSE", false);
+        // 🔧 FIX: Renamed ANALYSE to WIKI
+        UINode* analysis_btn = ui_sidebar_create_control_button(sidebar->tree, "analysis-btn", "sheet.svg", "WIKI", false);
         if (analysis_btn) APPEND(top_row, analysis_btn);
         
         APPEND(controls_container, top_row);
@@ -547,7 +554,7 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
     ui_set_flex_direction(button, "row");
     ui_set_justify_content(button, "center");
     ui_set_align_items(button, "center");
-    ui_set_flex_gap(button, 8); // 🔧 FIX: Gap augmenté (4->8)
+    ui_set_flex_gap(button, 3); // 🔧 FIX: Gap réduit à 3px pour rapprocher logo et texte
     
     SDL_Texture* icon_texture = NULL;
     if (window) {
@@ -577,7 +584,14 @@ UINode* ui_sidebar_create_control_button(UITree* tree, const char* id, const cha
         atomic_set_text_size(text_node->element, 12); // 🔧 FIX: Texte agrandi (9->12)
         atomic_set_text_color(text_node->element, 0, 0, 0, 255);
         ui_set_text_style(text_node, true, false);
-        ui_set_text_align(text_node, "center");
+        ui_set_text_align(text_node, "left"); // 🔧 FIX: Alignement gauche
+        
+        // 🔧 FIX: Calculer la largeur du texte pour éviter le débordement flexbox
+        // Le défaut de 100px pousse le contenu hors du bouton (95px)
+        // Estimation: ~9px par caractère pour police taille 12
+        int est_width = (int)(strlen(text) * 9);
+        if (est_width < 30) est_width = 30; // Minimum
+        SET_SIZE(text_node, est_width, 20);
         
         APPEND(button, text_node);
     }
@@ -768,5 +782,124 @@ static void on_settings_click(UINode* node) {
                 printf("⚙️ Paramètres ouverts - Jeu mis en pause auto\n");
             }
         }
+    }
+}
+
+// 🆕 Afficher l'écran de fin de partie dans la sidebar
+void ui_sidebar_show_game_over(UINode* sidebar, const char* title, const char* message) {
+    if (!sidebar) return;
+
+    printf("🏆 Mise à jour Sidebar pour Game Over: %s\n", title);
+
+    // 1. Récupérer le conteneur des joueurs pour le remplacer par le statut
+    UINode* players_container = ui_tree_find_node(sidebar->tree, "players-container");
+    
+    if (players_container) {
+        // Vider le conteneur des joueurs
+        while (players_container->children_count > 0) {
+            ui_tree_remove_child(players_container, players_container->children[0]);
+        }
+        
+        // Changer le style pour le Game Over
+        atomic_set_background_image(players_container->element, NULL); // Enlever l'image de fond
+        atomic_set_background_color(players_container->element, 45, 45, 45, 240); // Fond sombre
+        atomic_set_border(players_container->element, 2, 255, 215, 0, 255); // Bordure dorée
+        
+        ui_set_justify_content(players_container, "center");
+        ui_set_align_items(players_container, "center");
+        ui_set_flex_gap(players_container, 15);
+        
+        // Ajouter le Titre
+        UINode* title_node = ui_text(sidebar->tree, "go-title", title);
+        ui_set_text_color(title_node, "rgb(255, 215, 0)"); // Or
+        ui_set_text_size(title_node, 20);
+        ui_set_text_style(title_node, true, false);
+        ui_set_text_align(title_node, "center");
+        APPEND(players_container, title_node);
+        
+        // Ajouter le Message (multiligne)
+        UINode* msg_container = ui_div(sidebar->tree, "go-msg-cnt");
+        SET_SIZE(msg_container, 200, 100);
+        ui_set_display_flex(msg_container);
+        FLEX_COLUMN(msg_container);
+        ui_set_justify_content(msg_container, "center");
+        ui_set_align_items(msg_container, "center");
+        atomic_set_background_color(msg_container->element, 0, 0, 0, 0);
+        
+        char* msg_copy = strdup(message);
+        if (msg_copy) {
+            char* line = strtok(msg_copy, "\n");
+            while (line != NULL) {
+                UINode* line_node = ui_text(sidebar->tree, "go-msg-line", line);
+                ui_set_text_color(line_node, "rgb(230, 230, 230)");
+                ui_set_text_size(line_node, 13);
+                ui_set_text_align(line_node, "center");
+                APPEND(msg_container, line_node);
+                line = strtok(NULL, "\n");
+            }
+            free(msg_copy);
+        }
+        APPEND(players_container, msg_container);
+        
+        // Animation d'entrée
+        ui_animate_slide_in_left(players_container, 0.5f, 20.0f);
+    }
+
+    // 2. Transformer le bouton ANALYSE en REJOUER
+    UINode* analysis_btn = ui_tree_find_node(sidebar->tree, "analysis-btn");
+    if (analysis_btn) {
+        // Changer le style (Prominent / Doré)
+        atomic_set_background_image(analysis_btn->element, NULL); // Enlever texture bouton standard
+        atomic_set_background_color(analysis_btn->element, 218, 165, 32, 255);
+        
+        // Changer l'icône (Child 0)
+        if (analysis_btn->children_count > 0) {
+            UINode* icon = analysis_btn->children[0];
+            GameWindow* window = use_main_window();
+            if (window) {
+                SDL_Renderer* renderer = window_get_renderer(window);
+                SDL_Texture* refresh_icon = asset_load_texture(renderer, "refresh.svg");
+                if (refresh_icon) {
+                    atomic_set_background_image(icon->element, refresh_icon);
+                }
+            }
+        }
+        
+        // Changer le texte (Child 1)
+        if (analysis_btn->children_count > 1) {
+            UINode* text = analysis_btn->children[1];
+            if (text->element->content.text) free(text->element->content.text);
+            text->element->content.text = strdup("REJOUER");
+        }
+        
+        // Changer l'action : Recharger la scène 'game'
+        ui_link_attach_to_node(analysis_btn, "game");
+        ui_link_set_transition(analysis_btn, SCENE_TRANSITION_FADE);
+        
+        // Animation pour attirer l'attention
+        ui_animate_pulse(analysis_btn, 1.0f);
+        
+        printf("🔄 Bouton Analyse transformé en Rejouer\n");
+    }
+
+    // 3. Transformer le bouton QUIT en MENU
+    UINode* quit_btn = ui_tree_find_node(sidebar->tree, "quit-btn");
+    if (quit_btn) {
+        // Changer le texte (Child 1)
+        if (quit_btn->children_count > 1) {
+            UINode* text = quit_btn->children[1];
+            if (text->element->content.text) free(text->element->content.text);
+            text->element->content.text = strdup("MENU");
+        }
+        
+        // Enlever le handler existant (modal)
+        atomic_set_click_handler(quit_btn->element, NULL);
+        
+        // Configurer comme lien vers le menu
+        ui_link_attach_to_node(quit_btn, "menu");
+        ui_link_set_target_window(quit_btn, WINDOW_TYPE_MINI);
+        ui_link_set_transition(quit_btn, SCENE_TRANSITION_CLOSE_AND_OPEN);
+        
+        printf("🔄 Bouton Quit transformé en Menu\n");
     }
 }

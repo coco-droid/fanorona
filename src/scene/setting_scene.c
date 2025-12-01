@@ -11,6 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// 🆕 État local pour les paramètres (Mock)
+static int s_volume = 100;
+static bool s_sfx = true;
+static int s_fps = 60;
+
 typedef struct SettingSceneData {
     bool initialized;
     UITree* ui_tree;
@@ -19,6 +24,63 @@ typedef struct SettingSceneData {
     SDL_Renderer* renderer_ref; // 🆕 Référence pour détecter le changement de fenêtre
 } SettingSceneData;
 
+// 🆕 Callbacks pour l'interactivité des paramètres
+static void on_setting_hover(void* element, SDL_Event* event) {
+    (void)event;
+    AtomicElement* el = (AtomicElement*)element;
+    atomic_set_background_color(el, 255, 255, 255, 30); // Highlight léger
+}
+
+static void on_setting_unhover(void* element, SDL_Event* event) {
+    (void)event;
+    AtomicElement* el = (AtomicElement*)element;
+    atomic_set_background_color(el, 0, 0, 0, 0); // Transparent
+}
+
+static void on_volume_click(void* element, SDL_Event* event) {
+    (void)event;
+    s_volume = (s_volume + 25);
+    if (s_volume > 100) s_volume = 0;
+    
+    AtomicElement* el = (AtomicElement*)element;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d%%", s_volume);
+    atomic_set_text(el, buf);
+    
+    if (el->user_data) ui_animate_pulse((UINode*)el->user_data, 0.2f);
+    printf("🔊 Volume réglé à %d%%\n", s_volume);
+}
+
+static void on_sfx_click(void* element, SDL_Event* event) {
+    (void)event;
+    s_sfx = !s_sfx;
+    
+    AtomicElement* el = (AtomicElement*)element;
+    atomic_set_text(el, s_sfx ? "ON" : "OFF");
+    
+    if (s_sfx) {
+        atomic_set_text_color(el, 0, 255, 0, 255); // Green
+    } else {
+        atomic_set_text_color(el, 255, 0, 0, 255); // Red
+    }
+    
+    if (el->user_data) ui_animate_pulse((UINode*)el->user_data, 0.2f);
+    printf("🔊 SFX %s\n", s_sfx ? "activés" : "désactivés");
+}
+
+static void on_fps_click(void* element, SDL_Event* event) {
+    (void)event;
+    s_fps = (s_fps == 60) ? 30 : 60;
+    
+    AtomicElement* el = (AtomicElement*)element;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", s_fps);
+    atomic_set_text(el, buf);
+    
+    if (el->user_data) ui_animate_pulse((UINode*)el->user_data, 0.2f);
+    printf("🖥️ FPS limités à %d\n", s_fps);
+}
+
 // 🆕 Fonction extraite pour reconstruire l'UI quand le renderer change
 static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
     SettingSceneData* data = (SettingSceneData*)scene->data;
@@ -26,6 +88,9 @@ static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
 
     // Nettoyer l'ancienne UI si elle existe (pour éviter les fuites)
     if (data->ui_tree) {
+        // 🆕 FIX: Arrêter toutes les animations avant de détruire l'arbre
+        ui_tree_stop_all_animations(data->ui_tree);
+
         // 🆕 FIX: Detacher l'event manager pour éviter sa destruction par l'arbre
         data->ui_tree->event_manager = NULL;
         ui_tree_destroy(data->ui_tree);
@@ -85,8 +150,17 @@ static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
         ui_set_text_color(vol_label, "white");
         APPEND(vol_row, vol_label);
         
-        UINode* vol_val = UI_TEXT(data->ui_tree, "vol-val", "100%");
+        char vol_str[16];
+        snprintf(vol_str, sizeof(vol_str), "%d%%", s_volume);
+        UINode* vol_val = UI_TEXT(data->ui_tree, "vol-val", vol_str);
         ui_set_text_color(vol_val, "orange");
+        // 🆕 Rendre interactif
+        atomic_set_padding(vol_val->element, 5, 10, 5, 10);
+        atomic_set_border(vol_val->element, 1, 100, 100, 100, 100);
+        atomic_set_click_handler(vol_val->element, on_volume_click);
+        atomic_set_hover_handler(vol_val->element, on_setting_hover);
+        atomic_set_unhover_handler(vol_val->element, on_setting_unhover);
+        
         APPEND(vol_row, vol_val);
         APPEND(content, vol_row);
         
@@ -102,8 +176,15 @@ static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
         ui_set_text_color(sfx_label, "white");
         APPEND(sfx_row, sfx_label);
         
-        UINode* sfx_val = UI_TEXT(data->ui_tree, "sfx-val", "ON");
-        ui_set_text_color(sfx_val, "green");
+        UINode* sfx_val = UI_TEXT(data->ui_tree, "sfx-val", s_sfx ? "ON" : "OFF");
+        ui_set_text_color(sfx_val, s_sfx ? "green" : "red");
+        // 🆕 Rendre interactif
+        atomic_set_padding(sfx_val->element, 5, 10, 5, 10);
+        atomic_set_border(sfx_val->element, 1, 100, 100, 100, 100);
+        atomic_set_click_handler(sfx_val->element, on_sfx_click);
+        atomic_set_hover_handler(sfx_val->element, on_setting_hover);
+        atomic_set_unhover_handler(sfx_val->element, on_setting_unhover);
+        
         APPEND(sfx_row, sfx_val);
         APPEND(content, sfx_row);
         
@@ -119,8 +200,17 @@ static void setting_scene_build_ui(Scene* scene, SDL_Renderer* renderer) {
         ui_set_text_color(fps_label, "white");
         APPEND(fps_row, fps_label);
         
-        UINode* fps_val = UI_TEXT(data->ui_tree, "fps-val", "60");
+        char fps_str[16];
+        snprintf(fps_str, sizeof(fps_str), "%d", s_fps);
+        UINode* fps_val = UI_TEXT(data->ui_tree, "fps-val", fps_str);
         ui_set_text_color(fps_val, "cyan");
+        // 🆕 Rendre interactif
+        atomic_set_padding(fps_val->element, 5, 10, 5, 10);
+        atomic_set_border(fps_val->element, 1, 100, 100, 100, 100);
+        atomic_set_click_handler(fps_val->element, on_fps_click);
+        atomic_set_hover_handler(fps_val->element, on_setting_hover);
+        atomic_set_unhover_handler(fps_val->element, on_setting_unhover);
+        
         APPEND(fps_row, fps_val);
         APPEND(content, fps_row);
         

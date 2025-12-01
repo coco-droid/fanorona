@@ -153,6 +153,31 @@ void config_enable_ai_mode(void) {
     printf("Mode IA active rapidement avec configuration par defaut\n");
 }
 
+void config_reset_to_default(void) {
+    g_config.current_mode = GAME_MODE_NONE;
+    g_config.ai_difficulty = AI_DIFFICULTY_MEDIUM;
+    
+    // Réinitialiser les noms
+    strncpy(g_config.player1_name, "Joueur 1", sizeof(g_config.player1_name) - 1);
+    strncpy(g_config.player2_name, "Joueur 2", sizeof(g_config.player2_name) - 1);
+    
+    // Réinitialiser les avatars
+    g_config.player1_avatar = AVATAR_WARRIOR;
+    g_config.player2_avatar = AVATAR_STRATEGIST;
+    
+    // Réinitialiser les couleurs
+    g_config.player1_piece_color = PIECE_COLOR_WHITE;
+    g_config.player2_piece_color = PIECE_COLOR_BLACK;
+    
+    // Réinitialiser les flags
+    g_config.player1_configured = false;
+    g_config.player2_configured = false;
+    g_config.ai_plays_as_white = false;
+    g_config.invite_on_game = false;
+    
+    printf("🔄 Configuration réinitialisée aux valeurs par défaut\n");
+}
+
 // IMPLÉMENTATION DU SYSTÈME D'AVATARS
 // Mapper ID → Nom de fichier
 const char* avatar_id_to_filename(AvatarID id) {
@@ -247,10 +272,15 @@ void config_reset_player_configs(void) {
 void config_set_player_piece_colors(PieceColor player1_color, PieceColor player2_color) {
     g_config.player1_piece_color = player1_color;
     g_config.player2_piece_color = player2_color;
-    
-    printf("Couleurs de pieces configurees:\n");
-    printf("   Joueur 1 (%s): %s\n", g_config.player1_name, piece_color_to_string(player1_color));
-    printf("   Joueur 2 (%s): %s\n", g_config.player2_name, piece_color_to_string(player2_color));
+}
+
+// 🆕 ADDED: Individual setters
+void config_set_player1_piece_color(PieceColor color) {
+    g_config.player1_piece_color = color;
+}
+
+void config_set_player2_piece_color(PieceColor color) {
+    g_config.player2_piece_color = color;
 }
 
 PieceColor config_get_player1_piece_color(void) {

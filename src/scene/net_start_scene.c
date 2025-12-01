@@ -21,6 +21,21 @@ typedef struct NetStartSceneData {
     UINode* back_link;
 } NetStartSceneData;
 
+// 🆕 Callback pour le bouton RETOUR avec réinitialisation
+static void on_back_action(void* element, SDL_Event* event) {
+    (void)element; (void)event;
+    printf("🔙 Retour demandé - Réinitialisation de la configuration\n");
+    config_reset_to_default();
+    
+    AtomicElement* atomic = (AtomicElement*)element;
+    UINode* link = (UINode*)atomic->user_data;
+    
+    if (link) {
+        extern void ui_link_activate(UINode* link);
+        ui_link_activate(link);
+    }
+}
+
 // Callback pour lancer une partie (hôte)
 static void host_link_clicked(void* element, SDL_Event* event) {
     (void)event;
@@ -127,8 +142,9 @@ static void net_start_scene_init(Scene* scene) {
     if (data->host_link) {
         SET_SIZE(data->host_link, 300, 50);
         ui_set_text_align(data->host_link, "center");
-        atomic_set_background_color(data->host_link->element, 64, 0, 128, 200);  // Violet foncé
-        atomic_set_border(data->host_link->element, 2, 138, 43, 226, 255);  // Violet clair
+        // 🆕 FIX: Style doré pour bouton Hôte
+        atomic_set_background_color(data->host_link->element, 20, 20, 20, 220);
+        atomic_set_border(data->host_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(data->host_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->host_link->element, 10, 15, 10, 15);
         ui_link_set_target_window(data->host_link, WINDOW_TYPE_MINI);
@@ -143,8 +159,9 @@ static void net_start_scene_init(Scene* scene) {
     if (data->join_link) {
         SET_SIZE(data->join_link, 300, 50);
         ui_set_text_align(data->join_link, "center");
-        atomic_set_background_color(data->join_link->element, 0, 64, 128, 200);  // Bleu foncé
-        atomic_set_border(data->join_link->element, 2, 30, 144, 255, 255);  // Bleu clair
+        // 🆕 FIX: Style doré pour bouton Invité
+        atomic_set_background_color(data->join_link->element, 20, 20, 20, 220);
+        atomic_set_border(data->join_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(data->join_link->element, 255, 255, 255, 255);
         atomic_set_padding(data->join_link->element, 10, 15, 10, 15);
         ui_link_set_target_window(data->join_link, WINDOW_TYPE_MINI);
@@ -159,12 +176,15 @@ static void net_start_scene_init(Scene* scene) {
     if (back_link) {
         SET_SIZE(back_link, 150, 35);
         ui_set_text_align(back_link, "center");
-        atomic_set_background_color(back_link->element, 64, 64, 64, 200);
-        atomic_set_border(back_link->element, 2, 128, 128, 128, 255);
+        // 🆕 FIX: Style doré pour bouton Retour
+        atomic_set_background_color(back_link->element, 20, 20, 20, 220);
+        atomic_set_border(back_link->element, 2, 255, 215, 0, 255);
         atomic_set_text_color_rgba(back_link->element, 255, 255, 255, 255);
         atomic_set_padding(back_link->element, 6, 10, 6, 10);
         atomic_set_margin(back_link->element, 8, 0, 0, 0);
         ui_link_set_target_window(back_link, WINDOW_TYPE_MINI);
+        // 🆕 FIX: Callback de reset
+        atomic_set_click_handler(back_link->element, on_back_action);
         data->back_link = back_link;
     }
     

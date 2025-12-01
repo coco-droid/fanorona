@@ -43,7 +43,12 @@ static UINode* create_main_avatar_circle(UITree* tree, const char* id, AvatarID 
         }
     }
     
-    atomic_set_border(avatar->element, 3, 255, 215, 0, 255);
+    // 🔧 FIX: Remove yellow border or make it circular
+    // atomic_set_border(avatar->element, 3, 255, 215, 0, 255); // REMOVED
+    
+    // 🆕 Add border radius to make it a circle
+    atomic_set_border_radius(avatar->element, size / 2);
+    
     return avatar;
 }
 
@@ -72,8 +77,8 @@ static AtomicElement* create_mini_avatar_atomic(const char* id, AvatarID avatar_
     }
     
     atomic_set_border(avatar, 2, 255, 255, 255, 180);
-    // 🔧 FIX: Remove the non-existent function call
-    // atomic_set_interactive(avatar, true);  // REMOVED - function doesn't exist
+    // 🆕 Add border radius to make it a circle
+    atomic_set_border_radius(avatar, size / 2);
     
     return avatar;
 }
@@ -228,7 +233,7 @@ UINode* ui_avatar_selector(UITree* tree, const char* id) {
     data->main_avatar = create_main_avatar_circle(tree, main_id, AVATAR_WARRIOR, 45);
     if (data->main_avatar) {
         ui_animate_pulse(data->main_avatar, 2.0f);
-        atomic_set_border(data->main_avatar->element, 3, 255, 215, 0, 255);
+        // atomic_set_border(data->main_avatar->element, 3, 255, 215, 0, 255); // REMOVED (redundant and square)
         APPEND(selector_container, data->main_avatar);
         printf("✅ Main avatar created and configured\n");
     }

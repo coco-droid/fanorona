@@ -1,4 +1,3 @@
-
 ## 1. Architecture Globale et Modules
 
 Le projet est structuré de manière modulaire pour séparer clairement les responsabilités.
@@ -179,13 +178,95 @@ Le jeu fonctionne comme une machine à états finis.
     2.  `Update` : La scène active met à jour sa logique (animations, timers).
     3.  `Render` : La scène active dessine ses composants.
 
-### UI et Événements
-*   **Arbre de composants** : L'interface est construite hiérarchiquement (Boutons, Textes).
-*   **Raycasting (Simplifié)** : Lors d'un clic souris, le système vérifie si les coordonnées $(x, y)$ de la souris sont à l'intérieur des cercles définissant les intersections du plateau. Si oui, l'événement est traduit en "Clic sur Nœud ID 12" et envoyé à la logique.
+### Système de Gestion des Événements (`src/event/`)
+
+Le système d'événements est le pont entre l'utilisateur (souris/clavier) et la logique du jeu.
+
+#### Architecture
+*   **Liste Chaînée** : L'`EventManager` maintient une liste d'éléments interactifs (`EventElement`).
+*   **Z-Index** : La liste est triée par profondeur (`z-index`). Les éléments avec un z-index élevé (au premier plan, comme les modales) sont vérifiés en premier.
+
+#### Localisation des Clics (Hit-Testing)
+Comment le jeu sait-il que vous avez cliqué sur le pion en C3 ?
+1.  **Capture** : SDL détecte un clic aux coordonnées écran `(mouse_x, mouse_y)`.
+2.  **Parcours** : `event_manager_handle_event` parcourt la liste des éléments interactifs.
+3.  **Test Géométrique** : Pour chaque élément, il vérifie :
+    ```c
+    if (mouse_x >= element.x && mouse_x < element.x + width &&
+        mouse_y >= element.y && mouse_y < element.y + height)
+    ```
+4.  **Interception** : Le premier élément qui valide ce test "consomme" l'événement (exécute son callback) et arrête la propagation. Cela empêche de cliquer sur le plateau *à travers* un menu de pause.
+
+#### Cas Spécifique du Plateau
+Le plateau n'est pas un seul gros bouton.
+*   Au chargement (`ui_plateau_container`), le code génère **45 éléments atomiques invisibles**.
+*   Chacun est positionné exactement sur une intersection du plateau.
+*   Chacun possède un pointeur vers son ID logique (0 à 44).
+*   Quand vous cliquez visuellement sur un pion, vous cliquez techniquement sur cette "hitbox" invisible qui déclenche `on_intersection_click(id)`.
 
 ---
 
-## 5. Concepts Techniques Clés
+## 5. Flux de Jeu Détaillé (Game Flow)
+
+Voici la séquence d'exécution typique d'une partie, fonction par fonction.
+
+### 1. Démarrage
+*   `main()` : Point d'entrée.
+*   `game_core_create()` : Initialise SDL, le Son, et les Managers.
+*   `scene_manager_set_scene("home")` : Charge l'écran d'accueil.
+
+### 2. Navigation (Menu)
+*   **Clic Bouton** : L'utilisateur clique sur "JOUER".
+*   `ui_link_activate()` : Déclenche la transition.
+*   `scene_manager_change_scene()` : Détruit la scène actuelle (cleanup) et initialise la nouvelle (`menu` -> `choice` -> `profile` -> `pieces` -> `game`).
+
+### 3. En Jeu (In-Game Loop)
+C'est ici que tout se joue (`src/scene/game_scene.c`).
+
+#### A. Sélection
+1.  **Clic** : `on_intersection_click(id)` est appelé.
+2.  **Validation** :
+    *   `game_logic_can_select_piece()` : Vérifie si c'est le tour du joueur et si la pièce lui appartient.
+    *   `calculate_valid_destinations()` : Le moteur de règles scanne le graphe pour trouver les coups possibles (Mika/Miala).
+3.  **Visuel** : `visual_state->selected_intersection` est mis à jour. Le rendu dessine des cercles verts sur les destinations valides.
+
+#### B. Mouvement
+1.  **Clic Destination** : Le joueur clique sur une case verte valide.
+2.  **Exécution** : `execute_animated_move()` démarre.
+3.  **Animation** : Le `PieceAnimationManager` prend le relais. Il interpole la position visuelle $(x,y)$ de la pièce frame par frame. La logique est "suspendue" visuellement.
+4.  **Fin Animation** : `on_move_finished()` est appelé.
+5.  **Mise à jour Logique** :
+    *   `board_move_piece()` : La pièce change officiellement de nœud dans le graphe.
+    *   `detect_capture()` : Vérifie et supprime les pions adverses capturés.
+    *   `sound_play_piece_capture()` : Joue le son si capture.
+
+#### C. Fin de Tour
+1.  **Vérification** : Si aucune capture enchaînée n'est possible ou si le joueur clique sur "Fin du tour".
+2.  **Switch** : `game_logic_next_turn()` change le joueur actif.
+3.  **IA (si active)** : Si c'est au tour de l'IA, `ai_thread_start()` lance le calcul Minimax en arrière-plan.
+
+---
+
+## 6. Système Audio (`src/sound/`)
+
+Le moteur audio est conçu pour être **robuste** et **autonome**.
+
+### Fonctionnement Hybride
+1.  **Chargement** : `sound_load_effect` essaie de charger un fichier `.wav` (ex: `click.wav`).
+2.  **Synthétiseur de Secours (Fallback)** : Si le fichier est introuvable (supprimé ou chemin incorrect), le jeu ne plante pas et ne reste pas muet.
+    *   Il **génère mathématiquement** le son en mémoire (RAM).
+    *   Exemple : Pour un clic, il génère une onde carrée à 1000Hz pendant 50ms.
+    *   Exemple : Pour une victoire, il génère un "sweep" (balayage de fréquence) montant.
+    *   C'est ce qui garantit que le jeu a toujours du son, même sans assets.
+
+### Intégration
+Les sons sont déclenchés par des événements logiques, pas graphiques.
+*   `sound_play_piece_move()` est appelé quand le mouvement est validé logiquement.
+*   `sound_play_victory()` est appelé quand `game_logic_check_win()` retourne vrai.
+
+---
+
+## 7. Concepts Techniques Clés
 
 Pour expliquer le code demain, voici les concepts informatiques utilisés :
 
@@ -194,9 +275,22 @@ Pour expliquer le code demain, voici les concepts informatiques utilisés :
 *   **Arbres (Trees)** : Structure de données implicite créée par la récursion de l'algorithme Minimax de l'IA.
 *   **Allocation Dynamique (`malloc`/`free`)** : Toutes les entités du jeu (Pièces, Joueurs, Scènes) sont allouées dynamiquement pour gérer la mémoire précisément (voir les fonctions `_create` et `_destroy`).
 
+### Le Graphe : Explication Simple à Mémoriser
+
+Imaginez le plateau comme un réseau routier.
+
+*   **Matrice (Tableau 2D)** = **Carte Papier**.
+    *   Pour aller de la ville A à la ville B, vous devez regarder la carte, mesurer la distance, vérifier s'il y a une montagne entre les deux.
+    *   *En code* : Il faut calculer `x+1`, vérifier si on sort du tableau, vérifier la parité pour les diagonales. C'est lent et fastidieux.
+
+*   **Graphe (Liste d'Adjacence)** = **GPS**.
+    *   Pour la ville A, le GPS a déjà une liste pré-enregistrée : "Voisins : [Ville B, Ville C]".
+    *   Il ne calcule rien. Il lit juste la liste.
+    *   *En code* : `node->neighbors` contient déjà les ID des cases accessibles. Si une diagonale est interdite, elle n'est simplement pas dans la liste. L'IA ne perd pas de temps à vérifier des murs invisibles, elle suit juste les routes existantes.
+
 ---
 
-## 6. Mini-Quiz de Soutenance (Questions & Réponses)
+## 8. Mini-Quiz de Soutenance (Questions & Réponses)
 
 Voici une liste de questions techniques probables et les réponses idéales basées sur votre code.
 
@@ -226,3 +320,22 @@ Voici une liste de questions techniques probables et les réponses idéales bas�
 > **Réponse** : C'est une question de performance et de simplicité logique.
 > 1. **Performance** : Si je modifie la matrice pour marquer "Visité", je dois parcourir tout le tableau pour le nettoyer après chaque coup simulé. Avec ma méthode (liste `visited[]`), le nettoyage est instantané ($O(1)$).
 > 2. **Logique** : Le problème principal du Fanorona n'est pas de stocker l'état, mais de gérer les connexions (diagonales autorisées ou non). Une matrice m'obligerait à recalculer la parité `(x+y)%2` à chaque mouvement. Le Graphe me donne directement les chemins valides sans calcul mathématique à chaque frame. C'est comme avoir un GPS qui connaît déjà les routes au lieu de regarder une carte et vérifier les sens interdits à chaque carrefour.
+
+### Q7 : Vous parlez de "Vecteurs", utilisez-vous `std::vector` du C++ ?
+> **Réponse (Piège)** : **Non, attention à la confusion !**
+> En programmation C++, `std::vector` est un tableau dynamique (conteneur).
+> Ici, en C pur, je parle de **Vecteurs Mathématiques (Géométriques)** au sens physique : une direction $(dx, dy)$.
+> J'utilise des structures simples `{int dr; int dc;}` pour représenter le mouvement (ex: `(0, 1)` pour aller à droite).
+
+### Q8 : Pourquoi utiliser l'approche vectorielle pour les captures ?
+> **Réponse** : Pour deux raisons majeures :
+> 1. **Factorisation (DRY)** : Au lieu d'écrire 8 blocs de code pour les 8 directions (Haut, Bas, Diagonales...), j'écris une seule boucle générique qui avance selon le vecteur : `pos += vecteur`.
+> 2. **Symétrie Mika/Miala** : Le Fanorona a deux types de capture opposés.
+>    *   Percussion (Mika) = Regarder devant (`Position + Vecteur`).
+>    *   Aspiration (Miala) = Regarder derrière (`Position - Vecteur`).
+>    L'algèbre vectorielle rend cette inversion triviale (un simple signe moins), ce qui simplifie énormément la logique des règles.
+
+### Q9 : Si votre vecteur me sort du plateau (ex: colonne 9), le jeu plante-t-il ?
+> **Réponse** : Non. C'est là que le **Graphe** protège les **Vecteurs**.
+> Avant d'appliquer aveuglément `pos + vecteur`, je demande au Graphe : "Le nœud actuel a-t-il un voisin dans cette direction ?".
+> Si je suis au bord, la réponse est non (liste d'adjacence vide pour cette direction). L'algorithme s'arrête proprement sans avoir besoin de vérifier manuellement si `x < 0` ou `x > 8`.
